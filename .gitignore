@@ -1,0 +1,9 @@
+target/
+wallet.json
+.bloop/
+.bsp/
+.metals/
+.vscode/
+project/project/
+metals.sbt
+logs/
