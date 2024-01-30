@@ -21,9 +21,7 @@ import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.protocol.script.EmptyScriptPubKey
-import org.bitcoins.core.protocol.script.NonStandardScriptPubKey
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
-import org.bitcoins.core.protocol.script.P2PKWithTimeoutScriptPubKey
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.P2WSHWitnessV0
 import org.bitcoins.core.protocol.script.RawScriptPubKey
@@ -68,7 +66,6 @@ import scodec.bits.ByteVector
 import scopt.OParser
 
 import java.util.UUID
-import org.bitcoins.core.protocol.transaction.TransactionConstants
 
 object Main extends IOApp with BridgeParamsDescriptor {
 
