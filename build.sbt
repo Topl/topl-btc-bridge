@@ -111,6 +111,23 @@ lazy val mavenPublishSettings = List(
   )
 )
 
+lazy val noPublish = Seq(
+  publishLocal / skip := true,
+  publish / skip := true
+)
+
+lazy val shared = (project in file("shared"))
+  .settings(
+    mavenPublishSettings
+  )
+  .settings(
+    commonSettings,
+    name := "topl-btc-bridge-shared",
+    libraryDependencies ++=
+      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.test
+  )
+
 lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
@@ -125,6 +142,7 @@ lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
         Dependencies.toplBtcBridge.test
   )
   .enablePlugins(DockerPlugin, JavaAppPackaging)
+  .dependsOn(shared)
 
 lazy val toplBtcCli = (project in file("topl-btc-cli"))
   .settings(mavenPublishSettings)
@@ -135,4 +153,14 @@ lazy val toplBtcCli = (project in file("topl-btc-cli"))
       Dependencies.toplBtcBridge.main ++
         Dependencies.toplBtcBridge.test
   )
-  .enablePlugins(DockerPlugin, JavaAppPackaging)
+  .enablePlugins(JavaAppPackaging)
+  .dependsOn(shared)
+
+lazy val root = project
+  .in(file("."))
+  .settings(
+    organization := "co.topl",
+    name := "topl-btc-bridge-umbrella",
+  )
+  .settings(noPublish)
+  .aggregate(toplBtcBridge, toplBtcCli)
