@@ -30,8 +30,6 @@ object KeyGenerationUtils {
       purpose = HDPurposes.SegWit
       kmParams = KeyManagerParams(seedPath, purpose, btcNetwork.btcNetwork)
       aesPasswordOpt = Some(AesPassword.fromString(password))
-      // entropy = MnemonicCode.getEntropy256Bits
-      // mnemonic = MnemonicCode.fromEntropy(entropy)
       km <- Sync[F].fromEither(
         BIP39KeyManager
           .fromParams(
@@ -42,13 +40,6 @@ object KeyGenerationUtils {
           .left
           .map(_ => new IllegalArgumentException("Invalid params"))
       )
-      // hdAccount <- Sync[F].fromOption(
-      //   HDAccount.fromPath(
-      //     BIP32Path.fromString("m/84'/1'/0'")
-      //   ) // this is the standard account path for segwit
-      //   ,
-      //   new IllegalArgumentException("Invalid account path")
-      // )
       signed <- Sync[F].delay(
         km.toSign(HDPath.fromString("m/84'/1'/0'/0/0")).sign(txBytes)
       )
