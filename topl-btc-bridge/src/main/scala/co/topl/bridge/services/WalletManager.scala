@@ -1,19 +1,20 @@
 package co.topl.bridge.services
 
 import cats.effect.kernel.Resource
-import cats.effect.IO
 import org.bitcoins.crypto.ECPublicKey
+import cats.Monad
+import cats.effect.kernel.Sync
 
 object WalletManager {
 
-  def createWallet(): Resource[IO, BTCWallet] = {
-    Resource.make(IO(BTCWallet()))(_ => IO.unit)
+  def createWallet[F[_]: Sync](): Resource[F, BTCWallet[F]] = {
+    Resource.make(Sync[F].point(BTCWallet[F]()))(_ => Sync[F].unit)
   }
 
 }
 
-case class BTCWallet() {
-  def getNextPubKey(): IO[ECPublicKey] = {
-    IO(ECPublicKey.freshPublicKey)
+case class BTCWallet[F[_]: Monad]() {
+  def getNextPubKey(): F[ECPublicKey] = {
+    Monad[F].point(ECPublicKey.freshPublicKey)
   }
 }

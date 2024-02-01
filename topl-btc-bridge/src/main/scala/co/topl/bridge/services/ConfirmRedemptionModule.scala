@@ -1,6 +1,6 @@
 package co.topl.bridge.services
 
-import cats.effect.IO
+import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import co.topl.bridge.BitcoinUtils
 import co.topl.bridge.services.StartSessionModule
@@ -19,31 +19,30 @@ import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.crypto._
 import org.http4s._
 import org.http4s.circe._
-import org.http4s.dsl.io._
 import scodec.bits.ByteVector
-import scala.collection.mutable
 
 trait ConfirmRedemptionModule {
 
   self: StartSessionModule =>
 
-  def confirmRedemption(
-      req: Request[IO],
-      mapRes: Resource[IO, mutable.Map[String, SessionInfo]],
-      btcWalletManager: Resource[IO, BTCWallet],
+  def confirmRedemption[F[_]: Async](
+      req: Request[F],
+      keyfile: String,
+      password: String,
+      sessionManager: SessionManagerAlgebra[F],
+      btcWalletManager: Resource[F, BTCWallet[F]],
       btcNetwork: BitcoinNetworkIdentifiers
   ) = {
     implicit val confirmRedemptionRequestDecoder
-        : EntityDecoder[IO, ConfirmRedemptionRequest] =
-      jsonOf[IO, ConfirmRedemptionRequest]
+        : EntityDecoder[F, ConfirmRedemptionRequest] =
+      jsonOf[F, ConfirmRedemptionRequest]
     import io.circe.syntax._
+    import cats.implicits._
+    val dsl = org.http4s.dsl.Http4sDsl[F]
+    import dsl._
     (for {
       req <- req.as[ConfirmRedemptionRequest]
-      sessionInfo <- mapRes.use(map =>
-        IO.fromOption(
-          map.get(req.sessionID)
-        )(new IllegalArgumentException("Invalid session ID"))
-      )
+      sessionInfo <- sessionManager.getSession(req.secret)
       nextPubKey <- btcWalletManager.use(_.getNextPubKey())
       tx = BitcoinUtils.createRedeemingTx(
         req.inputTxId,
@@ -56,11 +55,11 @@ trait ConfirmRedemptionModule {
       serializedTxForSignature =
         BitcoinUtils.serializeForSignature(tx, req.amount.satoshis, srp.asm)
       signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
-      signature <- KeyGenerationUtils.loadKeyAndSign[IO](
-        btcNetwork,
-        req.sessionID + ".json",
-        req.sessionID,
-        signableBytes.bytes
+      km <- KeyGenerationUtils.loadKeyManager[F](btcNetwork, keyfile, password)
+      signature <- KeyGenerationUtils.signWithKeyManager[F](
+        km,
+        signableBytes.bytes,
+        0
       )
       bridgeSig = NonStandardScriptSignature.fromAsm(
         Seq(

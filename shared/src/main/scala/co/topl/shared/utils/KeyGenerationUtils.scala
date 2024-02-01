@@ -16,12 +16,29 @@ import org.bitcoins.crypto.HashType
 
 object KeyGenerationUtils {
 
-  def loadKeyAndSign[F[_]: Sync](
+  def signWithKeyManager[F[_]: Sync](
+      km: BIP39KeyManager,
+      txBytes: ByteVector,
+      currentIdx: Int
+  ): F[String] = {
+    import cats.implicits._
+    for {
+      signed <- Sync[F].delay(
+        km.toSign(HDPath.fromString("m/84'/1'/0'/0/" + currentIdx))
+          .sign(txBytes)
+      )
+      canonicalSignature <- Sync[F].delay(
+        ECDigitalSignature(
+          signed.bytes ++ ByteVector.fromByte(HashType.sigHashAll.byte)
+        )
+      )
+    } yield canonicalSignature.hex
+  }
+  def loadKeyManager[F[_]: Sync](
       btcNetwork: BitcoinNetworkIdentifiers,
       seedFile: String,
-      password: String,
-      txBytes: ByteVector
-  ): F[String] = {
+      password: String
+  ): F[BIP39KeyManager] = {
     import cats.implicits._
     for {
       seedPath <- Sync[F].delay(
@@ -40,20 +57,14 @@ object KeyGenerationUtils {
           .left
           .map(_ => new IllegalArgumentException("Invalid params"))
       )
-      signed <- Sync[F].delay(
-        km.toSign(HDPath.fromString("m/84'/1'/0'/0/0")).sign(txBytes)
-      )
-      canonicalSignature <- Sync[F].delay(ECDigitalSignature(
-        signed.bytes ++ ByteVector.fromByte(HashType.sigHashAll.byte)
-      ))
-    } yield canonicalSignature.hex
+    } yield km
   }
 
-  def generateKey[F[_]: Sync](
+  def createKeyManager[F[_]: Sync](
       btcNetwork: BitcoinNetworkIdentifiers,
       seedFile: String,
       password: String
-  ): F[String] = {
+  ) = {
     import cats.implicits._
     for {
       seedPath <- Sync[F].delay(
@@ -72,6 +83,15 @@ object KeyGenerationUtils {
           kmParams
         )
       )
+    } yield km
+  }
+
+  def generateKey[F[_]: Sync](
+      km: BIP39KeyManager,
+      currentIdx: Int
+  ): F[String] = {
+    import cats.implicits._
+    for {
       hdAccount <- Sync[F].fromOption(
         HDAccount.fromPath(
           BIP32Path.fromString("m/84'/1'/0'")
@@ -82,7 +102,7 @@ object KeyGenerationUtils {
       pKey <- Sync[F].delay(
         km.deriveXPub(hdAccount)
           .get
-          .deriveChildPubKey(BIP32Path.fromString("m/0/0"))
+          .deriveChildPubKey(BIP32Path.fromString("m/0/" + currentIdx.toString))
           .get
           .key
           .hex

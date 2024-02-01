@@ -8,8 +8,12 @@ import cats.effect.kernel.Resource
 import co.topl.bridge.BridgeParamsDescriptor
 import co.topl.bridge.ServerConfig
 import co.topl.bridge.ToplBTCBridgeParamConfig
+import co.topl.bridge.services.BTCWallet
 import co.topl.bridge.services.ConfirmRedemptionModule
+import co.topl.bridge.services.SessionManagerAlgebra
+import co.topl.bridge.services.SessionManagerImpl
 import co.topl.bridge.services.StartSessionModule
+import co.topl.bridge.services.WalletManager
 import co.topl.shared.BitcoinNetworkIdentifiers
 import org.http4s.HttpRoutes
 import org.http4s._
@@ -18,11 +22,8 @@ import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
 import scopt.OParser
-import co.topl.bridge.services.SessionInfo
-import co.topl.bridge.services.SessionManager
-import co.topl.bridge.services.WalletManager
-import co.topl.bridge.services.BTCWallet
-import scala.collection.mutable
+
+import java.util.concurrent.ConcurrentHashMap
 
 object Main
     extends IOApp
@@ -31,14 +32,22 @@ object Main
     with ConfirmRedemptionModule {
 
   def apiServices(
-      mapRes: Resource[IO, mutable.Map[String, SessionInfo]],
-      btcWallet: Resource[IO, BTCWallet],
+      config: ToplBTCBridgeParamConfig,
+      sessionManager: SessionManagerAlgebra[IO],
+      btcWallet: Resource[IO, BTCWallet[IO]],
       btcNetwork: BitcoinNetworkIdentifiers
   ) = HttpRoutes.of[IO] {
     case req @ POST -> Root / "start-session" =>
-      startSession(req, mapRes, btcNetwork)
+      startSession(req, config.seedFile, config.password, sessionManager, btcNetwork)
     case req @ POST -> Root / "confirm-redemption" =>
-      confirmRedemption(req, mapRes, btcWallet, btcNetwork)
+      confirmRedemption(
+        req,
+        config.seedFile,
+        config.password,
+        sessionManager,
+        btcWallet,
+        btcNetwork
+      )
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -69,11 +78,10 @@ object Main
         )
       )(_ => IO.unit)
       app = {
-        val map = mutable.Map.empty[String, SessionInfo]
-        val mapRes = SessionManager.createSessionMap(map)
-        val walletManager = WalletManager.createWallet()
+        val sessionManager = SessionManagerImpl.make[IO](new ConcurrentHashMap())
+        val walletManager = WalletManager.createWallet[IO]()
         val router = Router.define(
-          "/" -> apiServices(mapRes, walletManager, params.btcNetwork)
+          "/" -> apiServices(params, sessionManager, walletManager, params.btcNetwork)
         )(default = staticAssetsService)
 
         Kleisli[IO, Request[IO], Response[IO]] { request =>

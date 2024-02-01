@@ -1,7 +1,6 @@
 package co.topl.bridge.services
 
-import cats.effect.IO
-import cats.effect.kernel.Resource
+import cats.effect.kernel.Async
 import co.topl.bridge.BitcoinUtils
 import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.StartSessionRequest
@@ -18,11 +17,7 @@ import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import org.http4s._
 import org.http4s.circe._
-import org.http4s.dsl.io._
 import scodec.bits.ByteVector
-
-import java.util.UUID
-import scala.collection.mutable
 
 case class SessionInfo(
     bridgePKey: String,
@@ -34,60 +29,77 @@ case class SessionInfo(
 
 trait StartSessionModule {
 
-  def startSession(
-      req: Request[IO],
-      sessionManager: Resource[IO, mutable.Map[String, SessionInfo]],
+  def createSessionInfo(
+      sha256: String,
+      userPKey: String,
+      bridgePKey: String,
+      btcNetwork: BitcoinNetworkIdentifiers
+  ): SessionInfo = {
+    val hash = ByteVector.fromHex(sha256).get
+    val asm =
+      BitcoinUtils.buildScriptAsm(
+        ECPublicKey.fromHex(userPKey),
+        ECPublicKey.fromHex(bridgePKey),
+        hash,
+        1000L
+      )
+    val scriptAsm = BytesUtil.toByteVector(asm)
+    val scriptHash = CryptoUtil.sha256(scriptAsm)
+    val push_op = BitcoinScriptUtil.calculatePushOp(hash)
+    val address = Bech32Address
+      .apply(
+        WitnessScriptPubKey
+          .apply(
+            Seq(OP_0) ++
+              push_op ++
+              Seq(ScriptConstant.fromBytes(scriptHash.bytes))
+          ),
+        btcNetwork.btcNetwork
+      )
+      .value
+    SessionInfo(
+      bridgePKey,
+      userPKey,
+      sha256,
+      scriptAsm.toHex,
+      address
+    )
+  }
+
+  def startSession[F[_]: Async](
+      request: Request[F],
+      keyfile: String,
+      password: String,
+      sessionManager: SessionManagerAlgebra[F],
       btcNetwork: BitcoinNetworkIdentifiers
   ) = {
     implicit val startSessionRequestDecoder
-        : EntityDecoder[IO, StartSessionRequest] =
-      jsonOf[IO, StartSessionRequest]
+        : EntityDecoder[F, StartSessionRequest] =
+      jsonOf[F, StartSessionRequest]
     import io.circe.syntax._
+    import cats.implicits._
+    val dsl = org.http4s.dsl.Http4sDsl[F]
+    import dsl._
     (for {
-      req <- req.as[StartSessionRequest]
-      sessionId <- IO(UUID.randomUUID().toString)
-      password <- IO(sessionId)
-      newKey <- KeyGenerationUtils.generateKey[IO](
+      req <- request.as[StartSessionRequest]
+      km <- KeyGenerationUtils.loadKeyManager[F](
         btcNetwork,
-        sessionId + ".json",
+        keyfile,
         password
       )
-      hash = ByteVector.fromHex(req.sha256).get
-      asm <- IO(
-        BitcoinUtils.buildScriptAsm(
-          ECPublicKey.fromHex(req.pkey),
-          ECPublicKey.fromHex(newKey),
-          hash,
-          1000L
-        )
-      )
-      scriptAsm = BytesUtil.toByteVector(asm)
-      scriptHash = CryptoUtil.sha256(scriptAsm)
-      push_op = BitcoinScriptUtil.calculatePushOp(hash)
-      address = Bech32Address
-        .apply(
-          WitnessScriptPubKey
-            .apply(
-              Seq(OP_0) ++
-                push_op ++
-                Seq(ScriptConstant.fromBytes(scriptHash.bytes))
-            ),
-          btcNetwork.btcNetwork
-        )
-        .value
-      sessionInfo = SessionInfo(
-        newKey,
-        req.pkey,
+      newKey <- KeyGenerationUtils.generateKey[F](km, 1)
+      sessionInfo = createSessionInfo(
         req.sha256,
-        scriptAsm.toHex,
-        address
+        req.pkey,
+        newKey,
+        btcNetwork
       )
-      _ <- sessionManager.use(map => IO(map.update(sessionId, sessionInfo)))
+      sessionId <- sessionManager.createNewSession(sessionInfo)
       resp <- Ok(
         StartSessionResponse(
           sessionId,
-          scriptAsm.toHex,
-          address,
+          sessionInfo.scriptAsm,
+          sessionInfo.address,
           BitcoinUtils.createDescriptor(newKey, req.pkey, req.sha256)
         ).asJson
       )

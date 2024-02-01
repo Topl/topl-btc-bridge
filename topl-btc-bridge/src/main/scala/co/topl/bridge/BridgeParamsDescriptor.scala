@@ -19,7 +19,22 @@ trait BridgeParamsDescriptor {
         .action((x, c) => c.copy(btcNetwork = x))
         .text(
           "Network name: Possible values: mainnet, testnet, regtest. (mandatory)"
-        )
+        ),
+      opt[Int]("blocks-to-redeem")
+        .action((x, c) => c.copy(blockToRedeem = x))
+        .text(
+          "The number of blocks that the user needs to wait before they can reclaim their funds. (default: 100)"
+        ),
+      opt[String]("seed-file")
+        .action((x, c) => c.copy(seedFile = x))
+        .text(
+          "The path to the seed file. (default: wallet.json)"
+        ),
+      opt[String]("password")
+        .action((x, c) => c.copy(seedFile = x))
+        .text(
+          "The password to the seed file. (default: password)"
+        ),
     )
   }
 
