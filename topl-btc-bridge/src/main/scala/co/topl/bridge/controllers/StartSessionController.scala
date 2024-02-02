@@ -1,11 +1,13 @@
-package co.topl.bridge.services
+package co.topl.bridge.controllers
 
 import cats.effect.kernel.Async
-import co.topl.bridge.BitcoinUtils
+import co.topl.bridge.managers.BTCWalletAlgebra
+import co.topl.bridge.managers.SessionInfo
+import co.topl.bridge.managers.SessionManagerAlgebra
+import co.topl.bridge.utils.BitcoinUtils
 import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.StartSessionRequest
 import co.topl.shared.StartSessionResponse
-import io.circe.generic.auto._
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
 import org.bitcoins.core.script.constant.OP_0
@@ -14,22 +16,11 @@ import org.bitcoins.core.util.BitcoinScriptUtil
 import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
-import org.http4s._
-import org.http4s.circe._
 import scodec.bits.ByteVector
 
-case class SessionInfo(
-    bridgePKey: String,
-    currentWalletIdx: Int,
-    userPKey: String,
-    secretHash: String,
-    scriptAsm: String,
-    address: String
-)
+object StartSessionController {
 
-trait StartSessionModule {
-
-  def createSessionInfo(
+  private def createSessionInfo(
       currentWalletIdx: Int,
       sha256: String,
       userPKey: String,
@@ -69,20 +60,13 @@ trait StartSessionModule {
   }
 
   def startSession[F[_]: Async](
-      request: Request[F],
+      req: StartSessionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       btcNetwork: BitcoinNetworkIdentifiers
   ) = {
-    implicit val startSessionRequestDecoder
-        : EntityDecoder[F, StartSessionRequest] =
-      jsonOf[F, StartSessionRequest]
-    import io.circe.syntax._
     import cats.implicits._
-    val dsl = org.http4s.dsl.Http4sDsl[F]
-    import dsl._
     (for {
-      req <- request.as[StartSessionRequest]
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
       sessionInfo = createSessionInfo(
@@ -93,18 +77,12 @@ trait StartSessionModule {
         btcNetwork
       )
       sessionId <- sessionManager.createNewSession(sessionInfo)
-      resp <- Ok(
-        StartSessionResponse(
-          sessionId,
-          sessionInfo.scriptAsm,
-          sessionInfo.address,
-          BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
-        ).asJson
-      )
-    } yield resp).handleErrorWith(e => {
-      e.printStackTrace()
-      BadRequest("Error")
-    })
+    } yield StartSessionResponse(
+      sessionId,
+      sessionInfo.scriptAsm,
+      sessionInfo.address,
+      BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
+    ))
   }
 
 }

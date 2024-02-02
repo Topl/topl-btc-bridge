@@ -21,11 +21,11 @@ object Main extends IOApp with TBCLIParamsDescriptor {
           case Some(command) =>
             processCommand(config.btcNetwork, command)
           case None =>
-            println("No command specified")
-            IO(ExitCode.Error)
+            IO.consoleForIO.errorln("No command specified") *>
+              IO(ExitCode.Error)
         }
       case None =>
-        println("Invalid arguments")
+        IO.consoleForIO.errorln("Invalid arguments") *>
         IO(ExitCode.Error)
     }
   }

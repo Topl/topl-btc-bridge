@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.utils
 
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.number.Int32

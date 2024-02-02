@@ -1,4 +1,4 @@
-package co.topl.bridge.services
+package co.topl.bridge.managers
 
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
@@ -20,30 +20,32 @@ object BTCWalletImpl {
 
   def make[F[_]: Sync](
       km: BIP39KeyManager
-  ): BTCWalletAlgebra[F] = {
+  ): F[BTCWalletAlgebra[F]] = {
+    import cats.implicits._
 
-    val currentIdxRef = Ref[F].of(0)
-    new BTCWalletAlgebra[F] {
+    for {
+      currentIdx <- Ref[F].of(0)
+    } yield new BTCWalletAlgebra[F] {
       override def getCurrentPubKeyAndPrepareNext(): F[(Int, ECPublicKey)] = {
-        import cats.implicits._
         for {
-          currentIdx <- currentIdxRef
           idx <- currentIdx.getAndUpdate(_ + 1)
+          nextIdx <- currentIdx.get
+          _ = println("idx: " + nextIdx)
           pubKey <- KeyGenerationUtils.generateKey(km, idx)
         } yield (idx, pubKey)
       }
 
       override def getCurrentPubKey(): F[ECPublicKey] = {
-        import cats.implicits._
         for {
-          currentIdx <- currentIdxRef
           idx <- currentIdx.get
           pubKey <- KeyGenerationUtils.generateKey(km, idx)
         } yield pubKey
       }
 
-      override def signForIdx(idx: Int, txBytes: ByteVector): F[ECDigitalSignature] = {
-        import cats.implicits._
+      override def signForIdx(
+          idx: Int,
+          txBytes: ByteVector
+      ): F[ECDigitalSignature] = {
         for {
           signed <- Sync[F].delay(
             km.toSign(HDPath.fromString("m/84'/1'/0'/0/" + idx))

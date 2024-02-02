@@ -1,8 +1,10 @@
-package co.topl.bridge.services
+package co.topl.bridge.controllers
 
 import cats.effect.kernel.Async
-import co.topl.bridge.BitcoinUtils
-import co.topl.bridge.services.StartSessionModule
+import cats.effect.kernel.Sync
+import co.topl.bridge.managers.BTCWalletAlgebra
+import co.topl.bridge.managers.SessionManagerAlgebra
+import co.topl.bridge.utils.BitcoinUtils
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
 import io.circe.generic.auto._
@@ -14,29 +16,22 @@ import org.bitcoins.core.protocol.transaction.WitnessTransaction
 import org.bitcoins.core.script.constant.OP_0
 import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.crypto._
-import org.http4s._
 import org.http4s.circe._
 import scodec.bits.ByteVector
 
-trait ConfirmRedemptionModule {
-
-  self: StartSessionModule =>
+object ConfirmRedemptionController {
 
   def confirmRedemption[F[_]: Async](
-      req: Request[F],
+      req: ConfirmRedemptionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       walletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F]
   ) = {
-    implicit val confirmRedemptionRequestDecoder
-        : EntityDecoder[F, ConfirmRedemptionRequest] =
-      jsonOf[F, ConfirmRedemptionRequest]
     import io.circe.syntax._
     import cats.implicits._
     val dsl = org.http4s.dsl.Http4sDsl[F]
     import dsl._
     (for {
-      req <- req.as[ConfirmRedemptionRequest]
       sessionInfo <- sessionManager.getSession(req.sessionID)
       nextPubKey <- walletManager.getCurrentPubKey()
       tx = BitcoinUtils.createRedeemingTx(
@@ -80,8 +75,8 @@ trait ConfirmRedemptionModule {
         ).asJson
       )
     } yield resp).handleErrorWith(e => {
-      e.printStackTrace()
-      BadRequest("Error")
+      Sync[F].delay(e.printStackTrace()) *>
+        BadRequest("Error")
     })
   }
 }

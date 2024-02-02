@@ -8,13 +8,19 @@ import cats.effect.kernel.Resource
 import co.topl.bridge.BridgeParamsDescriptor
 import co.topl.bridge.ServerConfig
 import co.topl.bridge.ToplBTCBridgeParamConfig
-import co.topl.bridge.services.ConfirmRedemptionModule
-import co.topl.bridge.services.SessionManagerAlgebra
-import co.topl.bridge.services.SessionManagerImpl
-import co.topl.bridge.services.StartSessionModule
+import co.topl.bridge.controllers.ConfirmRedemptionController
+import co.topl.bridge.controllers.StartSessionController
+import co.topl.bridge.managers.BTCWalletAlgebra
+import co.topl.bridge.managers.BTCWalletImpl
+import co.topl.bridge.managers.SessionManagerAlgebra
+import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.shared.BitcoinNetworkIdentifiers
+import co.topl.shared.StartSessionRequest
+import co.topl.shared.utils.KeyGenerationUtils
+import io.circe.generic.auto._
 import org.http4s.HttpRoutes
 import org.http4s._
+import org.http4s.circe._
 import org.http4s.dsl.io._
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
@@ -22,15 +28,12 @@ import org.http4s.server.staticcontent.resourceServiceBuilder
 import scopt.OParser
 
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.utils.KeyGenerationUtils
-import co.topl.bridge.services.BTCWalletImpl
-import co.topl.bridge.services.BTCWalletAlgebra
+import co.topl.shared.ConfirmRedemptionRequest
 
-object Main
-    extends IOApp
-    with BridgeParamsDescriptor
-    with StartSessionModule
-    with ConfirmRedemptionModule {
+object Main extends IOApp with BridgeParamsDescriptor {
+
+  import StartSessionController._
+  import ConfirmRedemptionController._
 
   def apiServices(
       sessionManager: SessionManagerAlgebra[IO],
@@ -39,19 +42,33 @@ object Main
       btcNetwork: BitcoinNetworkIdentifiers
   ) = HttpRoutes.of[IO] {
     case req @ POST -> Root / "start-session" =>
-      startSession(
-        req,
-        pegInWalletManager,
-        sessionManager,
-        btcNetwork
-      )
+      implicit val startSessionRequestDecoder
+          : EntityDecoder[IO, StartSessionRequest] =
+        jsonOf[IO, StartSessionRequest]
+      import io.circe.syntax._
+      for {
+        x <- req.as[StartSessionRequest]
+        res <- startSession(
+          x,
+          pegInWalletManager,
+          sessionManager,
+          btcNetwork
+        )
+        resp <- Ok(res.asJson)
+      } yield resp
     case req @ POST -> Root / "confirm-redemption" =>
-      confirmRedemption(
-        req,
-        pegInWalletManager,
-        walletManager,
-        sessionManager
-      )
+      implicit val confirmRedemptionRequestDecoder
+          : EntityDecoder[IO, ConfirmRedemptionRequest] =
+        jsonOf[IO, ConfirmRedemptionRequest]
+      for {
+        x <- req.as[ConfirmRedemptionRequest]
+        res <- confirmRedemption(
+          x,
+          pegInWalletManager,
+          walletManager,
+          sessionManager
+        )
+      } yield res
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -59,8 +76,8 @@ object Main
       case Some(config) =>
         runWithArgs(config)
       case None =>
-        println("Invalid arguments")
-        IO(ExitCode.Error)
+        IO.consoleForIO.errorln("Invalid arguments") *>
+          IO(ExitCode.Error)
     }
   }
 
@@ -95,11 +112,15 @@ object Main
           params.walletPassword
         )
       )(_ => IO.unit)
+      pegInWalletManager <- Resource.make(
+        BTCWalletImpl.make[IO](pegInKm)
+      )(_ => IO.unit)
+      walletManager <- Resource.make(
+        BTCWalletImpl.make[IO](walletKm)
+      )(_ => IO.unit)
       app = {
         val sessionManager =
           SessionManagerImpl.make[IO](new ConcurrentHashMap())
-        val pegInWalletManager = BTCWalletImpl.make[IO](pegInKm)
-        val walletManager = BTCWalletImpl.make[IO](walletKm)
         val router = Router.define(
           "/" -> apiServices(
             sessionManager,

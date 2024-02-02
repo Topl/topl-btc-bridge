@@ -1,9 +1,19 @@
-package co.topl.bridge.services
+package co.topl.bridge.managers
 
 import cats.effect.kernel.Sync
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentMap
+
+
+case class SessionInfo(
+    bridgePKey: String,
+    currentWalletIdx: Int,
+    userPKey: String,
+    secretHash: String,
+    scriptAsm: String,
+    address: String
+)
 
 trait SessionManagerAlgebra[F[_]] {
   def createNewSession(
@@ -26,7 +36,6 @@ object SessionManagerImpl {
       for {
         sessionId <- Sync[F].delay(UUID.randomUUID().toString)
         _ <- Sync[F].delay(map.put(sessionId, sessionInfo))
-        _ = println("map: " + map)
       } yield sessionId
     }
 
@@ -35,8 +44,6 @@ object SessionManagerImpl {
     ): F[SessionInfo] = {
       Sync[F].fromOption(
         {
-          println("map: " + map)
-          println("sessionId: " + sessionId)
           Option(map.get(sessionId))
         },
         new IllegalArgumentException("Invalid session ID")
