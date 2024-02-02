@@ -1,13 +1,10 @@
 package co.topl.bridge.services
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Resource
 import co.topl.bridge.BitcoinUtils
 import co.topl.bridge.services.StartSessionModule
-import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
-import co.topl.shared.utils.KeyGenerationUtils
 import io.circe.generic.auto._
 import org.bitcoins.core.currency.SatoshisLong
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
@@ -27,11 +24,9 @@ trait ConfirmRedemptionModule {
 
   def confirmRedemption[F[_]: Async](
       req: Request[F],
-      keyfile: String,
-      password: String,
-      sessionManager: SessionManagerAlgebra[F],
-      btcWalletManager: Resource[F, BTCWallet[F]],
-      btcNetwork: BitcoinNetworkIdentifiers
+      pegInWalletManager: BTCWalletAlgebra[F],
+      walletManager: BTCWalletAlgebra[F],
+      sessionManager: SessionManagerAlgebra[F]
   ) = {
     implicit val confirmRedemptionRequestDecoder
         : EntityDecoder[F, ConfirmRedemptionRequest] =
@@ -42,8 +37,8 @@ trait ConfirmRedemptionModule {
     import dsl._
     (for {
       req <- req.as[ConfirmRedemptionRequest]
-      sessionInfo <- sessionManager.getSession(req.secret)
-      nextPubKey <- btcWalletManager.use(_.getNextPubKey())
+      sessionInfo <- sessionManager.getSession(req.sessionID)
+      nextPubKey <- walletManager.getCurrentPubKey()
       tx = BitcoinUtils.createRedeemingTx(
         req.inputTxId,
         req.inputIndex,
@@ -55,11 +50,9 @@ trait ConfirmRedemptionModule {
       serializedTxForSignature =
         BitcoinUtils.serializeForSignature(tx, req.amount.satoshis, srp.asm)
       signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
-      km <- KeyGenerationUtils.loadKeyManager[F](btcNetwork, keyfile, password)
-      signature <- KeyGenerationUtils.signWithKeyManager[F](
-        km,
-        signableBytes.bytes,
-        0
+      signature <- pegInWalletManager.signForIdx(
+        sessionInfo.currentWalletIdx,
+        signableBytes.bytes
       )
       bridgeSig = NonStandardScriptSignature.fromAsm(
         Seq(
@@ -67,7 +60,7 @@ trait ConfirmRedemptionModule {
             ByteVector(req.secret.getBytes().padTo(32, 0.toByte))
           ),
           ScriptConstant(
-            signature
+            signature.hex
           ), // signature of bridge
           OP_0
         )

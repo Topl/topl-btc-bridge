@@ -62,8 +62,14 @@ object Main extends IOApp with TBCLIParamsDescriptor {
           .map("%02x".format(_))
           .mkString
       )
-      pKey <- KeyGenerationUtils
-        .generateKey[F](btcNetwork, initSession.seedFile, initSession.password)
-    } yield StartSessionRequest(pKey, secretSha256)
+
+      km <- KeyGenerationUtils
+        .createKeyManager[F](
+          btcNetwork,
+          initSession.seedFile,
+          initSession.password
+        )
+      pKey <- KeyGenerationUtils.generateKey[F](km, 1)
+    } yield StartSessionRequest(pKey.hex, secretSha256)
   }
 }

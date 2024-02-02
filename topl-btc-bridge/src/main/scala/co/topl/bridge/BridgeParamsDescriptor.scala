@@ -25,13 +25,23 @@ trait BridgeParamsDescriptor {
         .text(
           "The number of blocks that the user needs to wait before they can reclaim their funds. (default: 100)"
         ),
+      opt[String]("peg-in-seed-file")
+        .action((x, c) => c.copy(pegInSeedFile = x))
+        .text(
+          "The path to the peg inn seed file. (default: pegin-wallet.json)"
+        ),
+      opt[String]("peg-in-password")
+        .action((x, c) => c.copy(pegInPassword = x))
+        .text(
+          "The password to the seed file. (default: password)"
+        ),
       opt[String]("seed-file")
-        .action((x, c) => c.copy(seedFile = x))
+        .action((x, c) => c.copy(walletSeedFile = x))
         .text(
           "The path to the seed file. (default: wallet.json)"
         ),
       opt[String]("password")
-        .action((x, c) => c.copy(seedFile = x))
+        .action((x, c) => c.copy(walletPassword = x))
         .text(
           "The password to the seed file. (default: password)"
         ),

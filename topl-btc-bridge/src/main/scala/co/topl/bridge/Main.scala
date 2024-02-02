@@ -8,12 +8,10 @@ import cats.effect.kernel.Resource
 import co.topl.bridge.BridgeParamsDescriptor
 import co.topl.bridge.ServerConfig
 import co.topl.bridge.ToplBTCBridgeParamConfig
-import co.topl.bridge.services.BTCWallet
 import co.topl.bridge.services.ConfirmRedemptionModule
 import co.topl.bridge.services.SessionManagerAlgebra
 import co.topl.bridge.services.SessionManagerImpl
 import co.topl.bridge.services.StartSessionModule
-import co.topl.bridge.services.WalletManager
 import co.topl.shared.BitcoinNetworkIdentifiers
 import org.http4s.HttpRoutes
 import org.http4s._
@@ -24,6 +22,9 @@ import org.http4s.server.staticcontent.resourceServiceBuilder
 import scopt.OParser
 
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.shared.utils.KeyGenerationUtils
+import co.topl.bridge.services.BTCWalletImpl
+import co.topl.bridge.services.BTCWalletAlgebra
 
 object Main
     extends IOApp
@@ -32,21 +33,24 @@ object Main
     with ConfirmRedemptionModule {
 
   def apiServices(
-      config: ToplBTCBridgeParamConfig,
       sessionManager: SessionManagerAlgebra[IO],
-      btcWallet: Resource[IO, BTCWallet[IO]],
+      pegInWalletManager: BTCWalletAlgebra[IO],
+      walletManager: BTCWalletAlgebra[IO],
       btcNetwork: BitcoinNetworkIdentifiers
   ) = HttpRoutes.of[IO] {
     case req @ POST -> Root / "start-session" =>
-      startSession(req, config.seedFile, config.password, sessionManager, btcNetwork)
+      startSession(
+        req,
+        pegInWalletManager,
+        sessionManager,
+        btcNetwork
+      )
     case req @ POST -> Root / "confirm-redemption" =>
       confirmRedemption(
         req,
-        config.seedFile,
-        config.password,
-        sessionManager,
-        btcWallet,
-        btcNetwork
+        pegInWalletManager,
+        walletManager,
+        sessionManager
       )
   }
 
@@ -77,13 +81,33 @@ object Main
           headers.`Content-Type`(MediaType.text.html)
         )
       )(_ => IO.unit)
+      pegInKm <- Resource.make(
+        KeyGenerationUtils.loadKeyManager[IO](
+          params.btcNetwork,
+          params.pegInSeedFile,
+          params.pegInPassword
+        )
+      )(_ => IO.unit)
+      walletKm <- Resource.make(
+        KeyGenerationUtils.loadKeyManager[IO](
+          params.btcNetwork,
+          params.walletSeedFile,
+          params.walletPassword
+        )
+      )(_ => IO.unit)
       app = {
-        val sessionManager = SessionManagerImpl.make[IO](new ConcurrentHashMap())
-        val walletManager = WalletManager.createWallet[IO]()
+        val sessionManager =
+          SessionManagerImpl.make[IO](new ConcurrentHashMap())
+        val pegInWalletManager = BTCWalletImpl.make[IO](pegInKm)
+        val walletManager = BTCWalletImpl.make[IO](walletKm)
         val router = Router.define(
-          "/" -> apiServices(params, sessionManager, walletManager, params.btcNetwork)
+          "/" -> apiServices(
+            sessionManager,
+            pegInWalletManager,
+            walletManager,
+            params.btcNetwork
+          )
         )(default = staticAssetsService)
-
         Kleisli[IO, Request[IO], Response[IO]] { request =>
           router.run(request).getOrElse(notFoundResponse)
         }

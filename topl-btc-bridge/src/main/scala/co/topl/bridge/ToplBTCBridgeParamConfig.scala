@@ -6,7 +6,9 @@ import co.topl.shared.BitcoinNetworkIdentifiers
 case class ToplBTCBridgeParamConfig(
     blockToRedeem: Int =
       100, // the number of blocks to wait before the user can reclaim their funds
-    seedFile: String = "wallet.json",
-    password: String = "password",
+    pegInSeedFile: String = "pegin-wallet.json",
+    pegInPassword: String = "password",
+    walletSeedFile: String = "wallet.json",
+    walletPassword: String = "password",
     btcNetwork: BitcoinNetworkIdentifiers = RegTest
 )

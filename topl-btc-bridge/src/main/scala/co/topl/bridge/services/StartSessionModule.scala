@@ -5,7 +5,6 @@ import co.topl.bridge.BitcoinUtils
 import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.StartSessionRequest
 import co.topl.shared.StartSessionResponse
-import co.topl.shared.utils.KeyGenerationUtils
 import io.circe.generic.auto._
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
@@ -21,6 +20,7 @@ import scodec.bits.ByteVector
 
 case class SessionInfo(
     bridgePKey: String,
+    currentWalletIdx: Int,
     userPKey: String,
     secretHash: String,
     scriptAsm: String,
@@ -30,6 +30,7 @@ case class SessionInfo(
 trait StartSessionModule {
 
   def createSessionInfo(
+      currentWalletIdx: Int,
       sha256: String,
       userPKey: String,
       bridgePKey: String,
@@ -59,6 +60,7 @@ trait StartSessionModule {
       .value
     SessionInfo(
       bridgePKey,
+      currentWalletIdx,
       userPKey,
       sha256,
       scriptAsm.toHex,
@@ -68,8 +70,7 @@ trait StartSessionModule {
 
   def startSession[F[_]: Async](
       request: Request[F],
-      keyfile: String,
-      password: String,
+      pegInWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       btcNetwork: BitcoinNetworkIdentifiers
   ) = {
@@ -82,16 +83,13 @@ trait StartSessionModule {
     import dsl._
     (for {
       req <- request.as[StartSessionRequest]
-      km <- KeyGenerationUtils.loadKeyManager[F](
-        btcNetwork,
-        keyfile,
-        password
-      )
-      newKey <- KeyGenerationUtils.generateKey[F](km, 1)
+      idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
+      (idx, newKey) = idxAndnewKey
       sessionInfo = createSessionInfo(
+        idx,
         req.sha256,
         req.pkey,
-        newKey,
+        newKey.hex,
         btcNetwork
       )
       sessionId <- sessionManager.createNewSession(sessionInfo)
@@ -100,7 +98,7 @@ trait StartSessionModule {
           sessionId,
           sessionInfo.scriptAsm,
           sessionInfo.address,
-          BitcoinUtils.createDescriptor(newKey, req.pkey, req.sha256)
+          BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
         ).asJson
       )
     } yield resp).handleErrorWith(e => {

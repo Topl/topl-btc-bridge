@@ -26,6 +26,7 @@ object SessionManagerImpl {
       for {
         sessionId <- Sync[F].delay(UUID.randomUUID().toString)
         _ <- Sync[F].delay(map.put(sessionId, sessionInfo))
+        _ = println("map: " + map)
       } yield sessionId
     }
 
@@ -33,7 +34,11 @@ object SessionManagerImpl {
         sessionId: String
     ): F[SessionInfo] = {
       Sync[F].fromOption(
-        Option(map.get(sessionId)),
+        {
+          println("map: " + map)
+          println("sessionId: " + sessionId)
+          Option(map.get(sessionId))
+        },
         new IllegalArgumentException("Invalid session ID")
       )
     }

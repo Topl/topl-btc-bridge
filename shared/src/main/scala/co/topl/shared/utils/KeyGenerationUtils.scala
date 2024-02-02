@@ -13,6 +13,7 @@ import org.bitcoins.keymanager.bip39.BIP39KeyManager
 import scodec.bits.ByteVector
 import org.bitcoins.crypto.ECDigitalSignature
 import org.bitcoins.crypto.HashType
+import org.bitcoins.crypto.ECPublicKey
 
 object KeyGenerationUtils {
 
@@ -89,7 +90,7 @@ object KeyGenerationUtils {
   def generateKey[F[_]: Sync](
       km: BIP39KeyManager,
       currentIdx: Int
-  ): F[String] = {
+  ): F[ECPublicKey] = {
     import cats.implicits._
     for {
       hdAccount <- Sync[F].fromOption(
@@ -105,7 +106,6 @@ object KeyGenerationUtils {
           .deriveChildPubKey(BIP32Path.fromString("m/0/" + currentIdx.toString))
           .get
           .key
-          .hex
       )
     } yield (pKey)
   }
