@@ -1,13 +1,10 @@
 package co.topl.bridge.controllers
 
-import cats.effect.kernel.Async
-import cats.effect.kernel.Sync
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.utils.BitcoinUtils
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
-import io.circe.generic.auto._
 import org.bitcoins.core.currency.SatoshisLong
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
 import org.bitcoins.core.protocol.script.P2WSHWitnessV0
@@ -16,23 +13,28 @@ import org.bitcoins.core.protocol.transaction.WitnessTransaction
 import org.bitcoins.core.script.constant.OP_0
 import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.crypto._
-import org.http4s.circe._
 import scodec.bits.ByteVector
+import co.topl.shared.SessionNotFoundError
+import cats.effect.kernel.Sync
+import co.topl.shared.BridgeError
 
 object ConfirmRedemptionController {
 
-  def confirmRedemption[F[_]: Async](
+  def confirmRedemption[F[_]: Sync](
       req: ConfirmRedemptionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       walletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F]
-  ) = {
-    import io.circe.syntax._
+  ): F[Either[BridgeError, ConfirmRedemptionResponse]] = {
     import cats.implicits._
-    val dsl = org.http4s.dsl.Http4sDsl[F]
-    import dsl._
     (for {
-      sessionInfo <- sessionManager.getSession(req.sessionID)
+      sessionInfo <- sessionManager
+        .getSession(req.sessionID)
+        .handleError(_ =>
+          throw SessionNotFoundError(
+            s"Session with id ${req.sessionID} not found"
+          )
+        )
       nextPubKey <- walletManager.getCurrentPubKey()
       tx = BitcoinUtils.createRedeemingTx(
         req.inputTxId,
@@ -69,14 +71,8 @@ object ConfirmRedemptionController {
             bridgeSig
           )
         )
-      resp <- Ok(
-        ConfirmRedemptionResponse(
-          txWit.hex
-        ).asJson
-      )
-    } yield resp).handleErrorWith(e => {
-      Sync[F].delay(e.printStackTrace()) *>
-        BadRequest("Error")
-    })
+    } yield ConfirmRedemptionResponse(txWit.hex).asRight[BridgeError]).recover {
+      case e: BridgeError => Left(e)
+    }
   }
 }

@@ -1,0 +1,28 @@
+package co.topl.bridge.controllers
+
+trait SharedData {
+
+  val testKey =
+    "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a"
+
+  val testHash =
+    "497a39b618484855ebb5a2cabf6ee52ff092e7c17f8bfe79313529f9774f83a2"
+
+  val testInputTx =
+    "08d9a63c8e05945d83dd8460d9418e506beb041dd719104108fc53733e8de1d0"
+
+  val peginWalletFile = "topl-btc-bridge/src/test/resources/pegin-wallet.json"
+
+  val walletFile = "topl-btc-bridge/src/test/resources/pegin-wallet.json"
+
+  val testSecret = "secret"
+
+  val testPassword = "password"
+
+  val testTx =
+    "02000000000101d0e18d3e7353fc08411019d71d04eb6b508e41d96084dd835d94058e3ca6d9080000000000000000000168790700000000001600141acd3914a37c97234ff2bfc0286bc3b9faa7b66804207365637265740000000000000000000000000000000000000000000000000000483045022100b22aa5e9b8152890c1388d40fea5dbed87c7c2016abcd692451969b12a674bde022050242bf36aa9bfaaa420a52b0c4daa48a5e01a41344183fc4b7303fc98d2468c010073210295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4aac64210366c1e0b84a28f05ac6a5548ddacf7ac203908f685bd477fd58adcb5bb41f3e4fad82012088a820497a39b618484855ebb5a2cabf6ee52ff092e7c17f8bfe79313529f9774f83a287670164b26800000000"
+
+
+  val testBlockToRecover = 100
+
+}

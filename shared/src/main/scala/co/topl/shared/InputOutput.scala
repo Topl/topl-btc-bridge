@@ -24,3 +24,9 @@ case class ConfirmRedemptionRequest(
 case class ConfirmRedemptionResponse(
     tx: String
 )
+
+sealed trait BridgeError extends Throwable
+
+case class SessionNotFoundError(error: String) extends BridgeError
+case class InvalidKey(error: String) extends BridgeError
+case class InvalidHash(error: String) extends BridgeError

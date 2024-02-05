@@ -17,42 +17,55 @@ import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
+import co.topl.shared.BridgeError
+import cats.effect.kernel.Sync
+import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidKey
 
 object StartSessionController {
 
-  private def createSessionInfo(
+  private def createSessionInfo[F[_]: Sync](
       currentWalletIdx: Int,
       sha256: String,
-      userPKey: String,
+      pUserPKey: String,
       bridgePKey: String,
+      blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers
-  ): SessionInfo = {
-    val hash = ByteVector.fromHex(sha256).get
-    val asm =
-      BitcoinUtils.buildScriptAsm(
-        ECPublicKey.fromHex(userPKey),
-        ECPublicKey.fromHex(bridgePKey),
-        hash,
-        1000L
+  ): F[SessionInfo] = {
+    import cats.implicits._
+    for {
+      hash <- Sync[F].fromOption(
+        ByteVector.fromHex(sha256),
+        InvalidHash(s"Invalid hash $sha256")
       )
-    val scriptAsm = BytesUtil.toByteVector(asm)
-    val scriptHash = CryptoUtil.sha256(scriptAsm)
-    val push_op = BitcoinScriptUtil.calculatePushOp(hash)
-    val address = Bech32Address
-      .apply(
-        WitnessScriptPubKey
-          .apply(
-            Seq(OP_0) ++
-              push_op ++
-              Seq(ScriptConstant.fromBytes(scriptHash.bytes))
-          ),
-        btcNetwork.btcNetwork
-      )
-      .value
-    SessionInfo(
+      userPKey <- Sync[F]
+        .delay(ECPublicKey.fromHex(pUserPKey))
+        .handleError(_ => throw InvalidKey(s"Invalid key $pUserPKey"))
+      asm =
+        BitcoinUtils.buildScriptAsm(
+          userPKey,
+          ECPublicKey.fromHex(bridgePKey),
+          hash,
+          blockToRecover
+        )
+      scriptAsm = BytesUtil.toByteVector(asm)
+      scriptHash = CryptoUtil.sha256(scriptAsm)
+      push_op = BitcoinScriptUtil.calculatePushOp(hash)
+      address = Bech32Address
+        .apply(
+          WitnessScriptPubKey
+            .apply(
+              Seq(OP_0) ++
+                push_op ++
+                Seq(ScriptConstant.fromBytes(scriptHash.bytes))
+            ),
+          btcNetwork.btcNetwork
+        )
+        .value
+    } yield SessionInfo(
       bridgePKey,
       currentWalletIdx,
-      userPKey,
+      userPKey.hex,
       sha256,
       scriptAsm.toHex,
       address
@@ -63,17 +76,19 @@ object StartSessionController {
       req: StartSessionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
+      blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers
-  ) = {
+  ): F[Either[BridgeError, StartSessionResponse]] = {
     import cats.implicits._
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
-      sessionInfo = createSessionInfo(
+      sessionInfo <- createSessionInfo(
         idx,
         req.sha256,
         req.pkey,
         newKey.hex,
+        blockToRecover,
         btcNetwork
       )
       sessionId <- sessionManager.createNewSession(sessionInfo)
@@ -82,7 +97,9 @@ object StartSessionController {
       sessionInfo.scriptAsm,
       sessionInfo.address,
       BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
-    ))
+    ).asRight[BridgeError]).handleError { case e: BridgeError =>
+      Left(e)
+    }
   }
 
 }

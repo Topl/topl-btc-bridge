@@ -29,8 +29,6 @@ object BTCWalletImpl {
       override def getCurrentPubKeyAndPrepareNext(): F[(Int, ECPublicKey)] = {
         for {
           idx <- currentIdx.getAndUpdate(_ + 1)
-          nextIdx <- currentIdx.get
-          _ = println("idx: " + nextIdx)
           pubKey <- KeyGenerationUtils.generateKey(km, idx)
         } yield (idx, pubKey)
       }

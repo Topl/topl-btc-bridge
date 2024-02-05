@@ -15,9 +15,12 @@ import co.topl.bridge.managers.BTCWalletImpl
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.shared.BitcoinNetworkIdentifiers
+import co.topl.shared.ConfirmRedemptionRequest
+import co.topl.shared.SessionNotFoundError
 import co.topl.shared.StartSessionRequest
 import co.topl.shared.utils.KeyGenerationUtils
 import io.circe.generic.auto._
+import io.circe.syntax._
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.circe._
@@ -28,7 +31,7 @@ import org.http4s.server.staticcontent.resourceServiceBuilder
 import scopt.OParser
 
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.ConfirmRedemptionRequest
+import co.topl.shared.BridgeError
 
 object Main extends IOApp with BridgeParamsDescriptor {
 
@@ -39,22 +42,26 @@ object Main extends IOApp with BridgeParamsDescriptor {
       sessionManager: SessionManagerAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       walletManager: BTCWalletAlgebra[IO],
+      blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers
   ) = HttpRoutes.of[IO] {
     case req @ POST -> Root / "start-session" =>
       implicit val startSessionRequestDecoder
           : EntityDecoder[IO, StartSessionRequest] =
         jsonOf[IO, StartSessionRequest]
-      import io.circe.syntax._
       for {
         x <- req.as[StartSessionRequest]
         res <- startSession(
           x,
           pegInWalletManager,
           sessionManager,
+          blockToRecover,
           btcNetwork
         )
-        resp <- Ok(res.asJson)
+        resp <- res match {
+          case Left(e: BridgeError) => BadRequest(e.asJson)
+          case Right(value)         => Ok(value.asJson)
+        }
       } yield resp
     case req @ POST -> Root / "confirm-redemption" =>
       implicit val confirmRedemptionRequestDecoder
@@ -68,7 +75,12 @@ object Main extends IOApp with BridgeParamsDescriptor {
           walletManager,
           sessionManager
         )
-      } yield res
+        resp <- res match {
+          case Left(e: SessionNotFoundError) => NotFound(e.asJson)
+          case Left(e: BridgeError)          => Ok(e.asJson)
+          case Right(value)                  => Ok(value.asJson)
+        }
+      } yield resp
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -126,6 +138,7 @@ object Main extends IOApp with BridgeParamsDescriptor {
             sessionManager,
             pegInWalletManager,
             walletManager,
+            params.blockToRecover,
             params.btcNetwork
           )
         )(default = staticAssetsService)

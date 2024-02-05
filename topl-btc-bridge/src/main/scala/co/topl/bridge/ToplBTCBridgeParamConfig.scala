@@ -4,7 +4,7 @@ import co.topl.shared.RegTest
 import co.topl.shared.BitcoinNetworkIdentifiers
 
 case class ToplBTCBridgeParamConfig(
-    blockToRedeem: Int =
+    blockToRecover: Int =
       100, // the number of blocks to wait before the user can reclaim their funds
     pegInSeedFile: String = "pegin-wallet.json",
     pegInPassword: String = "password",

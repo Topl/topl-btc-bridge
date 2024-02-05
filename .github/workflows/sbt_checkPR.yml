@@ -1,0 +1,25 @@
+name: Check and Deploy
+on:
+  push:
+    branches: ['*']
+    tags: ["*"]
+
+jobs:
+  unit-test:
+    name: Run Unit Tests
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3.0.2
+        with:
+          fetch-depth: 0
+      - name: Setup Scala
+        uses: olafurpg/setup-scala@v13
+        with:
+          java-version: adopt@1.11
+      - name: Run unit tests
+        run: sbt toplBtcBridge/test
+      - uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-reports
+          path: topl-btc-bridge/target/test-reports/
