@@ -46,6 +46,7 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
           testBlockToRecover,
           RegTest
         )
+        _ <- IO.println("sessionInfo: " + sessionInfo)
         res <- ConfirmRedemptionController.confirmRedemption(
           ConfirmRedemptionRequest(
             sessionInfo.toOption.get.sessionID,
@@ -59,7 +60,7 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
           wallet,
           sessionManager
         )
-        _ <- IO.println("res: " + res.toOption.get.tx)
+        _ <- IO.println("res: " + res)
       } yield res.isRight && res.toOption.get.tx == testTx
     )
   }
