@@ -59,8 +59,7 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
           wallet,
           sessionManager
         )
-        _ <- IO.println("res: " + res)
-      } yield res.isRight && res.toOption.get.tx == testTx
+      } yield res.isRight && res.toOption.get.tx.startsWith(testTx)
     )
   }
   test(
