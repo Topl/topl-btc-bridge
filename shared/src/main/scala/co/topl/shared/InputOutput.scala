@@ -30,6 +30,9 @@ case class ConfirmDepositRequest(
     amount: Long
 )
 
+case class ConfirmDepositResponse(
+    txId: String
+)
 case class ConfirmRedemptionResponse(
     tx: String
 )

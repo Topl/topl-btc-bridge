@@ -100,13 +100,11 @@ object Main
           transactionAlgebra,
           10
         )
-        //   resp <- res match {
-        //     case Left(e: SessionNotFoundError) => NotFound(e.asJson)
-        //     case Left(e: BridgeError)          => BadRequest(e.asJson)
-        //     case Right(value)                  => Ok(value.asJson)
-        //   }
-        // } yield resp
-      } yield ???
+        resp <- res match {
+          case Left(e: BridgeError) => BadRequest(e.asJson)
+          case Right(value)         => Ok(value.asJson)
+        }
+      } yield resp
     case req @ POST -> Root / "confirm-redemption" =>
       import ConfirmRedemptionController._
       implicit val confirmRedemptionRequestDecoder

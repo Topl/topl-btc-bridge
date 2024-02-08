@@ -1,6 +1,5 @@
 target/
 wallet.json
-pegin-wallet.json
 .bloop/
 .bsp/
 .metals/
