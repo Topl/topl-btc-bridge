@@ -4,7 +4,7 @@ object Dependencies {
 
   val catsCoreVersion = "2.10.0"
 
-  lazy val http4sVersion = "0.23.18"
+  lazy val http4sVersion = "0.23.23"
 
   val logback: Seq[ModuleID] = Seq(
     "ch.qos.logback" % "logback-classic" % "1.4.11"
@@ -48,7 +48,9 @@ object Dependencies {
 
   lazy val http4s: Seq[ModuleID] = Seq(
     "org.http4s" %% "http4s-ember-client" % http4sVersion,
-    "org.http4s" %% "http4s-circe" % http4sVersion
+    "org.http4s" %% "http4s-dsl" % http4sVersion,
+    "org.http4s" %% "http4s-circe" % http4sVersion,
+    "org.http4s" %% "http4s-ember-server" % http4sVersion
   )
 
   lazy val bitcoinS: Seq[ModuleID] = Seq(
