@@ -2,6 +2,8 @@ package co.topl.bridge
 
 import co.topl.shared.RegTest
 import co.topl.shared.BitcoinNetworkIdentifiers
+import co.topl.shared.ToplNetworkIdentifiers
+import co.topl.shared.ToplPrivatenet
 
 case class ToplBTCBridgeParamConfig(
     blockToRecover: Int =
@@ -10,5 +12,12 @@ case class ToplBTCBridgeParamConfig(
     pegInPassword: String = "password",
     walletSeedFile: String = "wallet.json",
     walletPassword: String = "password",
-    btcNetwork: BitcoinNetworkIdentifiers = RegTest
+    toplWalletSeedFile: String = "topl-wallet.json",
+    toplWalletPassword: String = "password",
+    toplWalletDb: String = "wallet.db",
+    btcNetwork: BitcoinNetworkIdentifiers = RegTest,
+    toplNetwork: ToplNetworkIdentifiers = ToplPrivatenet,
+    toplHost: String = "localhost",
+    toplPort: Int = 9984,
+    toplSecureConnection: Boolean = false
 )

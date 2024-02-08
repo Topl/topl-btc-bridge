@@ -13,4 +13,16 @@ object ParamParser {
           )
       })
 
+  implicit val toplNetworkRead: scopt.Read[ToplNetworkIdentifiers] =
+    scopt.Read
+      .reads(ToplNetworkIdentifiers.fromString(_))
+      .map(_ match {
+        case Some(value) => value
+        case None =>
+          throw new IllegalArgumentException(
+            "Invalid network. Possible values: mainnet, testnet, private"
+          )
+      })
+
+
 }

@@ -2,6 +2,7 @@ package co.topl.bridge
 
 import co.topl.shared.BitcoinNetworkIdentifiers
 import scopt.OParser
+import co.topl.shared.ToplNetworkIdentifiers
 
 trait BridgeParamsDescriptor {
 
@@ -15,10 +16,15 @@ trait BridgeParamsDescriptor {
     OParser.sequence(
       programName("topl-btc-bridge"),
       head("topl-btc-bridge", "0.1"),
-      opt[BitcoinNetworkIdentifiers]('n', "network")
+      opt[BitcoinNetworkIdentifiers]("btc-network")
         .action((x, c) => c.copy(btcNetwork = x))
         .text(
           "Network name: Possible values: mainnet, testnet, regtest. (mandatory)"
+        ),
+      opt[ToplNetworkIdentifiers]("topl-network")
+        .action((x, c) => c.copy(toplNetwork = x))
+        .text(
+          "Network name: Possible values: mainnet, testnet, private. (mandatory)"
         ),
       opt[Int]("blocks-to-recover")
         .action((x, c) => c.copy(blockToRecover = x))
@@ -45,6 +51,24 @@ trait BridgeParamsDescriptor {
         .text(
           "The password to the seed file. (default: password)"
         ),
+      opt[String]("topl-host")
+        .action((x, c) => c.copy(toplHost = x))
+        .text("The host of the Topl node. (mandatory)")
+        .validate(x =>
+          if (x.trim().isEmpty) failure("Host may not be empty") else success
+        )
+        .required(),
+      opt[Int]("topl-port")
+        .action((x, c) => c.copy(toplPort = x))
+        .text("Port for Topl node. (mandatory)")
+        .validate(x =>
+          if (x >= 0 && x <= 65536) success
+          else failure("Port must be between 0 and 65536")
+        )
+        .required(),
+      opt[Boolean]("top-secure")
+        .action((x, c) => c.copy(toplSecureConnection = x))
+        .text("Enables the secure connection to the node. (optional)")
     )
   }
 
