@@ -125,7 +125,7 @@ lazy val shared = (project in file("shared"))
     name := "topl-btc-bridge-shared",
     libraryDependencies ++=
       Dependencies.toplBtcBridge.main ++
-      Dependencies.toplBtcBridge.test
+        Dependencies.toplBtcBridge.test
   )
 
 lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
@@ -156,11 +156,18 @@ lazy val toplBtcCli = (project in file("topl-btc-cli"))
   .enablePlugins(JavaAppPackaging)
   .dependsOn(shared)
 
+lazy val integration = (project in file("integration"))
+  .dependsOn(toplBtcBridge, toplBtcCli) // your current subproject
+  .settings(
+    publish / skip := true,
+    libraryDependencies ++= Dependencies.toplBtcBridge.test
+  )
+
 lazy val root = project
   .in(file("."))
   .settings(
     organization := "co.topl",
-    name := "topl-btc-bridge-umbrella",
+    name := "topl-btc-bridge-umbrella"
   )
   .settings(noPublish)
   .aggregate(toplBtcBridge, toplBtcCli)

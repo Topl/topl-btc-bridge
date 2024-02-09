@@ -11,8 +11,8 @@ class ConfirmDepositControllerSpec extends CatsEffectSuite with SharedData {
 
   import co.topl.bridge.stubs.UnitTestStubs._
 
+  import ConfirmDepositController._
   test("ConfirmDepositController should fail on invalid tx id for group UTXO") {
-    import ConfirmDepositController._
     assertIOBoolean(
       for {
         keyPair <- walletManagementUtils.loadKeys(
@@ -41,7 +41,6 @@ class ConfirmDepositControllerSpec extends CatsEffectSuite with SharedData {
   test(
     "ConfirmDepositController should fail on invalid tx id for series UTXO"
   ) {
-    import ConfirmDepositController._
     assertIOBoolean(
       for {
         keyPair <- walletManagementUtils.loadKeys(
@@ -70,7 +69,6 @@ class ConfirmDepositControllerSpec extends CatsEffectSuite with SharedData {
   test(
     "ConfirmDepositController should succeed on valid input"
   ) {
-    import ConfirmDepositController._
     assertIOBoolean(
       for {
         keyPair <- walletManagementUtils.loadKeys(
