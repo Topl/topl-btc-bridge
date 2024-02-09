@@ -37,7 +37,7 @@ jobs:
           - 9084:9084 
       bitcoin:
         # Docker Hub image
-        image: docker.io/lncm/bitcoind:v25-regtest
+        image: docker.io/1maa/bitcoin:v25-regtest
         #
         ports:
           - 9084:9084 
