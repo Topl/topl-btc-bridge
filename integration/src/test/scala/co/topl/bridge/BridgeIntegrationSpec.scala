@@ -32,7 +32,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "-regtest",
     "-rpcwallet=testwallet",
     "generatetoaddress",
-    "generatetoaddress",
     "101",
     address
   )
