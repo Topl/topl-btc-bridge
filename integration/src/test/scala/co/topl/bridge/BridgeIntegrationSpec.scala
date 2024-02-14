@@ -25,7 +25,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, generateNewAddressCommand: _*)
           .spawn[IO]
           .use { process =>
-            process.stdout
+            process.stderr
               .through(fs2.text.utf8Decode)
               .compile
               .foldMonoid
