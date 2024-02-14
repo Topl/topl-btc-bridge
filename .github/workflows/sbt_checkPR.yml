@@ -34,7 +34,7 @@ jobs:
         image: docker.io/toplprotocol/bifrost-node:2.0.0-alpha10
         #
         ports:
-          - 9084:9084 
+           - 9084:9084 
       bitcoin:
         # Docker Hub image
         image: docker.io/1maa/bitcoin:v25-regtest
@@ -51,14 +51,6 @@ jobs:
         uses: olafurpg/setup-scala@v13
         with:
           java-version: adopt@1.11
-      - name: Generate new address
-        run: |
-          docker exec bitcoin bitcoin-cli -regtest -named createwallet wallet_name=testwallet
-          echo "ADDRESS=$(docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet getnewaddress)" >> $GITHUB_ENV
-      - name: Prepare Bitcoin
-        run: |
-          docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet generatetoaddress 101 $ADDRESS
-          echo "TXID=$(docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet  listunspent | grep txid | cut -c14- | rev | cut -c3- | rev)" >> $GITHUB_ENV
       - name: Run integration tests
         run: sbt "integration / test"
       - uses: actions/download-artifact@v3
