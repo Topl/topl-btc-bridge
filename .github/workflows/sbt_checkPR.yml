@@ -50,6 +50,11 @@ jobs:
         uses: olafurpg/setup-scala@v13
         with:
           java-version: adopt@1.11
+      - name: Prepare Bitcoin
+        run: |
+          docker exec bitcoin bitcoin-cli -regtest -named createwallet wallet_name=testwallet
+          docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet getnewaddress >> $GITHUB_ENV
+          docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet generatetoaddress 101 $(cat $GITHUB_ENV)
       - name: Run integration tests
         run: sbt "integration / test"
       - uses: actions/download-artifact@v3
