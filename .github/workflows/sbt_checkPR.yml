@@ -55,6 +55,8 @@ jobs:
         run: |
           docker exec bitcoin bitcoin-cli -regtest -named createwallet wallet_name=testwallet
           echo "ADDRESS=$(docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet getnewaddress)" >> $GITHUB_ENV
+      - name: Prepare Bitcoin
+        run: |
           docker exec bitcoin bitcoin-cli -regtest -rpcwallet=testwallet generatetoaddress 101 $ADDRESS
       - name: Run integration tests
         run: sbt "integration / test"
