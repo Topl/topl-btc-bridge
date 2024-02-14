@@ -51,7 +51,7 @@ jobs:
         with:
           java-version: adopt@1.11
       - name: Run integration tests
-        run: sbt "cli / IntegrationTest / test"
+        run: sbt "integration / test"
       - uses: actions/download-artifact@v3
         with:
           path: cli/target/test-reports/
@@ -61,5 +61,5 @@ jobs:
         if: success()
         with:
           files: |
-            cli/target/test-reports/**/*.xml
-            cli/target/it-reports/**/*.xml
+            integration/target/test-reports/**/*.xml
+            integration/target/it-reports/**/*.xml
