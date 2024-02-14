@@ -19,7 +19,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
   )
 
   test("Bridge should mint assets on the Topl network") {
-    assert(true)
     assertIO(
       for {
         newAddress <- process
@@ -31,7 +30,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               .compile
               .foldMonoid
           }
-        _ <- IO(println(newAddress))
+        _ <- IO(println("New address: " + newAddress))
       } yield (),
       ()
     )
