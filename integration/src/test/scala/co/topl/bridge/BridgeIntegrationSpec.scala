@@ -37,29 +37,45 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     address
   )
 
+  val extractGetTxId = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcwallet=testwallet",
+    "listunspent"
+  )
+
+  def getText(p: fs2.io.process.Process[IO]) =
+    p.stdout
+      .through(fs2.text.utf8Decode)
+      .compile
+      .foldMonoid
+
   test("Bridge should mint assets on the Topl network") {
+    import io.circe._, io.circe.parser._
     assertIO(
       for {
         _ <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
           .use { _.exitValue }
-        newAddress <- process
+        newAddress <- process // we get the new address
           .ProcessBuilder(DOCKER_CMD, getNewaddress: _*)
           .spawn[IO]
-          .use { process =>
-            process.stdout
-              .through(fs2.text.utf8Decode)
-              .compile
-              .foldMonoid
-          }
-        _ <- IO(println("New address: " + newAddress))
+          .use(getText)
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(newAddress): _*)
           .spawn[IO]
-          .use { process =>
-            process.exitValue
-          }
+          .use(_.exitValue)
+        unspent <- process
+          .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
+          .spawn[IO]
+          .use(getText)
+        txId <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "txid").head.asString.get)
+        )
+        _ <- IO.println("txId: " + txId)
       } yield (),
       ()
     )
