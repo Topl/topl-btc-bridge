@@ -41,6 +41,7 @@ jobs:
         #
         ports:
           - 18444:18444  
+        options: --name bitcoin
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
