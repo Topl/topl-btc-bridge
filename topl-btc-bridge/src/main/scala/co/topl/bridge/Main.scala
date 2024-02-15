@@ -213,6 +213,9 @@ object Main
           params.toplWalletPassword
         )
       )(_ => IO.unit)
+      _ <- Resource.make(IO(println("Loading keys")))(
+        _ => IO(println("Keys loaded"))
+      )
       app = {
         val sessionManager =
           SessionManagerImpl.make[IO](new ConcurrentHashMap())
@@ -250,6 +253,7 @@ object Main
     }).allocated
       .map(_._1)
       .handleErrorWith { e =>
+        e.printStackTrace()
         IO {
           Left(e.getMessage)
         }

@@ -1,3 +1,5 @@
+import com.typesafe.sbt.packager.docker._
+
 inThisBuild(
   List(
     organization := "co.topl",

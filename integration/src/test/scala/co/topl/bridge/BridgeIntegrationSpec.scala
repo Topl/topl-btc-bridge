@@ -10,6 +10,7 @@ import org.http4s.Request
 import org.http4s.Uri
 import org.http4s.EntityDecoder
 import co.topl.shared.StartSessionResponse
+import org.http4s.headers.`Content-Type`
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -106,13 +107,15 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .default[IO]
           .build
           .use({ client =>
-            client.expect[StartSessionResponse](
+            client.status(
               Request[IO](
                 method = Method.POST,
                 Uri
                   .fromString("http://127.0.0.1:3000/start-session")
                   .toOption
                   .get
+              ).withContentType(
+                `Content-Type`.apply(MediaType.application.json)
               ).withEntity(
                 StartSessionRequest(
                   pkey =

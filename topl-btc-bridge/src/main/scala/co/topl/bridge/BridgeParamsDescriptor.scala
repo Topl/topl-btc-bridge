@@ -31,10 +31,20 @@ trait BridgeParamsDescriptor {
         .text(
           "The number of blocks that the user needs to wait before they can reclaim their funds. (default: 100)"
         ),
+      opt[String]("topl-wallet-seed-file")
+        .action((x, c) => c.copy(toplWalletSeedFile = x))
+        .text(
+          "The path to the tolp wallet seed file. (default: topl-wallet.json)"
+        ),
+      opt[String]("topl-wallet-password")
+        .action((x, c) => c.copy(toplWalletPassword = x))
+        .text(
+          "The password to the topl seed file. (default: password)"
+        ),
       opt[String]("peg-in-seed-file")
         .action((x, c) => c.copy(pegInSeedFile = x))
         .text(
-          "The path to the peg inn seed file. (default: pegin-wallet.json)"
+          "The path to the peg in seed file. (default: pegin-wallet.json)"
         ),
       opt[String]("peg-in-password")
         .action((x, c) => c.copy(pegInPassword = x))
@@ -64,7 +74,7 @@ trait BridgeParamsDescriptor {
           if (x >= 0 && x <= 65536) success
           else failure("Port must be between 0 and 65536")
         ),
-      opt[Boolean]("top-secure")
+      opt[Boolean]("topl-secure")
         .action((x, c) => c.copy(toplSecureConnection = x))
         .text("Enables the secure connection to the node. (optional)")
     )
