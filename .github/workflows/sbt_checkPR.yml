@@ -23,10 +23,43 @@ jobs:
         with:
           name: unit-test-reports
           path: topl-btc-bridge/target/test-reports/
+  publish:
+    runs-on: ubuntu-20.04
+    needs: unit-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3.0.2
+        with:
+          fetch-depth: 0
+      - name: Setup Scala
+        uses: olafurpg/setup-scala@v13
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - if: github.event.release
+        name: Log in to the Github Container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push images to registries
+        run: sbt "Docker / publish"
+        env:
+          DOCKER_PUBLISH: true
+      - name: Deploy (release only)
+        run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
   integration-test:
     name: Run Integration Tests
     runs-on: ubuntu-20.04
-    needs: unit-test
+    needs: publish
     services:
       # Label used to access the service container
       bifrost:

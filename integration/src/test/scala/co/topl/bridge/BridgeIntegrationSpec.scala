@@ -30,7 +30,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
-    "-rpcwallet=testwallet",
     "generatetoaddress",
     "101",
     address
@@ -50,23 +49,32 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
       .through(fs2.text.utf8Decode)
       .compile
       .foldMonoid
+      .map(_.trim)
+  def getError(p: fs2.io.process.Process[IO]) =
+    p.stderr
+      .through(fs2.text.utf8Decode)
+      .compile
+      .foldMonoid
 
   test("Bridge should mint assets on the Topl network") {
     import io.circe._, io.circe.parser._
     assertIO(
       for {
-        _ <- process
+        createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
-          .use { _.exitValue }
+          .use { getText }
+        _ <- IO.println("createWalletOut: " + createWalletOut)
         newAddress <- process // we get the new address
           .ProcessBuilder(DOCKER_CMD, getNewaddress: _*)
           .spawn[IO]
           .use(getText)
-        _ <- process
+        _ <- IO.println("newAddress: " + newAddress)
+        generatedBlock <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(newAddress): _*)
           .spawn[IO]
-          .use(_.exitValue)
+          .use(getText)
+        _ <- IO.println("generatedBlock: " + generatedBlock)
         unspent <- process
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
