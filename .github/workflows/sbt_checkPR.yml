@@ -55,22 +55,20 @@ jobs:
         image: docker.io/toplprotocol/bifrost-node:2.0.0-alpha10
         #
         ports:
-           - 9084:9084 
-        options: --net=bridge
+           - 9084:9084
       bitcoin:
         # Docker Hub image
         image: docker.io/1maa/bitcoin:v25-regtest
         #
         ports:
           - 18444:18444  
-        options: --name bitcoin --net=bridge
+        options: --name bitcoin
       topl-btc-bridge:
         # Docker Hub image
         image: ghcr.io/topl/topl-btc-bridge:latest
         #
         ports:
           - 3000:3000
-        options: --net=bridge
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
