@@ -107,7 +107,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://localhost:8080/start-session")
+                  .fromString("http://localhost:3000/start-session")
                   .toOption
                   .get
               ).withEntity(
