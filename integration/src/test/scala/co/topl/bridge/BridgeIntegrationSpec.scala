@@ -107,7 +107,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .default[IO]
           .build
           .use({ client =>
-            client.status(
+            client.expect[StartSessionResponse](
               Request[IO](
                 method = Method.POST,
                 Uri
