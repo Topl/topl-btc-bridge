@@ -69,6 +69,12 @@ jobs:
         ports:
           - 18444:18444  
         options: --name bitcoin
+      topl-btc-bridge:
+        # Docker Hub image
+        image: ghcr.io/topl/topl-btc-bridge:latest
+        #
+        ports:
+          - 3000:3000
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
