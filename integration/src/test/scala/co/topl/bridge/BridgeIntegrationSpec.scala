@@ -9,6 +9,7 @@ import co.topl.shared.StartSessionRequest
 import org.http4s.Request
 import org.http4s.Uri
 import org.http4s.EntityDecoder
+import co.topl.shared.StartSessionResponse
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -73,6 +74,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val startSessionRequestDecoder
         : EntityEncoder[IO, StartSessionRequest] =
       jsonEncoderOf[IO, StartSessionRequest]
+    implicit val startSessionResponse: EntityDecoder[IO, StartSessionResponse] =
+      jsonOf[IO, StartSessionResponse]
     assertIO(
       for {
         createWalletOut <- process
@@ -103,11 +106,11 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .default[IO]
           .build
           .use({ client =>
-            client.expect[String](
+            client.expect[StartSessionResponse](
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://localhost:3000/start-session")
+                  .fromString("http://127.0.0.1:3000/start-session")
                   .toOption
                   .get
               ).withEntity(
