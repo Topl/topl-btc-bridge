@@ -24,6 +24,7 @@ jobs:
           name: unit-test-reports
           path: topl-btc-bridge/target/test-reports/
   publish:
+    name: Publish Docker Images for IT
     runs-on: ubuntu-20.04
     needs: unit-test
     steps:
@@ -43,13 +44,6 @@ jobs:
         run: sbt "toplBtcBridge / Docker / publish"
         env:
           DOCKER_PUBLISH: true
-      - name: Deploy (release only)
-        run: sbt ci-release
-        env:
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
   integration-test:
     name: Run Integration Tests
     runs-on: ubuntu-20.04
