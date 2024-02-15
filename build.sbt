@@ -65,7 +65,6 @@ lazy val commonDockerSettings = List(
     .mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
   dockerAliases := dockerAliases.value.flatMap { alias =>
     Seq(
-      alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
   },
@@ -74,7 +73,7 @@ lazy val commonDockerSettings = List(
 )
 
 lazy val dockerPublishSettingsBroker = List(
-  dockerExposedPorts ++= Seq(9000, 9001),
+  dockerExposedPorts ++= Seq(3000),
   Docker / packageName := "topl-btc-bridge"
 ) ++ commonDockerSettings
 
