@@ -40,7 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push images to registries
-        run: sbt "Docker / publish"
+        run: sbt "toplBtcBridge / Docker / publish"
         env:
           DOCKER_PUBLISH: true
       - name: Deploy (release only)
