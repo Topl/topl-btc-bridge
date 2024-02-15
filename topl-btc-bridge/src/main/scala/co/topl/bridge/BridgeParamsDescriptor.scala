@@ -56,16 +56,14 @@ trait BridgeParamsDescriptor {
         .text("The host of the Topl node. (mandatory)")
         .validate(x =>
           if (x.trim().isEmpty) failure("Host may not be empty") else success
-        )
-        .required(),
+        ),
       opt[Int]("topl-port")
         .action((x, c) => c.copy(toplPort = x))
         .text("Port for Topl node. (mandatory)")
         .validate(x =>
           if (x >= 0 && x <= 65536) success
           else failure("Port must be between 0 and 65536")
-        )
-        .required(),
+        ),
       opt[Boolean]("top-secure")
         .action((x, c) => c.copy(toplSecureConnection = x))
         .text("Enables the secure connection to the node. (optional)")

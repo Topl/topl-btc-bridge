@@ -18,6 +18,6 @@ case class ToplBTCBridgeParamConfig(
     btcNetwork: BitcoinNetworkIdentifiers = RegTest,
     toplNetwork: ToplNetworkIdentifiers = ToplPrivatenet,
     toplHost: String = "localhost",
-    toplPort: Int = 9984,
+    toplPort: Int = 9084,
     toplSecureConnection: Boolean = false
 )
