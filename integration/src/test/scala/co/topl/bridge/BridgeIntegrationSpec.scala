@@ -11,6 +11,9 @@ import org.http4s.Uri
 import org.http4s.EntityDecoder
 import co.topl.shared.StartSessionResponse
 import org.http4s.headers.`Content-Type`
+import org.checkerframework.checker.units.qual.g
+import co.topl.shared.ConfirmRedemptionRequest
+import co.topl.shared.ConfirmRedemptionResponse
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -33,7 +36,16 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "-rpcwallet=testwallet",
     "getnewaddress"
   )
-  def generateToAddress(address: String) = Seq(
+  def generateToAddress(blocks: Int, address: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "generatetoaddress",
+    blocks.toString,
+    address
+  )
+  def createTransaction(address: String) = Seq(
     "exec",
     "bitcoin",
     "bitcoin-cli",
@@ -41,6 +53,23 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "generatetoaddress",
     "101",
     address
+  )
+  def signTransaction(tx: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcwallet=testwallet",
+    "signrawtransactionwithwallet",
+    tx
+  )
+  def sendTransaction(signedTx: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "sendrawtransaction",
+    signedTx
   )
 
   val extractGetTxId = Seq(
@@ -50,6 +79,16 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "-regtest",
     "-rpcwallet=testwallet",
     "listunspent"
+  )
+
+  def createTx(txId: String, address: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-tx",
+    "-regtest",
+    "-create",
+    s"in=$txId:0",
+    s"outaddr=49.99:$address"
   )
 
   def getText(p: fs2.io.process.Process[IO]) =
@@ -77,6 +116,12 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
       jsonEncoderOf[IO, StartSessionRequest]
     implicit val startSessionResponse: EntityDecoder[IO, StartSessionResponse] =
       jsonOf[IO, StartSessionResponse]
+    implicit val confirmRedemptionRequestDecoder
+        : EntityEncoder[IO, ConfirmRedemptionRequest] =
+      jsonEncoderOf[IO, ConfirmRedemptionRequest]
+    implicit val confirmRedemptionResponse
+        : EntityDecoder[IO, ConfirmRedemptionResponse] =
+      jsonOf[IO, ConfirmRedemptionResponse]
     assertIO(
       for {
         createWalletOut <- process
@@ -89,11 +134,10 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .spawn[IO]
           .use(getText)
         _ <- IO.println("newAddress: " + newAddress)
-        generatedBlock <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(newAddress): _*)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(101, newAddress): _*)
           .spawn[IO]
-          .use(getText)
-        _ <- IO.println("generatedBlock: " + generatedBlock)
+          .use(_.exitValue)
         unspent <- process
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
@@ -103,7 +147,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
         _ <- IO.println("txId: " + txId)
-        jsonResponse <- EmberClientBuilder
+        startSessionResponse <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
@@ -126,7 +170,56 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               )
             )
           })
-        _ <- IO.println("jsonResponse: " + jsonResponse)
+        _ <- IO.println("startSessionResponse: " + startSessionResponse)
+        bitcoinTx <- process
+          .ProcessBuilder(
+            DOCKER_CMD,
+            createTx(txId, startSessionResponse.escrowAddress): _*
+          )
+          .spawn[IO]
+          .use(getText)
+        _ <- IO.println("unspentTx: " + bitcoinTx)
+        signedTx <- process
+          .ProcessBuilder(DOCKER_CMD, signTransaction(bitcoinTx): _*)
+          .spawn[IO]
+          .use(getText)
+        signedTxHex <- IO.fromEither(
+          parse(signedTx).map(x => (x \\ "hex").head.asString.get)
+        )
+        sentTxId <- process
+          .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
+          .spawn[IO]
+          .use(getText)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
+        confirmRedemptionResponse <- EmberClientBuilder
+          .default[IO]
+          .build
+          .use({ client =>
+            client.expect[ConfirmRedemptionResponse](
+              Request[IO](
+                method = Method.POST,
+                Uri
+                  .fromString("http://127.0.0.1:3000/confirm-redemption")
+                  .toOption
+                  .get
+              ).withContentType(
+                `Content-Type`.apply(MediaType.application.json)
+              ).withEntity(
+                ConfirmRedemptionRequest(
+                  startSessionResponse.sessionID,
+                  sentTxId,
+                  0,
+                  2,
+                  4999000000L,
+                  "secret"
+                )
+              )
+            )
+          })
+        _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
       } yield (),
       ()
     )
