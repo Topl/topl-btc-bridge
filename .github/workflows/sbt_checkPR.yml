@@ -78,6 +78,17 @@ jobs:
         uses: olafurpg/setup-scala@v13
         with:
           java-version: adopt@1.11
+      - name: Prepare wallet
+        run: |
+          curl -fL "https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-linux.gz" | gzip -d > cs
+          chmod +x cs
+          ./cs setup --yes
+          shopt -s expand_aliases
+          alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta1 -- "
+          export ADDRESS=$(brambl-cli wallet current-address --walletdb topl-btc-bridge/src/universal/topl-wallet.db)
+          brambl-cli simple-transaction create --from-fellowship nofellowship --from-template genesis --from-interaction 1 --change-fellowship nofellowship --change-template genesis --change-interaction 1  -t $ADDRESS -w password -o genesisTx.pbuf -n private -a 1000 -h  127.0.0.1 --port 9084 --keyfile topl-btc-bridge/src/universal/topl-wallet.json --walletdb topl-btc-bridge/src/universal/topl-wallet.db --fee 10 --transfer-token lvl
+          brambl-cli tx prove -i genesisTx.pbuf --walletdb topl-btc-bridge/src/universal/topl-wallet.db --keyfile topl-btc-bridge/src/universal/topl-wallet.json -w password -o genesisTxProved.pbuf
+          brambl-cli tx broadcast -i genesisTxProved.pbuf -h 127.0.0.1 --port 9084
       - name: Run integration tests
         run: sbt "integration / test"
       - uses: actions/download-artifact@v3
