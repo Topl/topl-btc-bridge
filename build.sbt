@@ -5,7 +5,7 @@ inThisBuild(
     organization := "co.topl",
     homepage := Some(url("https://github.com/Topl/topl-btc-bridge")),
     licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
-    scalaVersion := "2.13.11"
+    scalaVersion := "2.13.12"
   )
 )
 
@@ -34,9 +34,11 @@ lazy val commonSettings = Seq(
     )
   ),
   resolvers ++= Seq(
+    Resolver.defaultLocal,
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
+    "Sonatype Releases" at "https://s01.oss.sonatype.org/content/repositories/releases/",
     "Sonatype Releases s01" at "https://s01.oss.sonatype.org/content/repositories/releases/",
     "Bintray" at "https://jcenter.bintray.com/"
   ),
