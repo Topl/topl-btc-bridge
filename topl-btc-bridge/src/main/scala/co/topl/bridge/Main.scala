@@ -248,6 +248,9 @@ object Main
       .map(_ => {
         println("Wallet Synced")
       })
+      .handleError(e => {
+        e.printStackTrace()
+      })
   }
 
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
