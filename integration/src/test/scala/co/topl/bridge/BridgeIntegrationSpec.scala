@@ -19,6 +19,19 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
 
   val DOCKER_CMD = "docker"
 
+  val CS_CMD = "./cs"
+
+  def launchBramblCli(params: Seq[String]) = Seq(
+    "launch",
+    "-r",
+    "https://s01.oss.sonatype.org/content/repositories/releases",
+    "co.topl:brambl-cli_2.13:2.0.0-beta1",
+    "--"
+  ) ++ params
+
+  val syncWalletParams = Seq(
+  )
+
   val createWallet = Seq(
     "exec",
     "bitcoin",
@@ -194,6 +207,32 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
+        syncWalletResult <-
+          process // we launch the brambl-cli to sync the wallet
+            .ProcessBuilder(
+              CS_CMD,
+              launchBramblCli(
+                Seq(
+                  "wallet",
+                  "sync",
+                  "--party-name",
+                  "self",
+                  "--contract-name",
+                  "default",
+                  "-n",
+                  "private",
+                  "-h",
+                  "localhost",
+                  "--bifrost-port",
+                  "9084",
+                  "--walletdb",
+                  "topl-wallet.db"
+                )
+              ): _*
+            )
+            .spawn[IO]
+            .use(getText)
+        _ <- IO.println("syncWalletResult: " + syncWalletResult)
         confirmRedemptionResponse <- EmberClientBuilder
           .default[IO]
           .build
