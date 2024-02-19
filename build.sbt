@@ -73,6 +73,7 @@ lazy val commonDockerSettings = List(
     )
   },
   dockerBaseImage := "adoptopenjdk/openjdk11:jdk-11.0.16.1_1-ubuntu",
+  dockerChmodType := DockerChmodType.UserGroupWriteExecute,
   dockerUpdateLatest := true
 )
 
