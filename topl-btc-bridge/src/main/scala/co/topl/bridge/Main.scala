@@ -243,17 +243,19 @@ object Main
           Some(Encoding.encodeToBase58(vksDerived.head.toByteArray)),
           indices
         )
+        _ <- IO.println(s"Syncing wallet with indices: $indices")
       } yield txos
     } else {
       IO(txos)
     }).flatten
       .iterateUntil(x => x.isEmpty)
-      .map(_ => {
-        println("Wallet Synced")
-      })
-      .handleError(e => {
-        e.printStackTrace()
-      })
+      .void
+      // .map(_ => {
+      //   println("Wallet Synced")
+      // })
+      // .handleError(e => {
+      //   e.printStackTrace()
+      // })
   }
 
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
