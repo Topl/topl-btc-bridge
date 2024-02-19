@@ -17,7 +17,7 @@ case class ToplBTCBridgeParamConfig(
     toplWalletDb: String = "topl-wallet.db",
     btcNetwork: BitcoinNetworkIdentifiers = RegTest,
     toplNetwork: ToplNetworkIdentifiers = ToplPrivatenet,
-    toplHost: String = "127.0.0.1",
+    toplHost: String = "bifrost",
     toplPort: Int = 9084,
     toplSecureConnection: Boolean = false
 )
