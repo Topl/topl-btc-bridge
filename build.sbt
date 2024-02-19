@@ -161,7 +161,7 @@ lazy val integration = (project in file("integration"))
   .dependsOn(toplBtcBridge, toplBtcCli) // your current subproject
   .settings(
     publish / skip := true,
-    libraryDependencies ++= Dependencies.toplBtcBridge.test
+    libraryDependencies ++= Dependencies.toplBtcBridge.main ++ Dependencies.toplBtcBridge.test
   )
 
 lazy val root = project
