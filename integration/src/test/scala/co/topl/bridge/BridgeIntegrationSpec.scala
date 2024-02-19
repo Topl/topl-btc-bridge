@@ -226,7 +226,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                   "--bifrost-port",
                   "9084",
                   "--walletdb",
-                  "topl-wallet.db"
+                  "topl-btc-bridge/src/universal/topl-wallet.db"
                 )
               ): _*
             )
