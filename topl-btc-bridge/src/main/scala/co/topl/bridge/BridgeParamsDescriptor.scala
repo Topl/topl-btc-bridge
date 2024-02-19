@@ -41,6 +41,11 @@ trait BridgeParamsDescriptor {
         .text(
           "The password to the topl seed file. (default: password)"
         ),
+      opt[String]("topl-wallet-db")
+        .action((x, c) => c.copy(toplWalletDb = x))
+        .text(
+          "The topl wallet db. (default: topl-wallet.db)"
+        ),
       opt[String]("peg-in-seed-file")
         .action((x, c) => c.copy(pegInSeedFile = x))
         .text(

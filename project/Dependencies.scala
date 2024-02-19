@@ -17,7 +17,7 @@ object Dependencies {
 
   lazy val toplOrg = "co.topl"
 
-  lazy val bramblVersion = "2.0.0-beta2"
+  lazy val bramblVersion = "2.0.0-beta1"
 
   val bramblSdk = toplOrg %% "brambl-sdk" % bramblVersion
 
@@ -45,12 +45,8 @@ object Dependencies {
   )
 
   val grpcNetty: Seq[ModuleID] =
-    Seq("io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion)
+    Seq("io.grpc" % "grpc-netty-shaded" % "1.59.0")
 
-  val grpcRuntime: Seq[ModuleID] =
-    Seq(
-      "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
-    )
   lazy val scopt: Seq[ModuleID] = Seq("com.github.scopt" %% "scopt" % "4.0.1")
 
   lazy val http4s: Seq[ModuleID] = Seq(
@@ -91,8 +87,7 @@ object Dependencies {
         http4s ++
         optics ++
         bitcoinS ++
-        grpcNetty ++
-        grpcRuntime
+        grpcNetty
 
     lazy val test: Seq[ModuleID] =
       (

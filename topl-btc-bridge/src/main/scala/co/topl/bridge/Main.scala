@@ -83,7 +83,7 @@ object Main
       implicit val syncWalletRequestDecoder
           : EntityDecoder[IO, SyncWalletRequest] =
         jsonOf[IO, SyncWalletRequest]
-      for {
+      (for {
         syncWalletRequest <- req.as[SyncWalletRequest]
         res <-
           if (syncWalletRequest.secret != "secret")
@@ -97,7 +97,10 @@ object Main
               "self",
               "default"
             ).flatMap(_ => Ok("Wallet Synced"))
-      } yield res
+      } yield res).handleErrorWith{ e =>
+        e.printStackTrace()
+        BadRequest("Error syncing wallet")
+      }
 
     case req @ POST -> Root / "start-session" =>
       import StartSessionController._
