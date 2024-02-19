@@ -14,6 +14,7 @@ import org.http4s.headers.`Content-Type`
 import org.checkerframework.checker.units.qual.g
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
+import co.topl.shared.SyncWalletRequest
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -114,6 +115,9 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val startSessionRequestDecoder
         : EntityEncoder[IO, StartSessionRequest] =
       jsonEncoderOf[IO, StartSessionRequest]
+    implicit val syncWalletRequestDecoder
+        : EntityEncoder[IO, SyncWalletRequest] =
+      jsonEncoderOf[IO, SyncWalletRequest]
     implicit val startSessionResponse: EntityDecoder[IO, StartSessionResponse] =
       jsonOf[IO, StartSessionResponse]
     implicit val confirmRedemptionRequestDecoder
@@ -170,7 +174,27 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               )
             )
           })
-        _ <- IO.println("startSessionResponse: " + startSessionResponse)
+        syncWalletResponse <- EmberClientBuilder
+          .default[IO]
+          .build
+          .use({ client =>
+            client.expect[String](
+              Request[IO](
+                method = Method.POST,
+                Uri
+                  .fromString("http://127.0.0.1:3000/sync-wallet")
+                  .toOption
+                  .get
+              ).withContentType(
+                `Content-Type`.apply(MediaType.application.json)
+              ).withEntity(
+                SyncWalletRequest(
+                  "secret"
+                )
+              )
+            )
+          })
+        _ <- IO.println("syncWalletResponse: " + syncWalletResponse)
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,

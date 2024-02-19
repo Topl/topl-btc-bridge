@@ -5,6 +5,10 @@ case class StartSessionRequest(
     sha256: String
 )
 
+case class SyncWalletRequest(
+    secret: String
+)
+
 case class StartSessionResponse(
     sessionID: String,
     script: String,

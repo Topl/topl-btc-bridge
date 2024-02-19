@@ -57,6 +57,7 @@ import co.topl.brambl.models.LockAddress
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.models.LockId
 import quivr.models.VerificationKey
+import co.topl.shared.SyncWalletRequest
 
 object Main
     extends IOApp
@@ -65,6 +66,9 @@ object Main
     with RpcChannelResource {
 
   def apiServices(
+      walletApi: WalletApi[IO],
+      walletStateAlgebra: WalletStateAlgebra[IO],
+      genusQueryAlgebra: GenusQueryAlgebra[IO],
       toplKeypair: KeyPair,
       sessionManager: SessionManagerAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
@@ -75,6 +79,26 @@ object Main
       btcNetwork: BitcoinNetworkIdentifiers,
       toplNetwork: ToplNetworkIdentifiers
   ) = HttpRoutes.of[IO] {
+    case req @ POST -> Root / "sync-wallet" =>
+      implicit val syncWalletRequestDecoder
+          : EntityDecoder[IO, SyncWalletRequest] =
+        jsonOf[IO, SyncWalletRequest]
+      for {
+        syncWalletRequest <- req.as[SyncWalletRequest]
+        res <-
+          if (syncWalletRequest.secret != "secret")
+            BadRequest("Invalid secret")
+          else
+            sync(
+              walletApi,
+              walletStateAlgebra,
+              genusQueryAlgebra,
+              toplNetwork.networkId,
+              "self",
+              "default"
+            ).flatMap(_ => Ok("Wallet Synced"))
+      } yield res
+
     case req @ POST -> Root / "start-session" =>
       import StartSessionController._
       implicit val startSessionRequestDecoder
@@ -180,6 +204,7 @@ object Main
             )
         )
         .getOrElse(IO(Seq.empty[Txo]))
+      _ <- IO(println(s"txos: $txos"))
     } yield
     // we have indices AND txos at current address are spent
     if (someIndices.isDefined && !txos.isEmpty) {
@@ -302,21 +327,14 @@ object Main
           params.toplWalletPassword
         )
       )(_ => IO.unit)
-      _ <- Resource.make(IO(println("Loading keys")))(_ =>
-        sync(
-          walletApi,
-          walletStateAlgebra,
-          genusQueryAlgebra,
-          params.toplNetwork.networkId,
-          "self",
-          "default"
-        ).void
-      )
       app = {
         val sessionManager =
           SessionManagerImpl.make[IO](new ConcurrentHashMap())
         val router = Router.define(
           "/" -> apiServices(
+            walletApi,
+            walletStateAlgebra,
+            genusQueryAlgebra,
             keyPair,
             sessionManager,
             pegInWalletManager,
