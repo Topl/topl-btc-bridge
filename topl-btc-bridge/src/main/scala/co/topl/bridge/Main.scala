@@ -48,6 +48,15 @@ import scopt.OParser
 
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.shared.ToplNetworkIdentifiers
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.codecs.AddressCodecs
+import co.topl.genus.services.TxoState
+import co.topl.genus.services.Txo
+import co.topl.brambl.models.Indices
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.utils.Encoding
+import co.topl.brambl.models.LockId
+import quivr.models.VerificationKey
 
 object Main
     extends IOApp
@@ -136,6 +145,86 @@ object Main
     }
   }
 
+  def sync(
+      walletApi: WalletApi[IO],
+      walletStateAlgebra: WalletStateAlgebra[IO],
+      genusQueryAlgebra: GenusQueryAlgebra[IO],
+      networkId: Int,
+      fellowship: String,
+      template: String
+  ): IO[Unit] = {
+    import cats.implicits._
+    import TransactionBuilderApi.implicits._
+    import co.topl.brambl.common.ContainsEvidence.Ops
+    import co.topl.brambl.common.ContainsImmutable.instances._
+    (for {
+      // current indices
+      someIndices <- walletStateAlgebra.getCurrentIndicesForFunds(
+        fellowship,
+        template,
+        None
+      )
+      // current address
+      someAddress <- walletStateAlgebra.getAddress(
+        fellowship,
+        template,
+        someIndices.map(_.z)
+      )
+      // txos that are spent at current address
+      txos <- someAddress
+        .map(address =>
+          genusQueryAlgebra
+            .queryUtxo(
+              AddressCodecs.decodeAddress(address).toOption.get,
+              TxoState.SPENT
+            )
+        )
+        .getOrElse(IO(Seq.empty[Txo]))
+    } yield
+    // we have indices AND txos at current address are spent
+    if (someIndices.isDefined && !txos.isEmpty) {
+      // we need to update the wallet interaction with the next indices
+      val indices = someIndices.map(idx => Indices(idx.x, idx.y, idx.z + 1)).get
+      for {
+        vks <- walletStateAlgebra.getEntityVks(
+          fellowship,
+          template
+        )
+        vksDerived <- vks.get
+          .map(x =>
+            walletApi.deriveChildVerificationKey(
+              VerificationKey.parseFrom(
+                Encoding.decodeFromBase58(x).toOption.get
+              ),
+              indices.z
+            )
+          )
+          .sequence
+        lock <- walletStateAlgebra.getLock(fellowship, template, indices.z)
+        lockAddress = LockAddress(
+          networkId,
+          NetworkConstants.MAIN_LEDGER_ID,
+          LockId(lock.get.getPredicate.sizedEvidence.digest.value)
+        )
+        _ <- walletStateAlgebra.updateWalletState(
+          Encoding.encodeToBase58Check(
+            lock.get.getPredicate.toByteArray
+          ), // lockPredicate
+          lockAddress.toBase58(), // lockAddress
+          Some("ExtendedEd25519"),
+          Some(Encoding.encodeToBase58(vksDerived.head.toByteArray)),
+          indices
+        )
+      } yield txos
+    } else {
+      IO(txos)
+    }).flatten
+      .iterateUntil(x => x.isEmpty)
+      .map(_ => {
+        println("Wallet Synced")
+      })
+  }
+
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     (for {
@@ -213,8 +302,15 @@ object Main
           params.toplWalletPassword
         )
       )(_ => IO.unit)
-      _ <- Resource.make(IO(println("Loading keys")))(
-        _ => IO(println("Keys loaded"))
+      _ <- Resource.make(IO(println("Loading keys")))(_ =>
+        sync(
+          walletApi,
+          walletStateAlgebra,
+          genusQueryAlgebra,
+          params.toplNetwork.networkId,
+          "self",
+          "default"
+        ).void
       )
       app = {
         val sessionManager =
