@@ -69,6 +69,9 @@ jobs:
         #
         ports:
           - 3000:3000
+        env:
+          TOPL_HOST: "bifrost"
+          TOPL_WALLET_DB: "/data/topl-wallet.db"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2

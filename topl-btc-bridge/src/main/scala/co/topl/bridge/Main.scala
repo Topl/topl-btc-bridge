@@ -97,7 +97,7 @@ object Main
               "self",
               "default"
             ).flatMap(_ => Ok("Wallet Synced"))
-      } yield res).handleErrorWith{ e =>
+      } yield res).handleErrorWith { e =>
         e.printStackTrace()
         BadRequest("Error syncing wallet")
       }
@@ -163,7 +163,14 @@ object Main
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    OParser.parse(parser, args, ToplBTCBridgeParamConfig()) match {
+    OParser.parse(
+      parser,
+      args,
+      ToplBTCBridgeParamConfig(
+        toplHost = System.getenv("TOPL_HOST"),
+        toplWalletDb = System.getenv("TOPL_WALLET_DB")
+      )
+    ) match {
       case Some(config) =>
         runWithArgs(config)
       case None =>
@@ -250,12 +257,12 @@ object Main
     }).flatten
       .iterateUntil(x => x.isEmpty)
       .void
-      // .map(_ => {
-      //   println("Wallet Synced")
-      // })
-      // .handleError(e => {
-      //   e.printStackTrace()
-      // })
+    // .map(_ => {
+    //   println("Wallet Synced")
+    // })
+    // .handleError(e => {
+    //   e.printStackTrace()
+    // })
   }
 
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
