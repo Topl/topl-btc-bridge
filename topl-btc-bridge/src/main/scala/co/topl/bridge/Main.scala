@@ -198,6 +198,7 @@ object Main
         template,
         None
       )
+      _ <- IO(println(s"indices: $someIndices"))
       // current address
       someAddress <- walletStateAlgebra.getAddress(
         fellowship,
@@ -257,12 +258,6 @@ object Main
     }).flatten
       .iterateUntil(x => x.isEmpty)
       .void
-    // .map(_ => {
-    //   println("Wallet Synced")
-    // })
-    // .handleError(e => {
-    //   e.printStackTrace()
-    // })
   }
 
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
