@@ -17,6 +17,7 @@ import co.topl.shared.ConfirmRedemptionResponse
 import co.topl.shared.SyncWalletRequest
 import co.topl.shared.ConfirmDepositResponse
 import co.topl.shared.ConfirmDepositRequest
+import scala.concurrent.duration._
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -105,6 +106,30 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
       .through(fs2.text.utf8Decode)
       .compile
       .foldMonoid
+
+  val getCurrentUtxos = process
+    .ProcessBuilder(
+      "./cs",
+      Seq(
+        "launch",
+        "-r",
+        "https://s01.oss.sonatype.org/content/repositories/releases",
+        "co.topl:brambl-cli_2.13:2.0.0-beta1",
+        "--",
+        "genus-query",
+        "utxo-by-address",
+        "--host",
+        "localhost",
+        "--port",
+        "9084",
+        "--secure",
+        "false",
+        "--walletdb",
+        "data/topl-wallet.db"
+      ): _*
+    )
+    .spawn[IO]
+    .use(getText)
 
   test("Bridge should mint assets on the Topl network") {
     import io.circe._, io.circe.parser._
@@ -222,29 +247,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
-        genusQueryresult <- process
-          .ProcessBuilder(
-            "./cs",
-            Seq(
-              "launch",
-              "-r",
-              "https://s01.oss.sonatype.org/content/repositories/releases",
-              "co.topl:brambl-cli_2.13:2.0.0-beta1",
-              "--",
-              "genus-query",
-              "utxo-by-address",
-              "--host",
-              "localhost",
-              "--port",
-              "9084",
-              "--secure",
-              "false",
-              "--walletdb",
-              "data/topl-wallet.db"
-            ): _*
-          )
-          .spawn[IO]
-          .use(getText)
+        genusQueryresult <- getCurrentUtxos
         txId = genusQueryresult
           .split("\n")
           .filter(_.endsWith("#1"))
@@ -311,6 +314,11 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
             )
           })
         _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
+        _ <- IO.sleep(10.seconds)
+        genusQueryresultAfterMint <- getCurrentUtxos
+        _ <- IO.println(
+          "genusQueryresultAfterMint: " + genusQueryresultAfterMint
+        )
       } yield (),
       ()
     )
