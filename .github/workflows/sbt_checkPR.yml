@@ -88,7 +88,7 @@ jobs:
           ./cs setup --yes
           shopt -s expand_aliases
           alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta1 -- "
-          export TOPL_WALLET_DB=topl-btc-bridge/src/universal/topl-wallet.db
+          export TOPL_WALLET_DB=topl-btc-bridge/src/universal/data/topl-wallet.db
           export TOPL_WALLET_JSON=topl-btc-bridge/src/universal/topl-wallet.json
           export TOPL_WALLET_PASSWORD=password
           export ADDRESS=$(brambl-cli wallet current-address --walletdb $TOPL_WALLET_DB)
