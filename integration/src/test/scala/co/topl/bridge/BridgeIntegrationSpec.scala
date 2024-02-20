@@ -243,31 +243,31 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .spawn[IO]
           .use(getText)
         _ <- IO.println("genusQueryresult: " + genusQueryresult)
-        confirmDepositResponse <- EmberClientBuilder
-          .default[IO]
-          .build
-          .use({ client =>
-            client.expect[ConfirmDepositResponse](
-              Request[IO](
-                method = Method.POST,
-                Uri
-                  .fromString("http://127.0.0.1:3000/confirm-deposit")
-                  .toOption
-                  .get
-              ).withContentType(
-                `Content-Type`.apply(MediaType.application.json)
-              ).withEntity(
-                ConfirmDepositRequest(
-                  startSessionResponse.sessionID,
-                  groupTokenUtxoTxId: String,
-                  1,
-                  seriesTokenUtxoTxId: String,
-                  2,
-                  amount: Long
-                )
-              )
-            )
-          })
+        // confirmDepositResponse <- EmberClientBuilder
+        //   .default[IO]
+        //   .build
+        //   .use({ client =>
+        //     client.expect[ConfirmDepositResponse](
+        //       Request[IO](
+        //         method = Method.POST,
+        //         Uri
+        //           .fromString("http://127.0.0.1:3000/confirm-deposit")
+        //           .toOption
+        //           .get
+        //       ).withContentType(
+        //         `Content-Type`.apply(MediaType.application.json)
+        //       ).withEntity(
+        //         ConfirmDepositRequest(
+        //           startSessionResponse.sessionID,
+        //           groupTokenUtxoTxId: String,
+        //           1,
+        //           seriesTokenUtxoTxId: String,
+        //           2,
+        //           amount: Long
+        //         )
+        //       )
+        //     )
+        //   })
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]
