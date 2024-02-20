@@ -74,7 +74,7 @@ jobs:
           - ${{ github.workspace }}topl-btc-bridge/src/universal:/data
         env:
           TOPL_HOST: "bifrost"
-          TOPL_WALLET_DB: "/opt/docker/data/topl-wallet.db"
+          TOPL_WALLET_DB: "/data/topl-wallet.db"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
