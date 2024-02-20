@@ -118,6 +118,7 @@ jobs:
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
           sudo chown 1001:1001 topl-btc-bridge/src/universal/topl-wallet.db
           sudo chmod 777 topl-btc-bridge/src/universal/topl-wallet.db
+          mkdir ${{ github.workspace }}/data/
           cp topl-btc-bridge/src/universal/topl-wallet.db ${{ github.workspace }}/data/topl-wallet.db
       - name: Run integration tests
         run: sbt "integration / test"
