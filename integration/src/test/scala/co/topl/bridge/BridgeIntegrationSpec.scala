@@ -15,6 +15,8 @@ import org.checkerframework.checker.units.qual.g
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
 import co.topl.shared.SyncWalletRequest
+import co.topl.shared.ConfirmDepositResponse
+import co.topl.shared.ConfirmDepositRequest
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -126,6 +128,9 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val confirmRedemptionResponse
         : EntityDecoder[IO, ConfirmRedemptionResponse] =
       jsonOf[IO, ConfirmRedemptionResponse]
+    implicit val confirmDepositRequestEncoder
+        : EntityEncoder[IO, ConfirmDepositRequest] =
+      jsonEncoderOf[IO, ConfirmDepositRequest]
     assertIO(
       for {
         createWalletOut <- process
@@ -214,6 +219,55 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
+        genusQueryresult <- process
+          .ProcessBuilder(
+            "./cs",
+            Seq(
+              "launch",
+              "-r",
+              "https://s01.oss.sonatype.org/content/repositories/releases",
+              "co.topl:brambl-cli_2.13:2.0.0-beta1",
+              "--",
+              "genus-query",
+              "utxo-by-address",
+              "--host",
+              "localhost",
+              "--port",
+              "9084",
+              "--secure",
+              "false",
+              "--walletdb",
+              "data/topl-wallet.db"
+            ): _*
+          )
+          .spawn[IO]
+          .use(getText)
+        _ <- IO.println("genusQueryresult: " + genusQueryresult)
+        confirmDepositResponse <- EmberClientBuilder
+          .default[IO]
+          .build
+          .use({ client =>
+            client.expect[ConfirmDepositResponse](
+              Request[IO](
+                method = Method.POST,
+                Uri
+                  .fromString("http://127.0.0.1:3000/confirm-deposit")
+                  .toOption
+                  .get
+              ).withContentType(
+                `Content-Type`.apply(MediaType.application.json)
+              ).withEntity(
+                ConfirmDepositRequest(
+                  startSessionResponse.sessionID,
+                  groupTokenUtxoTxId: String,
+                  1,
+                  seriesTokenUtxoTxId: String,
+                  2,
+                  amount: Long
+                )
+              )
+            )
+          })
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]
