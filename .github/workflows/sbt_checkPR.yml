@@ -133,6 +133,8 @@ jobs:
       - name: Checking the minting
         run: |
           export TOPL_WALLET_DB=topl-btc-bridge/src/universal/topl-wallet.db
+          shopt -s expand_aliases
+          alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta1 -- "
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
