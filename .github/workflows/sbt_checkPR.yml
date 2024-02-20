@@ -69,6 +69,9 @@ jobs:
         #
         ports:
           - 3000:3000
+        options: --name topl_bridge
+        volumes:
+          - ${{ github.workspace }}topl-btc-bridge/src/universal:/data
         env:
           TOPL_HOST: "bifrost"
           TOPL_WALLET_DB: "/opt/docker/data/topl-wallet.db"
@@ -88,7 +91,7 @@ jobs:
           ./cs setup --yes
           shopt -s expand_aliases
           alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta1 -- "
-          export TOPL_WALLET_DB=topl-btc-bridge/src/universal/data/topl-wallet.db
+          export TOPL_WALLET_DB=topl-btc-bridge/src/universal/topl-wallet.db
           export TOPL_WALLET_JSON=topl-btc-bridge/src/universal/topl-wallet.json
           export TOPL_WALLET_PASSWORD=password
           export ADDRESS=$(brambl-cli wallet current-address --walletdb $TOPL_WALLET_DB)
@@ -113,6 +116,10 @@ jobs:
           export ASSET_UTXO=$(brambl-cli tx broadcast -i seriesMintingTxProved.pbuf -h 127.0.0.1 --port 9084)
           echo "ASSET_UTXO: $ASSET_UTXO"
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
+      - name: Restart Topl Bridge
+        uses: docker://docker
+        with:
+          args: docker restart topl_bridge
       - name: Run integration tests
         run: sbt "integration / test"
       - uses: actions/download-artifact@v3

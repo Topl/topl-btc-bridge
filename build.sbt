@@ -73,7 +73,7 @@ lazy val commonDockerSettings = List(
     )
   },
   dockerBaseImage := "adoptopenjdk/openjdk11:jdk-11.0.16.1_1-ubuntu",
-  dockerExposedVolumes := Seq("/opt/docker/data"),
+  dockerExposedVolumes := Seq("/data"),
   dockerUpdateLatest := true
 )
 
