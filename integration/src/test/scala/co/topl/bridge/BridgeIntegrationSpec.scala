@@ -131,6 +131,9 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val confirmDepositRequestEncoder
         : EntityEncoder[IO, ConfirmDepositRequest] =
       jsonEncoderOf[IO, ConfirmDepositRequest]
+    implicit val confirmDepositRequestDecoder
+        : EntityDecoder[IO, ConfirmDepositResponse] =
+      jsonOf[IO, ConfirmDepositResponse]
     assertIO(
       for {
         createWalletOut <- process
@@ -242,32 +245,42 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           )
           .spawn[IO]
           .use(getText)
-        _ <- IO.println("genusQueryresult: " + genusQueryresult)
-        // confirmDepositResponse <- EmberClientBuilder
-        //   .default[IO]
-        //   .build
-        //   .use({ client =>
-        //     client.expect[ConfirmDepositResponse](
-        //       Request[IO](
-        //         method = Method.POST,
-        //         Uri
-        //           .fromString("http://127.0.0.1:3000/confirm-deposit")
-        //           .toOption
-        //           .get
-        //       ).withContentType(
-        //         `Content-Type`.apply(MediaType.application.json)
-        //       ).withEntity(
-        //         ConfirmDepositRequest(
-        //           startSessionResponse.sessionID,
-        //           groupTokenUtxoTxId: String,
-        //           1,
-        //           seriesTokenUtxoTxId: String,
-        //           2,
-        //           amount: Long
-        //         )
-        //       )
-        //     )
-        //   })
+        txId = genusQueryresult
+          .split("\n")
+          .filter(_.endsWith("#1"))
+          .head
+          .split(":")
+          .map(_.trim)
+          .tail
+          .head
+          .split("#")
+          .head
+        confirmDepositResponse <- EmberClientBuilder
+          .default[IO]
+          .build
+          .use({ client =>
+            client.expect[ConfirmDepositResponse](
+              Request[IO](
+                method = Method.POST,
+                Uri
+                  .fromString("http://127.0.0.1:3000/confirm-deposit")
+                  .toOption
+                  .get
+              ).withContentType(
+                `Content-Type`.apply(MediaType.application.json)
+              ).withEntity(
+                ConfirmDepositRequest(
+                  startSessionResponse.sessionID,
+                  txId,
+                  1,
+                  txId,
+                  2,
+                  4999000000L
+                )
+              )
+            )
+          })
+        _ <- IO.println("confirmDepositResponse: " + confirmDepositResponse)
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]
