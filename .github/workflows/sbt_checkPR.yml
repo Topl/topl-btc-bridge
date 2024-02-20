@@ -71,7 +71,7 @@ jobs:
           - 3000:3000
         options: --name topl_bridge
         volumes:
-          - ${{ github.workspace }}/src/universal:/data
+          - ${{ github.workspace }}/topl-btc-bridge/src/universal:/data
         env:
           TOPL_HOST: "bifrost"
           TOPL_WALLET_DB: "/data/topl-wallet.db"
