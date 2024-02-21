@@ -315,10 +315,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           })
         _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
         _ <- IO.sleep(10.seconds)
-        genusQueryresultAfterMint <- getCurrentUtxos
-        _ <- IO.println(
-          "genusQueryresultAfterMint: " + genusQueryresultAfterMint
-        )
+        _ <- assertIOBoolean(getCurrentUtxos.map(_.contains("Asset")))
       } yield (),
       ()
     )
