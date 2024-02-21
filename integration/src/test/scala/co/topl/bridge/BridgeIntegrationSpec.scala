@@ -23,6 +23,9 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
 
   val DOCKER_CMD = "docker"
 
+  
+  override val munitTimeout = Duration(180, "s")
+
   val createWallet = Seq(
     "exec",
     "bitcoin",
