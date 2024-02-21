@@ -129,7 +129,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
       ): _*
     )
     .spawn[IO]
-    .use(getText)
 
   test("Bridge should mint assets on the Topl network") {
     import io.circe._, io.circe.parser._
@@ -247,7 +246,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
-        genusQueryresult <- getCurrentUtxos
+        genusQueryresult <- getCurrentUtxos.use(getText)
         txId = genusQueryresult
           .split("\n")
           .filter(_.endsWith("#1"))
@@ -315,7 +314,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           })
         _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
         _ <- IO.sleep(10.seconds)
-        _ <- assertIOBoolean(getCurrentUtxos.map(_.contains("Asset")))
+        _ <- getCurrentUtxos.use(_.exitValue).iterateUntil(_ == 0)
+        _ <- assertIOBoolean(getCurrentUtxos.use(getText.map(_.contains("Asset")))
       } yield (),
       ()
     )
