@@ -315,7 +315,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
         _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
         _ <- IO.sleep(10.seconds)
         _ <- getCurrentUtxos.use(_.exitValue).iterateUntil(_ == 0)
-        _ <- assertIOBoolean(getCurrentUtxos.use(getText.map(_.contains("Asset")))
+        _ <- assertIOBoolean(getCurrentUtxos.use(getText).map(_.contains("Asset")))
       } yield (),
       ()
     )
