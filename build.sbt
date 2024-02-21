@@ -68,9 +68,15 @@ lazy val commonDockerSettings = List(
   Docker / version := dynverGitDescribeOutput.value
     .mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
   dockerAliases := dockerAliases.value.flatMap { alias =>
-    Seq(
-      alias.withRegistryHost(Some("ghcr.io/topl"))
-    )
+    if (sys.env.get("RELEASE_PUBLISH").getOrElse("false").toBoolean)
+      Seq(
+        alias.withRegistryHost(Some("ghcr.io/topl")),
+        alias.withRegistryHost(Some("docker.io/toplprotocol"))
+      )
+    else
+      Seq(
+        alias.withRegistryHost(Some("ghcr.io/topl"))
+      )
   },
   dockerBaseImage := "adoptopenjdk/openjdk11:jdk-11.0.16.1_1-ubuntu",
   dockerExposedVolumes := Seq("/data"),
