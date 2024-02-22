@@ -3,6 +3,8 @@ on:
   push:
     branches: ['*']
     tags: ["*"]
+  release:
+    types: [published]
 
 jobs:
   unit-test:
