@@ -172,6 +172,8 @@ jobs:
           DOCKER_PUBLISH: true
           RELEASE_PUBLISH: true
       - if: github.event.release
+        uses: olafurpg/setup-gpg@v3
+      - if: github.event.release
         name: Deploy (release only)
         run: sbt ci-release
         env:
