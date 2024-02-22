@@ -45,25 +45,6 @@ lazy val commonSettings = Seq(
   testFrameworks += TestFrameworks.MUnit
 )
 
-lazy val publishSettings = Seq(
-  homepage := Some(url("https://github.com/Topl/topl-btc-bridge")),
-  ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org",
-  sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
-  Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false },
-  pomExtra :=
-    <developers>
-      <developer>
-        <id>mundacho</id>
-        <name>Edmundo Lopez Bobeda</name>
-      </developer>
-      <developer>
-        <id>DiademShoukralla</id>
-        <name>Diadem Shoukralla</name>
-      </developer>
-    </developers>
-)
-
 lazy val commonDockerSettings = List(
   Docker / version := dynverGitDescribeOutput.value
     .mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
@@ -104,7 +85,7 @@ lazy val mavenPublishSettings = List(
   organization := "co.topl",
   homepage := Some(url("https://github.com/Topl/topl-btc-bridge")),
   licenses := List("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
-  sonatypeCredentialHost := "s01.oss.sonatype.org",
+  ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org",
   sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
   developers := List(
     Developer(
@@ -179,6 +160,6 @@ lazy val root = project
   .settings(
     organization := "co.topl",
     name := "topl-btc-bridge-umbrella"
-  )
-  .settings(noPublish)
+    )
+    .settings(noPublish)
   .aggregate(toplBtcBridge, toplBtcCli)
