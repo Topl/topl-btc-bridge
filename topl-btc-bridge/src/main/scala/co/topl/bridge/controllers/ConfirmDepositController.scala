@@ -43,7 +43,7 @@ object ConfirmDepositController {
         Either.cond(
           confirmDepositRequest.seriesTokenUtxoIdx >= 0,
           (),
-          new InvalidInput("seriesTokenUtxoIdx must be greater than 0")
+          new InvalidInput("seriesTokenUtxoIdx must be greater than or equal to 0")
         )
       )
       groupTokenUtxoBytes <- Sync[F].fromEither(
