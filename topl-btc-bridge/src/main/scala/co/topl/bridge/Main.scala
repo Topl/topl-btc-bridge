@@ -198,7 +198,6 @@ object Main
         template,
         None
       )
-      _ <- IO(println(s"indices: $someIndices"))
       // current address
       someAddress <- walletStateAlgebra.getAddress(
         fellowship,
@@ -215,7 +214,6 @@ object Main
             )
         )
         .getOrElse(IO(Seq.empty[Txo]))
-      _ <- IO(println(s"txos: $txos"))
     } yield
     // we have indices AND txos at current address are spent
     if (someIndices.isDefined && !txos.isEmpty) {
@@ -248,10 +246,9 @@ object Main
           ), // lockPredicate
           lockAddress.toBase58(), // lockAddress
           Some("ExtendedEd25519"),
-          Some(Encoding.encodeToBase58(vksDerived.head.toByteArray)),
+          Some(Encoding.encodeToBase58(vksDerived.head.toByteArray)), // TODO: we assume here only one party, fix this later
           indices
         )
-        _ <- IO.println(s"Syncing wallet with indices: $indices")
       } yield txos
     } else {
       IO(txos)
