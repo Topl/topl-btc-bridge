@@ -16,7 +16,7 @@ import co.topl.shared.SessionNotFoundError
 class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
 
   test(
-    "ConfirmRedemptionControllerSpec should create the correct transaction"
+    "ConfirmRedemptionController should create the correct transaction"
   ) {
     assertIOBoolean(
       for {
@@ -63,7 +63,7 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
     )
   }
   test(
-    "ConfirmRedemptionControllerSpec should return an error if the session does not exist"
+    "ConfirmRedemptionController should return an error if the session does not exist"
   ) {
     assertIOBoolean(
       for {

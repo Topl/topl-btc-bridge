@@ -5,6 +5,10 @@ case class StartSessionRequest(
     sha256: String
 )
 
+case class SyncWalletRequest(
+    secret: String
+)
+
 case class StartSessionResponse(
     sessionID: String,
     script: String,
@@ -21,6 +25,18 @@ case class ConfirmRedemptionRequest(
     secret: String
 )
 
+case class ConfirmDepositRequest(
+    sessionID: String,
+    groupTokenUtxoTxId: String,
+    groupTokenUtxoIdx: Int,
+    seriesTokenUtxoTxId: String,
+    seriesTokenUtxoIdx: Int,
+    amount: Long
+)
+
+case class ConfirmDepositResponse(
+    txId: String
+)
 case class ConfirmRedemptionResponse(
     tx: String
 )
@@ -30,3 +46,5 @@ sealed trait BridgeError extends Throwable
 case class SessionNotFoundError(error: String) extends BridgeError
 case class InvalidKey(error: String) extends BridgeError
 case class InvalidHash(error: String) extends BridgeError
+case class InvalidBase58(error: String) extends BridgeError
+case class InvalidInput(error: String) extends BridgeError

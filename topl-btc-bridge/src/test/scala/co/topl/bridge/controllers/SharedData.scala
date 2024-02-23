@@ -1,5 +1,7 @@
 package co.topl.bridge.controllers
 
+import co.topl.shared.ToplPrivatenet
+
 trait SharedData {
 
   val testKey =
@@ -15,14 +17,20 @@ trait SharedData {
 
   val walletFile = "topl-btc-bridge/src/test/resources/wallet.json"
 
+  val toplWalletFile = "src/test/resources/topl-wallet.json"
+
   val testSecret = "secret"
 
   val testPassword = "password"
+
+  val testToplPassword = "test"
 
   val testTx =
     "02000000000101d0e18d3e7353fc08411019d71d04eb6b508e41d96084dd835d94058e3ca6d908000000000000000000016879070000000000160014"
 
 
   val testBlockToRecover = 100
+
+  val testToplNetworkId = ToplPrivatenet
 
 }

@@ -44,6 +44,9 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % "3.5.1"
   )
 
+  val grpcNetty: Seq[ModuleID] =
+    Seq("io.grpc" % "grpc-netty-shaded" % "1.59.0")
+
   lazy val scopt: Seq[ModuleID] = Seq("com.github.scopt" %% "scopt" % "4.0.1")
 
   lazy val http4s: Seq[ModuleID] = Seq(
@@ -83,7 +86,8 @@ object Dependencies {
         log4cats ++
         http4s ++
         optics ++
-        bitcoinS
+        bitcoinS ++
+        grpcNetty
 
     lazy val test: Seq[ModuleID] =
       (
