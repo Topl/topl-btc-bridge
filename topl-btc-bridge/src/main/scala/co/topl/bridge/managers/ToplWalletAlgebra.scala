@@ -6,11 +6,11 @@ import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.box.AssetMintingStatement
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.wallet.WalletApi
 import co.topl.genus.services.Txo
 import com.google.protobuf.ByteString
 import io.circe.Json
-import co.topl.brambl.models.transaction.IoTransaction
 import quivr.models.KeyPair
 
 trait ToplWalletAlgebra[F[_]] {
@@ -25,6 +25,8 @@ trait ToplWalletAlgebra[F[_]] {
       commitment: Option[ByteString],
       assetMintingStatement: AssetMintingStatement
   ): F[IoTransaction]
+
+  def getCurrentPubKeyAndPrepareNext(): F[(Int, String)]
 
 }
 
@@ -50,6 +52,22 @@ object ToplWalletImpl {
     val tba = transactionBuilderApi
 
     val wa = walletApi
+
+    def getCurrentPubKeyAndPrepareNext(): F[(Int, String)] = {
+      for {
+        someIndex <- walletStateApi.getCurrentIndicesForFunds(
+          "self",
+          "default",
+          None
+        )
+      } yield ???
+    }
+    // {
+    //   for {
+    //     idx <- currentIdx.getAndUpdate(_ + 1)
+    //     pubKey <- KeyGenerationUtils.generateKey(km, idx)
+    //   } yield (idx, pubKey)
+    // }
 
     private def sharedOps(
         fromFellowship: String,

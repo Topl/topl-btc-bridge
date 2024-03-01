@@ -1,11 +1,11 @@
 package co.topl.tbcli.view
 
 import cats.Show
-import co.topl.shared.StartSessionRequest
+import co.topl.shared.StartPeginSessionRequest
 
 object OutputView {
 
-  implicit val showInitSession: Show[StartSessionRequest] = Show.show { a =>
+  implicit val showInitSession: Show[StartPeginSessionRequest] = Show.show { a =>
     import io.circe.syntax._
     import io.circe.generic.auto._
     a.asJson.spaces2

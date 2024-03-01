@@ -10,6 +10,9 @@ import quivr.models.KeyPair
 
 class BaseToplWalletAlgebra extends ToplWalletAlgebra[IO] {
 
+  override def getCurrentPubKeyAndPrepareNext(): IO[(Int, String)] = ???
+
+
   import UnitTestStubs._
 
   override def createSimpleAssetMintingTransactionFromParams(

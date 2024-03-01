@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import cats.effect.kernel.Sync
 import cats.effect.std
 import co.topl.shared.BitcoinNetworkIdentifiers
-import co.topl.shared.StartSessionRequest
+import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.utils.KeyGenerationUtils
 import scopt.OParser
 
@@ -42,7 +42,7 @@ object Main extends IOApp with TBCLIParamsDescriptor {
   }
 
   def displayInitSession[F[_]: std.Console](
-      startSessionRequest: StartSessionRequest
+      startSessionRequest: StartPeginSessionRequest
   ): F[Unit] = {
     import cats.implicits._
     import co.topl.tbcli.view.OutputView._
@@ -52,7 +52,7 @@ object Main extends IOApp with TBCLIParamsDescriptor {
   def processInitSession[F[_]: Sync](
       btcNetwork: BitcoinNetworkIdentifiers,
       initSession: InitSession
-  ): F[StartSessionRequest] = {
+  ): F[StartPeginSessionRequest] = {
     import cats.implicits._
     for {
       secretSha256 <- Sync[F].delay(
@@ -70,6 +70,6 @@ object Main extends IOApp with TBCLIParamsDescriptor {
           initSession.password
         )
       pKey <- KeyGenerationUtils.generateKey[F](km, 1)
-    } yield StartSessionRequest(pKey.hex, secretSha256)
+    } yield StartPeginSessionRequest(pKey.hex, secretSha256)
   }
 }

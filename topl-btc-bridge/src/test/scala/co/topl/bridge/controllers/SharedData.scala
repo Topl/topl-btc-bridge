@@ -13,9 +13,9 @@ trait SharedData {
   val testInputTx =
     "08d9a63c8e05945d83dd8460d9418e506beb041dd719104108fc53733e8de1d0"
 
-  val peginWalletFile = "topl-btc-bridge/src/test/resources/pegin-wallet.json"
+  val peginWalletFile = "src/test/resources/pegin-wallet.json"
 
-  val walletFile = "topl-btc-bridge/src/test/resources/wallet.json"
+  val walletFile = "src/test/resources/wallet.json"
 
   val toplWalletFile = "src/test/resources/topl-wallet.json"
 

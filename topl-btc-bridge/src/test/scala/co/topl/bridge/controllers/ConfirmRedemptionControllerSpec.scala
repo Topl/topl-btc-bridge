@@ -2,10 +2,10 @@ package co.topl.bridge.controllers
 
 import cats.effect.IO
 import co.topl.bridge.managers.BTCWalletImpl
-import co.topl.bridge.managers.SessionInfo
-import co.topl.bridge.managers.SessionManagerImpl
+import co.topl.bridge.managers.PeginSessionInfo
+import co.topl.bridge.managers.PeginSessionManagerImpl
 import co.topl.shared.RegTest
-import co.topl.shared.StartSessionRequest
+import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.utils.KeyGenerationUtils
 import munit.CatsEffectSuite
 
@@ -33,11 +33,11 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
         )
         wallet <- BTCWalletImpl.make[IO](km1)
         currentPubKey <- peginWallet.getCurrentPubKey()
-        sessionManager = SessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, SessionInfo]()
+        sessionManager = PeginSessionManagerImpl.make[IO](
+          new ConcurrentHashMap[String, PeginSessionInfo]()
         )
-        sessionInfo <- StartSessionController.startSession(
-          StartSessionRequest(
+        sessionInfo <- StartSessionController.startPeginSession(
+          StartPeginSessionRequest(
             testKey,
             testHash
           ),
@@ -80,8 +80,8 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
         )
         wallet <- BTCWalletImpl.make[IO](km1)
         currentPubKey <- peginWallet.getCurrentPubKey()
-        sessionManager = SessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, SessionInfo]()
+        sessionManager = PeginSessionManagerImpl.make[IO](
+          new ConcurrentHashMap[String, PeginSessionInfo]()
         )
         res <- ConfirmRedemptionController.confirmRedemption(
           ConfirmRedemptionRequest(

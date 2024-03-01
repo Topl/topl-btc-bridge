@@ -22,7 +22,7 @@ import co.topl.bridge.controllers.ConfirmDepositController
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.BTCWalletImpl
 import co.topl.bridge.managers.SessionManagerAlgebra
-import co.topl.bridge.managers.SessionManagerImpl
+import co.topl.bridge.managers.PeginSessionManagerImpl
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.ToplWalletImpl
 import co.topl.bridge.managers.TransactionAlgebra
@@ -32,7 +32,7 @@ import co.topl.shared.BridgeError
 import co.topl.shared.ConfirmDepositRequest
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.SessionNotFoundError
-import co.topl.shared.StartSessionRequest
+import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.utils.KeyGenerationUtils
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -58,6 +58,7 @@ import co.topl.brambl.utils.Encoding
 import co.topl.brambl.models.LockId
 import quivr.models.VerificationKey
 import co.topl.shared.SyncWalletRequest
+import co.topl.shared.BridgeContants
 
 object Main
     extends IOApp
@@ -101,15 +102,33 @@ object Main
         e.printStackTrace()
         BadRequest("Error syncing wallet")
       }
-
-    case req @ POST -> Root / "start-session" =>
+    case req @ POST -> Root / BridgeContants.START_PEGIN_SESSION_PATH =>
       import StartSessionController._
       implicit val startSessionRequestDecoder
-          : EntityDecoder[IO, StartSessionRequest] =
-        jsonOf[IO, StartSessionRequest]
+          : EntityDecoder[IO, StartPeginSessionRequest] =
+        jsonOf[IO, StartPeginSessionRequest]
       for {
-        x <- req.as[StartSessionRequest]
-        res <- startSession(
+        x <- req.as[StartPeginSessionRequest]
+        res <- startPeginSession(
+          x,
+          pegInWalletManager,
+          sessionManager,
+          blockToRecover,
+          btcNetwork
+        )
+        resp <- res match {
+          case Left(e: BridgeError) => BadRequest(e.asJson)
+          case Right(value)         => Ok(value.asJson)
+        }
+      } yield resp
+    case req @ POST -> Root / BridgeContants.START_PEGOUT_SESSION_PATH =>
+      import StartSessionController._
+      implicit val startSessionRequestDecoder
+          : EntityDecoder[IO, StartPeginSessionRequest] =
+        jsonOf[IO, StartPeginSessionRequest]
+      for {
+        x <- req.as[StartPeginSessionRequest]
+        res <- startPeginSession(
           x,
           pegInWalletManager,
           sessionManager,
@@ -336,7 +355,7 @@ object Main
       )(_ => IO.unit)
       app = {
         val sessionManager =
-          SessionManagerImpl.make[IO](new ConcurrentHashMap())
+          PeginSessionManagerImpl.make[IO](new ConcurrentHashMap())
         val router = Router.define(
           "/" -> apiServices(
             walletApi,

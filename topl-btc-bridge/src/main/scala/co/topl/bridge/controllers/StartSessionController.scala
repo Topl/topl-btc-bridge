@@ -1,12 +1,16 @@
 package co.topl.bridge.controllers
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Sync
 import co.topl.bridge.managers.BTCWalletAlgebra
-import co.topl.bridge.managers.SessionInfo
+import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.utils.BitcoinUtils
 import co.topl.shared.BitcoinNetworkIdentifiers
-import co.topl.shared.StartSessionRequest
+import co.topl.shared.BridgeError
+import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidKey
+import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartSessionResponse
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
@@ -17,21 +21,17 @@ import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
-import co.topl.shared.BridgeError
-import cats.effect.kernel.Sync
-import co.topl.shared.InvalidHash
-import co.topl.shared.InvalidKey
 
 object StartSessionController {
 
-  private def createSessionInfo[F[_]: Sync](
+  private def createPeginSessionInfo[F[_]: Sync](
       currentWalletIdx: Int,
       sha256: String,
       pUserPKey: String,
       bridgePKey: String,
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers
-  ): F[SessionInfo] = {
+  ): F[(String, PeginSessionInfo)] = {
     import cats.implicits._
     for {
       hash <- Sync[F].fromOption(
@@ -62,18 +62,14 @@ object StartSessionController {
           btcNetwork.btcNetwork
         )
         .value
-    } yield SessionInfo(
-      bridgePKey,
+    } yield (address, PeginSessionInfo(
       currentWalletIdx,
-      userPKey.hex,
-      sha256,
-      scriptAsm.toHex,
-      address
-    )
+      scriptAsm.toHex
+    ))
   }
 
-  def startSession[F[_]: Async](
-      req: StartSessionRequest,
+  def startPeginSession[F[_]: Async](
+      req: StartPeginSessionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       blockToRecover: Int,
@@ -83,7 +79,7 @@ object StartSessionController {
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
-      sessionInfo <- createSessionInfo(
+      addressAndsessionInfo <- createPeginSessionInfo(
         idx,
         req.sha256,
         req.pkey,
@@ -91,15 +87,46 @@ object StartSessionController {
         blockToRecover,
         btcNetwork
       )
+      (address, sessionInfo) = addressAndsessionInfo
       sessionId <- sessionManager.createNewSession(sessionInfo)
     } yield StartSessionResponse(
       sessionId,
       sessionInfo.scriptAsm,
-      sessionInfo.address,
+      address,
       BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
     ).asRight[BridgeError]).handleError { case e: BridgeError =>
       Left(e)
     }
   }
+
+  // def startPegoutSession[F[_]: Async](
+  //     req: StartPegoutSessionRequest,
+  //     toplWalletAlgebra: ToplWalletAlgebra[F],
+  //     sessionManager: SessionManagerAlgebra[F],
+  //     blockToRecover: Int,
+  //     btcNetwork: BitcoinNetworkIdentifiers
+  // ): F[Either[BridgeError, StartSessionResponse]] = {
+  //   import cats.implicits._
+  //   (for {
+  //     idxAndnewKey <- toplWalletAlgebra.getCurrentPubKeyAndPrepareNext()
+  //     (idx, newKey) = idxAndnewKey
+  //     sessionInfo <- createPeginSessionInfo(
+  //       idx,
+  //       req.sha256,
+  //       req.pkey,
+  //       newKey.hex,
+  //       blockToRecover,
+  //       btcNetwork
+  //     )
+  //     sessionId <- sessionManager.createNewSession(sessionInfo)
+  //   } yield StartSessionResponse(
+  //     sessionId,
+  //     sessionInfo.scriptAsm,
+  //     sessionInfo.address,
+  //     BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
+  //   ).asRight[BridgeError]).handleError { case e: BridgeError =>
+  //     Left(e)
+  //   }
+  // }
 
 }
