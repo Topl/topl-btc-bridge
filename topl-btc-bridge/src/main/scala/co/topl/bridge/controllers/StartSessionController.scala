@@ -117,7 +117,6 @@ object StartSessionController {
       keyPair: KeyPair,
       toplWalletAlgebra: ToplWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
-      currentBlockHeight: Int,
       waitTime: Int
   ): F[Either[BridgeError, StartPegoutSessionResponse]] = {
     import cats.implicits._
@@ -131,7 +130,7 @@ object StartSessionController {
           fellowshipId,
           req.sha256,
           waitTime,
-          currentBlockHeight
+          req.currentHeight
         )
         .map(_.getOrElse(throw new WalletSetupError("Failed to create wallet")))
       sessionInfo = PegoutSessionInfo(

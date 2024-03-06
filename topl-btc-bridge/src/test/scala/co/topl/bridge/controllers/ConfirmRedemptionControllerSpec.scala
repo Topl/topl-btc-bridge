@@ -2,7 +2,7 @@ package co.topl.bridge.controllers
 
 import cats.effect.IO
 import co.topl.bridge.managers.BTCWalletImpl
-import co.topl.bridge.managers.PeginSessionManagerImpl
+import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.bridge.managers.SessionInfo
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.RegTest
@@ -33,7 +33,7 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
         )
         wallet <- BTCWalletImpl.make[IO](km1)
         currentPubKey <- peginWallet.getCurrentPubKey()
-        sessionManager = PeginSessionManagerImpl.make[IO](
+        sessionManager = SessionManagerImpl.make[IO](
           new ConcurrentHashMap[String, SessionInfo]()
         )
         sessionInfo <- StartSessionController.startPeginSession(
@@ -80,7 +80,7 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
         )
         wallet <- BTCWalletImpl.make[IO](km1)
         currentPubKey <- peginWallet.getCurrentPubKey()
-        sessionManager = PeginSessionManagerImpl.make[IO](
+        sessionManager = SessionManagerImpl.make[IO](
           new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- ConfirmRedemptionController.confirmRedemption(

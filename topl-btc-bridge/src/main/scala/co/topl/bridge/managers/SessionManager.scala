@@ -21,7 +21,7 @@ case class PeginSessionInfo(
 
 case class PegoutSessionInfo(
     bridgeFellowshipId: String,
-    quivrScript: String
+    address: String
 ) extends SessionInfo
 
 trait SessionManagerAlgebra[F[_]] {
@@ -34,7 +34,7 @@ trait SessionManagerAlgebra[F[_]] {
   ): F[SessionInfo]
 }
 
-object PeginSessionManagerImpl {
+object SessionManagerImpl {
   def make[F[_]: Sync](
       map: ConcurrentMap[String, SessionInfo]
   ): SessionManagerAlgebra[F] = new SessionManagerAlgebra[F] {

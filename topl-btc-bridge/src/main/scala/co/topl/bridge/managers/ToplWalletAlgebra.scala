@@ -18,11 +18,14 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
 import co.topl.genus.services.Txo
+import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidKey
 import co.topl.shared.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
+import co.topl.shared.InvalidInput
 
 trait ToplWalletAlgebra[F[_]] {
 
@@ -80,13 +83,37 @@ object ToplWalletImpl {
         sha256: String,
         waitTime: Int,
         currentHeight: Int
-    ) =
+    ) = {
+      import cats.implicits._
       for {
         decodedHex <- OptionT(
-          Sync[F].delay(
-            Encoding.decodeFromHex(sha256).toOption
-          )
+          Encoding
+            .decodeFromHex(sha256)
+            .toOption
+            .map(x => Sync[F].delay(x))
+            .orElse(
+              Some(
+                Sync[F].raiseError[Array[Byte]](
+                  new InvalidHash(
+                    s"Invalid hash $sha256"
+                  )
+                )
+              )
+            )
+            .sequence
         )
+        _ <-
+          if (currentHeight <= 0) {
+            OptionT(
+              Sync[F].raiseError[Option[Unit]](
+                new InvalidInput(
+                  s"Invalid block height $currentHeight"
+                )
+              )
+            )
+          } else {
+            OptionT.some[F](())
+          }
         lockTemplateAsJson <- OptionT(Sync[F].delay(s"""{
                 "threshold":1,
                 "innerTemplates":[
@@ -109,12 +136,13 @@ object ToplWalletImpl {
                 "type":"predicate"}
               """.some))
       } yield lockTemplateAsJson
+    }
 
     def setupBridgeWallet(
         networkId: ToplNetworkIdentifiers,
         keypair: KeyPair,
         userBaseKey: String,
-        sessionId: String,
+        fellowshipName: String,
         sha256: String,
         waitTime: Int,
         currentHeight: Int
@@ -134,7 +162,7 @@ object ToplWalletImpl {
         _ <-
           fellowshipStorageAlgebra
             .addFellowship(
-              WalletFellowship(0, sessionId)
+              WalletFellowship(0, fellowshipName)
             )
             .optionT
         lockTemplateAsJson <- computeSerializedTemplate(
@@ -149,15 +177,25 @@ object ToplWalletImpl {
           .optionT
         indices <- walletStateApi
           .getCurrentIndicesForFunds(
-            sessionId,
+            fellowshipName,
             templateName,
             None
           )
           .liftT
+        bk <- Sync[F]
+          .fromEither(Encoding.decodeFromBase58(userBaseKey))
+          .handleErrorWith(_ =>
+            Sync[F].raiseError(
+              new InvalidKey(
+                s"Invalid key $userBaseKey"
+              )
+            )
+          )
+          .optionT
         userVk <- walletApi
           .deriveChildVerificationKey(
             VerificationKey.parseFrom(
-              Encoding.decodeFromBase58(userBaseKey).toOption.get
+              bk
             ),
             1
           )
@@ -199,14 +237,14 @@ object ToplWalletImpl {
           .optionT
         _ <- walletStateApi
           .addEntityVks(
-            sessionId,
+            fellowshipName,
             templateName,
             deriveChildKeyUserString :: deriveChildKeyBridgeString :: Nil
           )
           .optionT
         currentAddress <- walletStateApi
           .getAddress(
-            sessionId,
+            fellowshipName,
             templateName,
             None
           )

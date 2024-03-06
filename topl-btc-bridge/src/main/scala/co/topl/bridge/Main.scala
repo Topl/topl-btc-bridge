@@ -29,7 +29,7 @@ import co.topl.bridge.controllers.ConfirmRedemptionController
 import co.topl.bridge.controllers.StartSessionController
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.BTCWalletImpl
-import co.topl.bridge.managers.PeginSessionManagerImpl
+import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.ToplWalletImpl
@@ -138,7 +138,6 @@ object Main
           toplKeypair,
           toplWalletAlgebra,
           sessionManager,
-          x.currentHeight,
           1000
         )
         resp <- res match {
@@ -368,7 +367,7 @@ object Main
       )(_ => IO.unit)
       app = {
         val sessionManager =
-          PeginSessionManagerImpl.make[IO](new ConcurrentHashMap())
+          SessionManagerImpl.make[IO](new ConcurrentHashMap())
         val router = Router.define(
           "/" -> apiServices(
             walletApi,
