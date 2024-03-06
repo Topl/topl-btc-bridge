@@ -14,7 +14,7 @@ class SessionManagerSpec extends CatsEffectSuite {
 
   test("SessionManagerAlgebra should create and retrieve a session") {
     val sut =
-      PeginSessionManagerImpl.make[IO](new ConcurrentHashMap[String, PeginSessionInfo]())
+      PeginSessionManagerImpl.make[IO](new ConcurrentHashMap[String, SessionInfo]())
     assertIO(
       for {
         sessionId <- sut.createNewSession(sessionInfo)
@@ -28,7 +28,7 @@ class SessionManagerSpec extends CatsEffectSuite {
 
   test("SessionManagerAlgebra should fail to retrieve a non existing session") {
     val sut =
-      PeginSessionManagerImpl.make[IO](new ConcurrentHashMap[String, PeginSessionInfo]())
+      PeginSessionManagerImpl.make[IO](new ConcurrentHashMap[String, SessionInfo]())
 
     assertIO(
       (for {

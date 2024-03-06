@@ -11,6 +11,7 @@ import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.InvalidKey
 import co.topl.shared.InvalidHash
+import co.topl.bridge.managers.SessionInfo
 
 class StartSessionControllerSpec extends CatsEffectSuite with SharedData {
 
@@ -25,7 +26,7 @@ class StartSessionControllerSpec extends CatsEffectSuite with SharedData {
         peginWallet <- BTCWalletImpl.make[IO](km0)
         currentPubKey <- peginWallet.getCurrentPubKey()
         sessionManager = PeginSessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, PeginSessionInfo]()
+          new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- StartSessionController.startPeginSession(
           StartPeginSessionRequest(
@@ -38,7 +39,7 @@ class StartSessionControllerSpec extends CatsEffectSuite with SharedData {
           RegTest
         )
         sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-      } yield (sessionInfo.currentWalletIdx == 0)
+      } yield (sessionInfo.asInstanceOf[PeginSessionInfo].currentWalletIdx == 0)
         // (sessionInfo.userPKey == testKey)
         // (sessionInfo.bridgePKey == currentPubKey.hex)
     )
@@ -55,7 +56,7 @@ class StartSessionControllerSpec extends CatsEffectSuite with SharedData {
         peginWallet <- BTCWalletImpl.make[IO](km0)
         currentPubKey <- peginWallet.getCurrentPubKey()
         sessionManager = PeginSessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, PeginSessionInfo]()
+          new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- StartSessionController.startPeginSession(
           StartPeginSessionRequest(
@@ -84,7 +85,7 @@ class StartSessionControllerSpec extends CatsEffectSuite with SharedData {
         peginWallet <- BTCWalletImpl.make[IO](km0)
         currentPubKey <- peginWallet.getCurrentPubKey()
         sessionManager = PeginSessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, PeginSessionInfo]()
+          new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- StartSessionController.startPeginSession(
           StartPeginSessionRequest(
