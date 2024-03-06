@@ -17,6 +17,7 @@ import scodec.bits.ByteVector
 import co.topl.shared.SessionNotFoundError
 import cats.effect.kernel.Sync
 import co.topl.shared.BridgeError
+import co.topl.bridge.managers.PeginSessionInfo
 
 object ConfirmRedemptionController {
 
@@ -28,13 +29,24 @@ object ConfirmRedemptionController {
   ): F[Either[BridgeError, ConfirmRedemptionResponse]] = {
     import cats.implicits._
     (for {
-      sessionInfo <- sessionManager
+      genericSessionInfo <- sessionManager
         .getSession(req.sessionID)
         .handleError(_ =>
           throw SessionNotFoundError(
             s"Session with id ${req.sessionID} not found"
           )
         )
+      sessionInfo = genericSessionInfo match {
+        case PeginSessionInfo(currentWalletIdx, scriptAsm) =>
+          PeginSessionInfo(
+            currentWalletIdx,
+            scriptAsm
+          )
+        case _ =>
+          throw new RuntimeException(
+            "Session info is not a pegin session info"
+          )
+      }
       nextPubKey <- walletManager.getCurrentPubKey()
       tx = BitcoinUtils.createRedeemingTx(
         req.inputTxId,

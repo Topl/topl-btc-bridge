@@ -5,42 +5,41 @@ import cats.effect.kernel.Sync
 import java.util.UUID
 import java.util.concurrent.ConcurrentMap
 
-/**
-  * This class is used to store the session information for a pegin.
+sealed trait SessionInfo
+
+/** This class is used to store the session information for a pegin.
   *
-  * @param currentWalletIdx The index of the wallet that is currently being used.
-  * @param scriptAsm The script that is used to redeem the pegin.
+  * @param currentWalletIdx
+  *   The index of the wallet that is currently being used.
+  * @param scriptAsm
+  *   The script that is used to redeem the pegin.
   */
 case class PeginSessionInfo(
     currentWalletIdx: Int,
-    scriptAsm: String,
-)
+    scriptAsm: String
+) extends SessionInfo
 
 case class PegoutSessionInfo(
-    bridgePKey: String,
-    currentWalletIdx: Int,
-    userPKey: String,
-    secretHash: String,
-    quivrScript: String,
-    address: String
-)
+    bridgeFellowshipId: String,
+    quivrScript: String
+) extends SessionInfo
 
 trait SessionManagerAlgebra[F[_]] {
   def createNewSession(
-      sessionInfo: PeginSessionInfo
+      sessionInfo: SessionInfo
   ): F[String]
 
   def getSession(
       sessionId: String
-  ): F[PeginSessionInfo]
+  ): F[SessionInfo]
 }
 
 object PeginSessionManagerImpl {
   def make[F[_]: Sync](
-      map: ConcurrentMap[String, PeginSessionInfo]
+      map: ConcurrentMap[String, SessionInfo]
   ): SessionManagerAlgebra[F] = new SessionManagerAlgebra[F] {
     def createNewSession(
-        sessionInfo: PeginSessionInfo
+        sessionInfo: SessionInfo
     ): F[String] = {
       import cats.implicits._
       for {
@@ -51,7 +50,7 @@ object PeginSessionManagerImpl {
 
     def getSession(
         sessionId: String
-    ): F[PeginSessionInfo] = {
+    ): F[SessionInfo] = {
       Sync[F].fromOption(
         {
           Option(map.get(sessionId))

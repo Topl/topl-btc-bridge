@@ -13,7 +13,8 @@ case class StartPeginSessionRequest(
 )
 
 case class StartPegoutSessionRequest(
-    pkey: String,
+    userBaseKey: String,
+    currentHeight: Int,
     sha256: String
 )
 
@@ -21,11 +22,16 @@ case class SyncWalletRequest(
     secret: String
 )
 
-case class StartSessionResponse(
+case class StartPeginSessionResponse(
     sessionID: String,
     script: String,
     escrowAddress: String,
     descriptor: String
+)
+
+case class StartPegoutSessionResponse(
+    sessionID: String,
+    escrowAddress: String
 )
 
 case class ConfirmRedemptionRequest(
@@ -60,3 +66,4 @@ case class InvalidKey(error: String) extends BridgeError
 case class InvalidHash(error: String) extends BridgeError
 case class InvalidBase58(error: String) extends BridgeError
 case class InvalidInput(error: String) extends BridgeError
+case class WalletSetupError(error: String) extends BridgeError

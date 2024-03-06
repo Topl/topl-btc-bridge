@@ -1,24 +1,25 @@
 package co.topl.bridge
 
-import munit.CatsEffectSuite
-import fs2.io.process
 import cats.effect.IO
-import org.http4s.ember.client._
-import org.http4s.Method
-import co.topl.shared.StartPeginSessionRequest
-import org.http4s.Request
-import org.http4s.Uri
-import org.http4s.EntityDecoder
-import co.topl.shared.StartSessionResponse
-import org.http4s.headers.`Content-Type`
-import org.checkerframework.checker.units.qual.g
+import co.topl.shared.BridgeContants
+import co.topl.shared.ConfirmDepositRequest
+import co.topl.shared.ConfirmDepositResponse
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
+import co.topl.shared.StartPeginSessionRequest
+import co.topl.shared.StartPeginSessionResponse
 import co.topl.shared.SyncWalletRequest
-import co.topl.shared.ConfirmDepositResponse
-import co.topl.shared.ConfirmDepositRequest
+import fs2.io.process
+import munit.CatsEffectSuite
+import org.checkerframework.checker.units.qual.g
+import org.http4s.EntityDecoder
+import org.http4s.Method
+import org.http4s.Request
+import org.http4s.Uri
+import org.http4s.ember.client._
+import org.http4s.headers.`Content-Type`
+
 import scala.concurrent.duration._
-import co.topl.shared.BridgeContants
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -147,8 +148,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val syncWalletRequestDecoder
         : EntityEncoder[IO, SyncWalletRequest] =
       jsonEncoderOf[IO, SyncWalletRequest]
-    implicit val startSessionResponse: EntityDecoder[IO, StartSessionResponse] =
-      jsonOf[IO, StartSessionResponse]
+    implicit val startSessionResponse: EntityDecoder[IO, StartPeginSessionResponse] =
+      jsonOf[IO, StartPeginSessionResponse]
     implicit val confirmRedemptionRequestDecoder
         : EntityEncoder[IO, ConfirmRedemptionRequest] =
       jsonEncoderOf[IO, ConfirmRedemptionRequest]
@@ -190,7 +191,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .default[IO]
           .build
           .use({ client =>
-            client.expect[StartSessionResponse](
+            client.expect[StartPeginSessionResponse](
               Request[IO](
                 method = Method.POST,
                 Uri

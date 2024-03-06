@@ -6,33 +6,46 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.kernel.Resource
 import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.RpcChannelResource
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.models.Indices
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.LockId
+import co.topl.brambl.servicekit.FellowshipStorageApi
+import co.topl.brambl.servicekit.TemplateStorageApi
 import co.topl.brambl.servicekit.WalletKeyApi
 import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
+import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.BridgeParamsDescriptor
 import co.topl.bridge.ServerConfig
 import co.topl.bridge.ToplBTCBridgeParamConfig
+import co.topl.bridge.controllers.ConfirmDepositController
 import co.topl.bridge.controllers.ConfirmRedemptionController
 import co.topl.bridge.controllers.StartSessionController
-import co.topl.bridge.controllers.ConfirmDepositController
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.BTCWalletImpl
-import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.PeginSessionManagerImpl
+import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.ToplWalletImpl
 import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletManagementUtils
+import co.topl.genus.services.Txo
+import co.topl.genus.services.TxoState
 import co.topl.shared.BitcoinNetworkIdentifiers
+import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
 import co.topl.shared.ConfirmDepositRequest
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.SessionNotFoundError
 import co.topl.shared.StartPeginSessionRequest
+import co.topl.shared.SyncWalletRequest
+import co.topl.shared.ToplNetworkIdentifiers
 import co.topl.shared.utils.KeyGenerationUtils
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -44,21 +57,11 @@ import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
 import quivr.models.KeyPair
+import quivr.models.VerificationKey
 import scopt.OParser
 
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.ToplNetworkIdentifiers
-import co.topl.brambl.dataApi.WalletStateAlgebra
-import co.topl.brambl.codecs.AddressCodecs
-import co.topl.genus.services.TxoState
-import co.topl.genus.services.Txo
-import co.topl.brambl.models.Indices
-import co.topl.brambl.models.LockAddress
-import co.topl.brambl.utils.Encoding
-import co.topl.brambl.models.LockId
-import quivr.models.VerificationKey
-import co.topl.shared.SyncWalletRequest
-import co.topl.shared.BridgeContants
+import co.topl.shared.StartPegoutSessionRequest
 
 object Main
     extends IOApp
@@ -121,25 +124,31 @@ object Main
           case Right(value)         => Ok(value.asJson)
         }
       } yield resp
+    // TODO: Finish TSDK-754
     case req @ POST -> Root / BridgeContants.START_PEGOUT_SESSION_PATH =>
       import StartSessionController._
       implicit val startSessionRequestDecoder
-          : EntityDecoder[IO, StartPeginSessionRequest] =
-        jsonOf[IO, StartPeginSessionRequest]
-      for {
-        x <- req.as[StartPeginSessionRequest]
-        res <- startPeginSession(
+          : EntityDecoder[IO, StartPegoutSessionRequest] =
+        jsonOf[IO, StartPegoutSessionRequest]
+      (for {
+        x <- req.as[StartPegoutSessionRequest]
+        res <- startPegoutSession(
           x,
-          pegInWalletManager,
+          toplNetwork,
+          toplKeypair,
+          toplWalletAlgebra,
           sessionManager,
-          blockToRecover,
-          btcNetwork
+          x.currentHeight,
+          1000
         )
         resp <- res match {
           case Left(e: BridgeError) => BadRequest(e.asJson)
           case Right(value)         => Ok(value.asJson)
         }
-      } yield resp
+      } yield resp).handleErrorWith { case e =>
+        e.printStackTrace()
+        BadRequest("Error starting pegout session")
+      }
     case req @ POST -> Root / "confirm-deposit" =>
       implicit val confirmDepositRequestDecoder
           : EntityDecoder[IO, ConfirmDepositRequest] =
@@ -265,7 +274,9 @@ object Main
           ), // lockPredicate
           lockAddress.toBase58(), // lockAddress
           Some("ExtendedEd25519"),
-          Some(Encoding.encodeToBase58(vksDerived.head.toByteArray)), // TODO: we assume here only one party, fix this later
+          Some(
+            Encoding.encodeToBase58(vksDerived.head.toByteArray)
+          ), // TODO: we assume here only one party, fix this later
           indices
         )
       } yield txos
@@ -330,6 +341,8 @@ object Main
       toplWalletImpl = ToplWalletImpl.make[IO](
         IO.asyncForIO,
         walletApi,
+        FellowshipStorageApi.make(walletResource(params.toplWalletDb)),
+        TemplateStorageApi.make(walletResource(params.toplWalletDb)),
         walletStateAlgebra,
         transactionBuilderApi,
         genusQueryAlgebra
