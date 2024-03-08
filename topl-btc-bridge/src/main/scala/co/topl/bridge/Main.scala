@@ -124,7 +124,6 @@ object Main
           case Right(value)         => Ok(value.asJson)
         }
       } yield resp
-    // TODO: Finish TSDK-754
     case req @ POST -> Root / BridgeContants.START_PEGOUT_SESSION_PATH =>
       import StartSessionController._
       implicit val startSessionRequestDecoder
