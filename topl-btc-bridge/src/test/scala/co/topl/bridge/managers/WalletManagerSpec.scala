@@ -12,7 +12,7 @@ class WalletManagerSpec extends CatsEffectSuite {
       for {
         km <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
-          "topl-btc-bridge/src/test/resources/wallet.json",
+          "src/test/resources/wallet.json",
           "password"
         )
         sut <- BTCWalletImpl.make[IO](km)
@@ -28,7 +28,7 @@ class WalletManagerSpec extends CatsEffectSuite {
       for {
         km <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
-          "topl-btc-bridge/src/test/resources/wallet.json",
+          "src/test/resources/wallet.json",
           "password"
         )
         sut <- BTCWalletImpl.make[IO](km)

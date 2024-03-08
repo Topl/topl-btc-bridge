@@ -1,13 +1,21 @@
 package co.topl.bridge.controllers
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Sync
 import co.topl.bridge.managers.BTCWalletAlgebra
-import co.topl.bridge.managers.SessionInfo
+import co.topl.bridge.managers.PeginSessionInfo
+import co.topl.bridge.managers.PegoutSessionInfo
 import co.topl.bridge.managers.SessionManagerAlgebra
+import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.utils.BitcoinUtils
 import co.topl.shared.BitcoinNetworkIdentifiers
-import co.topl.shared.StartSessionRequest
-import co.topl.shared.StartSessionResponse
+import co.topl.shared.BridgeError
+import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidKey
+import co.topl.shared.StartPeginSessionRequest
+import co.topl.shared.StartPegoutSessionRequest
+import co.topl.shared.StartPeginSessionResponse
+import co.topl.shared.ToplNetworkIdentifiers
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
 import org.bitcoins.core.script.constant.OP_0
@@ -17,21 +25,22 @@ import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
-import co.topl.shared.BridgeError
-import cats.effect.kernel.Sync
-import co.topl.shared.InvalidHash
-import co.topl.shared.InvalidKey
+
+import java.util.UUID
+import co.topl.shared.StartPegoutSessionResponse
+import quivr.models.KeyPair
+import co.topl.shared.WalletSetupError
 
 object StartSessionController {
 
-  private def createSessionInfo[F[_]: Sync](
+  private def createPeginSessionInfo[F[_]: Sync](
       currentWalletIdx: Int,
       sha256: String,
       pUserPKey: String,
       bridgePKey: String,
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers
-  ): F[SessionInfo] = {
+  ): F[(String, PeginSessionInfo)] = {
     import cats.implicits._
     for {
       hash <- Sync[F].fromOption(
@@ -62,28 +71,27 @@ object StartSessionController {
           btcNetwork.btcNetwork
         )
         .value
-    } yield SessionInfo(
-      bridgePKey,
-      currentWalletIdx,
-      userPKey.hex,
-      sha256,
-      scriptAsm.toHex,
-      address
+    } yield (
+      address,
+      PeginSessionInfo(
+        currentWalletIdx,
+        scriptAsm.toHex
+      )
     )
   }
 
-  def startSession[F[_]: Async](
-      req: StartSessionRequest,
+  def startPeginSession[F[_]: Async](
+      req: StartPeginSessionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers
-  ): F[Either[BridgeError, StartSessionResponse]] = {
+  ): F[Either[BridgeError, StartPeginSessionResponse]] = {
     import cats.implicits._
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
-      sessionInfo <- createSessionInfo(
+      addressAndsessionInfo <- createPeginSessionInfo(
         idx,
         req.sha256,
         req.pkey,
@@ -91,12 +99,48 @@ object StartSessionController {
         blockToRecover,
         btcNetwork
       )
+      (address, sessionInfo) = addressAndsessionInfo
       sessionId <- sessionManager.createNewSession(sessionInfo)
-    } yield StartSessionResponse(
+    } yield StartPeginSessionResponse(
       sessionId,
       sessionInfo.scriptAsm,
-      sessionInfo.address,
+      address,
       BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
+    ).asRight[BridgeError]).handleError { case e: BridgeError =>
+      Left(e)
+    }
+  }
+
+  def startPegoutSession[F[_]: Async](
+      req: StartPegoutSessionRequest,
+      toplNetwork: ToplNetworkIdentifiers,
+      keyPair: KeyPair,
+      toplWalletAlgebra: ToplWalletAlgebra[F],
+      sessionManager: SessionManagerAlgebra[F],
+      waitTime: Int
+  ): F[Either[BridgeError, StartPegoutSessionResponse]] = {
+    import cats.implicits._
+    (for {
+      fellowshipId <- Sync[F].delay(UUID.randomUUID().toString)
+      newAddress <- toplWalletAlgebra
+        .setupBridgeWallet(
+          toplNetwork,
+          keyPair,
+          req.userBaseKey,
+          fellowshipId,
+          req.sha256,
+          waitTime,
+          req.currentHeight
+        )
+        .map(_.getOrElse(throw new WalletSetupError("Failed to create wallet")))
+      sessionInfo = PegoutSessionInfo(
+        fellowshipId,
+        newAddress
+      )
+      sessionId <- sessionManager.createNewSession(sessionInfo)
+    } yield StartPegoutSessionResponse(
+      sessionId,
+      newAddress
     ).asRight[BridgeError]).handleError { case e: BridgeError =>
       Left(e)
     }

@@ -1,17 +1,31 @@
 package co.topl.bridge.managers
 
 import cats.Monad
+import cats.data.OptionT
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.constants.NetworkConstants
+import co.topl.brambl.dataApi.FellowshipStorageAlgebra
 import co.topl.brambl.dataApi.GenusQueryAlgebra
+import co.topl.brambl.dataApi.TemplateStorageAlgebra
+import co.topl.brambl.dataApi.WalletFellowship
 import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.dataApi.WalletTemplate
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.LockId
 import co.topl.brambl.models.box.AssetMintingStatement
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
 import co.topl.genus.services.Txo
+import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidKey
+import co.topl.shared.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json
-import co.topl.brambl.models.transaction.IoTransaction
 import quivr.models.KeyPair
+import quivr.models.VerificationKey
+import co.topl.shared.InvalidInput
 
 trait ToplWalletAlgebra[F[_]] {
 
@@ -26,6 +40,16 @@ trait ToplWalletAlgebra[F[_]] {
       assetMintingStatement: AssetMintingStatement
   ): F[IoTransaction]
 
+  def setupBridgeWallet(
+      networkId: ToplNetworkIdentifiers,
+      keyPair: KeyPair,
+      userBaseKey: String,
+      sessionId: String,
+      sha256: String,
+      waitTime: Int,
+      currentHeight: Int
+  ): F[Option[String]]
+
 }
 
 object ToplWalletImpl {
@@ -34,6 +58,8 @@ object ToplWalletImpl {
   def make[F[_]](
       psync: Sync[F],
       walletApi: WalletApi[F],
+      fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
+      templateStorageAlgebra: TemplateStorageAlgebra[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F]
@@ -51,6 +77,180 @@ object ToplWalletImpl {
 
     val wa = walletApi
 
+    val templateName = "bridgeTemplate"
+
+    private def computeSerializedTemplate(
+        sha256: String,
+        waitTime: Int,
+        currentHeight: Int
+    ) = {
+      import cats.implicits._
+      for {
+        decodedHex <- OptionT(
+          Encoding
+            .decodeFromHex(sha256)
+            .toOption
+            .map(x => Sync[F].delay(x))
+            .orElse(
+              Some(
+                Sync[F].raiseError[Array[Byte]](
+                  new InvalidHash(
+                    s"Invalid hash $sha256"
+                  )
+                )
+              )
+            )
+            .sequence
+        )
+        _ <-
+          if (currentHeight <= 0) {
+            OptionT(
+              Sync[F].raiseError[Option[Unit]](
+                new InvalidInput(
+                  s"Invalid block height $currentHeight"
+                )
+              )
+            )
+          } else {
+            OptionT.some[F](())
+          }
+        lockTemplateAsJson <- OptionT(Sync[F].delay(s"""{
+                "threshold":1,
+                "innerTemplates":[
+                  {
+                    "left": {"routine":"ExtendedEd25519","entityIdx":0,"type":"signature"},
+                    "right": {"chain":"header","min": ${currentHeight + waitTime + 1},"max":9223372036854775807,"type":"height"},
+                    "type": "and"
+                  },
+                  {
+                    "left": {"chain":"header","min": ${currentHeight},"max": ${currentHeight + waitTime},"type":"height"},
+                    "right": {
+                      "type": "and",
+                      "left": {"routine":"ExtendedEd25519","entityIdx":1,"type":"signature"},
+                      "right": {"routine":"Sha256","digest": "${Encoding
+            .encodeToBase58(decodedHex)}","type":"digest"}
+                    },
+                    "type": "and"
+                  }
+                ],
+                "type":"predicate"}
+              """.some))
+      } yield lockTemplateAsJson
+    }
+
+    def setupBridgeWallet(
+        networkId: ToplNetworkIdentifiers,
+        keypair: KeyPair,
+        userBaseKey: String,
+        fellowshipName: String,
+        sha256: String,
+        waitTime: Int,
+        currentHeight: Int
+    ): F[Option[String]] = {
+
+      import cats.implicits._
+      import co.topl.brambl.common.ContainsEvidence.Ops
+      import co.topl.brambl.common.ContainsImmutable.instances._
+      import TransactionBuilderApi.implicits._
+      implicit class ImplicitConversion[A](x: F[A]) {
+        def optionT = OptionT(x.map(_.some))
+      }
+      implicit class ImplicitConversion1[A](x: F[Option[A]]) {
+        def liftT = OptionT(x)
+      }
+      (for {
+        _ <-
+          fellowshipStorageAlgebra
+            .addFellowship(
+              WalletFellowship(0, fellowshipName)
+            )
+            .optionT
+        lockTemplateAsJson <- computeSerializedTemplate(
+          sha256,
+          waitTime,
+          currentHeight
+        )
+        _ <- templateStorageAlgebra
+          .addTemplate(
+            WalletTemplate(0, templateName, lockTemplateAsJson)
+          )
+          .optionT
+        indices <- walletStateApi
+          .getCurrentIndicesForFunds(
+            fellowshipName,
+            templateName,
+            None
+          )
+          .liftT
+        bk <- Sync[F]
+          .fromEither(Encoding.decodeFromBase58(userBaseKey))
+          .handleErrorWith(_ =>
+            Sync[F].raiseError(
+              new InvalidKey(
+                s"Invalid key $userBaseKey"
+              )
+            )
+          )
+          .optionT
+        userVk <- walletApi
+          .deriveChildVerificationKey(
+            VerificationKey.parseFrom(
+              bk
+            ),
+            1
+          )
+          .optionT
+        lockTempl <- walletStateApi
+          .getLockTemplate(templateName)
+          .liftT
+        deriveChildKeyUserString = Encoding.encodeToBase58(
+          userVk.toByteArray
+        )
+        bridgeKey <- walletApi
+          .deriveChildKeys(keypair, indices)
+          .map(_.vk)
+          .optionT
+        deriveChildKeyBridgeString = Encoding.encodeToBase58(
+          bridgeKey.toByteArray
+        )
+        lock <- lockTempl
+          .build(
+            userVk :: bridgeKey :: Nil
+          )
+          .map(_.toOption)
+          .liftT
+        lockAddress = LockAddress(
+          networkId.networkId,
+          NetworkConstants.MAIN_LEDGER_ID,
+          LockId(lock.sizedEvidence.digest.value)
+        )
+        _ <- walletStateApi
+          .updateWalletState(
+            Encoding.encodeToBase58Check(
+              lock.getPredicate.toByteArray
+            ), // lockPredicate
+            lockAddress.toBase58(), // lockAddress
+            Some("ExtendedEd25519"),
+            Some(deriveChildKeyBridgeString),
+            indices
+          )
+          .optionT
+        _ <- walletStateApi
+          .addEntityVks(
+            fellowshipName,
+            templateName,
+            deriveChildKeyUserString :: deriveChildKeyBridgeString :: Nil
+          )
+          .optionT
+        currentAddress <- walletStateApi
+          .getAddress(
+            fellowshipName,
+            templateName,
+            None
+          )
+          .liftT
+      } yield currentAddress).value
+    }
     private def sharedOps(
         fromFellowship: String,
         fromTemplate: String,

@@ -5,15 +5,24 @@ import cats.effect.kernel.Sync
 import java.util.UUID
 import java.util.concurrent.ConcurrentMap
 
+sealed trait SessionInfo
 
-case class SessionInfo(
-    bridgePKey: String,
+/** This class is used to store the session information for a pegin.
+  *
+  * @param currentWalletIdx
+  *   The index of the wallet that is currently being used.
+  * @param scriptAsm
+  *   The script that is used to redeem the pegin.
+  */
+case class PeginSessionInfo(
     currentWalletIdx: Int,
-    userPKey: String,
-    secretHash: String,
-    scriptAsm: String,
+    scriptAsm: String
+) extends SessionInfo
+
+case class PegoutSessionInfo(
+    bridgeFellowshipId: String,
     address: String
-)
+) extends SessionInfo
 
 trait SessionManagerAlgebra[F[_]] {
   def createNewSession(

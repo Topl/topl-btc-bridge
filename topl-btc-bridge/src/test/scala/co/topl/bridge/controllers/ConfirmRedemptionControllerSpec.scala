@@ -2,16 +2,16 @@ package co.topl.bridge.controllers
 
 import cats.effect.IO
 import co.topl.bridge.managers.BTCWalletImpl
-import co.topl.bridge.managers.SessionInfo
 import co.topl.bridge.managers.SessionManagerImpl
+import co.topl.bridge.managers.SessionInfo
+import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.RegTest
-import co.topl.shared.StartSessionRequest
+import co.topl.shared.SessionNotFoundError
+import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.utils.KeyGenerationUtils
 import munit.CatsEffectSuite
 
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.ConfirmRedemptionRequest
-import co.topl.shared.SessionNotFoundError
 
 class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
 
@@ -36,8 +36,8 @@ class ConfirmRedemptionControllerSpec extends CatsEffectSuite with SharedData {
         sessionManager = SessionManagerImpl.make[IO](
           new ConcurrentHashMap[String, SessionInfo]()
         )
-        sessionInfo <- StartSessionController.startSession(
-          StartSessionRequest(
+        sessionInfo <- StartSessionController.startPeginSession(
+          StartPeginSessionRequest(
             testKey,
             testHash
           ),

@@ -1,29 +1,30 @@
 package co.topl.bridge
 
-import munit.CatsEffectSuite
-import fs2.io.process
 import cats.effect.IO
-import org.http4s.ember.client._
-import org.http4s.Method
-import co.topl.shared.StartSessionRequest
-import org.http4s.Request
-import org.http4s.Uri
-import org.http4s.EntityDecoder
-import co.topl.shared.StartSessionResponse
-import org.http4s.headers.`Content-Type`
-import org.checkerframework.checker.units.qual.g
+import co.topl.shared.BridgeContants
+import co.topl.shared.ConfirmDepositRequest
+import co.topl.shared.ConfirmDepositResponse
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
+import co.topl.shared.StartPeginSessionRequest
+import co.topl.shared.StartPeginSessionResponse
 import co.topl.shared.SyncWalletRequest
-import co.topl.shared.ConfirmDepositResponse
-import co.topl.shared.ConfirmDepositRequest
+import fs2.io.process
+import munit.CatsEffectSuite
+import org.checkerframework.checker.units.qual.g
+import org.http4s.EntityDecoder
+import org.http4s.Method
+import org.http4s.Request
+import org.http4s.Uri
+import org.http4s.ember.client._
+import org.http4s.headers.`Content-Type`
+
 import scala.concurrent.duration._
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
   val DOCKER_CMD = "docker"
 
-  
   override val munitTimeout = Duration(180, "s")
 
   val createWallet = Seq(
@@ -142,13 +143,13 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     import org.http4s.circe._
     import org.http4s.dsl.io._
     implicit val startSessionRequestDecoder
-        : EntityEncoder[IO, StartSessionRequest] =
-      jsonEncoderOf[IO, StartSessionRequest]
+        : EntityEncoder[IO, StartPeginSessionRequest] =
+      jsonEncoderOf[IO, StartPeginSessionRequest]
     implicit val syncWalletRequestDecoder
         : EntityEncoder[IO, SyncWalletRequest] =
       jsonEncoderOf[IO, SyncWalletRequest]
-    implicit val startSessionResponse: EntityDecoder[IO, StartSessionResponse] =
-      jsonOf[IO, StartSessionResponse]
+    implicit val startSessionResponse: EntityDecoder[IO, StartPeginSessionResponse] =
+      jsonOf[IO, StartPeginSessionResponse]
     implicit val confirmRedemptionRequestDecoder
         : EntityEncoder[IO, ConfirmRedemptionRequest] =
       jsonEncoderOf[IO, ConfirmRedemptionRequest]
@@ -190,17 +191,19 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .default[IO]
           .build
           .use({ client =>
-            client.expect[StartSessionResponse](
+            client.expect[StartPeginSessionResponse](
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/start-session")
+                  .fromString(
+                    "http://127.0.0.1:3000/" + BridgeContants.START_PEGIN_SESSION_PATH
+                  )
                   .toOption
                   .get
               ).withContentType(
                 `Content-Type`.apply(MediaType.application.json)
               ).withEntity(
-                StartSessionRequest(
+                StartPeginSessionRequest(
                   pkey =
                     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
                   sha256 =
@@ -318,7 +321,9 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
         _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
         _ <- IO.sleep(10.seconds)
         _ <- getCurrentUtxos.use(_.exitValue).iterateUntil(_ == 0)
-        _ <- assertIOBoolean(getCurrentUtxos.use(getText).map(_.contains("Asset")))
+        _ <- assertIOBoolean(
+          getCurrentUtxos.use(getText).map(_.contains("Asset"))
+        )
       } yield (),
       ()
     )

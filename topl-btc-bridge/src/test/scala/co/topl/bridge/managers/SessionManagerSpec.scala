@@ -7,13 +7,9 @@ import java.util.UUID
 
 class SessionManagerSpec extends CatsEffectSuite {
 
-  val sessionInfo = SessionInfo(
-    "bridgePKey",
+  val sessionInfo = PeginSessionInfo(
     0,
-    "userPKey",
-    "secretHash",
     "scriptAsm",
-    "address"
   )
 
   test("SessionManagerAlgebra should create and retrieve a session") {
