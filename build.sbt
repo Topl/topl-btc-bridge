@@ -1,4 +1,5 @@
 import com.typesafe.sbt.packager.docker._
+import scala.sys.process.Process
 
 inThisBuild(
   List(
@@ -135,6 +136,35 @@ lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
   )
   .enablePlugins(DockerPlugin, JavaAppPackaging)
   .dependsOn(shared)
+
+
+val buildClient = taskKey[Unit]("Build client (frontend)")
+
+buildClient := {
+
+  // Install JS dependencies from package-lock.json
+  val npmCiExitCode = Process("npm ci", cwd = (root / baseDirectory).value / "bridge-ui").!
+  if (npmCiExitCode > 0) {
+    throw new IllegalStateException(s"npm ci failed. See above for reason")
+  }
+
+  // Build the frontend with vite
+  val buildExitCode =
+    Process("npm run build", cwd = (root / baseDirectory).value / "bridge-ui").!
+  if (buildExitCode > 0) {
+    throw new IllegalStateException(
+      s"Building frontend failed. See above for reason"
+    )
+  }
+
+  // Copy vite output into server resources, where it can be accessed by the server,
+  // even after the server is packaged in a fat jar.
+  IO.copyDirectory(
+    source = (root / baseDirectory).value /  "bridge-ui" / "dist",
+    target =
+      (toplBtcBridge / baseDirectory).value / "src" / "main" / "resources" / "static"
+  )
+}
 
 lazy val toplBtcCli = (project in file("topl-btc-cli"))
   .settings(mavenPublishSettings)

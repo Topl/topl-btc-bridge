@@ -186,6 +186,11 @@ object Main
           case Right(value)                  => Ok(value.asJson)
         }
       } yield resp
+    case request @ GET -> Root =>
+      StaticFile
+        .fromResource("/static/index.html", Some(request))
+        .getOrElseF(InternalServerError())
+
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
