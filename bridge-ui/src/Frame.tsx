@@ -1,8 +1,15 @@
 import { Link, Outlet } from 'react-router-dom';
+import { deleteCookie } from './cookie-typescript-utils';
 
 
 
 function Frame() {
+
+  function handleLogout() {
+    deleteCookie("sessionID");
+    deleteCookie("escrowAddress");
+  }
+
 
   return (
     <>
@@ -18,6 +25,15 @@ function Frame() {
             <li className="nav-item">
               <a className="nav-link active" aria-current="page" href="#">Bridge</a>
             </li>
+            <li className='nav-item'>
+              <a className="nav-link" aria-current="page" href="/demo-btc-wallet">Demo BTC Wallet</a>
+            </li>
+            <li className='nav-item'>
+              <a className="nav-link" aria-current="page" href="/demo-btc-wallet">Topl Wallet</a>
+            </li>
+          </ul>
+          <ul className="navbar-nav ms-auto mt-2 mt-lg-0">
+            <li className="nav-item"><a className="nav-link" href="#!" onClick={handleLogout}>Logout</a></li>
           </ul>
         </nav>
         <div className='container'>
