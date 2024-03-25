@@ -88,7 +88,8 @@ object Main
       transactionAlgebra: TransactionAlgebra[IO],
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
-      toplNetwork: ToplNetworkIdentifiers
+      toplNetwork: ToplNetworkIdentifiers,
+      transactionBuilderApi: TransactionBuilderApi[IO]
   ) = {
     import io.circe.syntax._
     implicit val bridgeErrorEncoder: Encoder[BridgeError] =
@@ -165,19 +166,24 @@ object Main
           e.printStackTrace()
           BadRequest("Error starting pegout session")
         }
-      case req @ POST -> Root / "confirm-deposit" =>
+      case req @ POST -> Root / "confirm-deposit-btc" =>
         implicit val confirmDepositRequestDecoder
             : EntityDecoder[IO, ConfirmDepositRequest] =
           jsonOf[IO, ConfirmDepositRequest]
-        import ConfirmDepositController._
+        val confirmDepositController = new ConfirmDepositController(
+          IO.asyncForIO,
+          walletStateAlgebra,
+          transactionBuilderApi
+        )
+        println("Ready to decode request")
         for {
           x <- req.as[ConfirmDepositRequest]
-          res <- confirmDeposit(
+          res <- confirmDepositController.confirmDeposit(
             toplKeypair,
-            toplNetwork.networkId,
             x,
             toplWalletAlgebra,
             transactionAlgebra,
+            genusQueryAlgebra,
             10
           )
           resp <- res match {
@@ -212,7 +218,7 @@ object Main
       parser,
       args,
       ToplBTCBridgeParamConfig(
-        toplHost = System.getenv("TOPL_HOST"),
+        toplHost = Option(System.getenv("TOPL_HOST")).getOrElse("localhost"),
         toplWalletDb = System.getenv("TOPL_WALLET_DB")
       )
     ) match {
@@ -348,6 +354,9 @@ object Main
         params.toplNetwork.networkId,
         NetworkConstants.MAIN_LEDGER_ID
       )
+      _ = println("top host is " + params.toplHost)
+      _ = println("top port is " + params.toplPort)
+      _ = println("top secure connection is " + params.toplSecureConnection)
       genusQueryAlgebra = GenusQueryAlgebra.make[IO](
         channelResource(
           params.toplHost,
@@ -400,7 +409,8 @@ object Main
             transactionAlgebra,
             params.blockToRecover,
             params.btcNetwork,
-            params.toplNetwork
+            params.toplNetwork,
+            transactionBuilderApi
           )
         )(default = staticAssetsService)
         Kleisli[IO, Request[IO], Response[IO]] { request =>

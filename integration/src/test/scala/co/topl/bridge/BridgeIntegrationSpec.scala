@@ -279,10 +279,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               ).withEntity(
                 ConfirmDepositRequest(
                   startSessionResponse.sessionID,
-                  txId,
-                  1,
-                  txId,
-                  2,
                   4999000000L
                 )
               )

@@ -1,15 +1,16 @@
 package co.topl.bridge.stubs
 
-import cats.effect.IO
+import cats.Monad
+import cats.implicits._
 import co.topl.brambl.models.box.AssetMintingStatement
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.bridge.managers.ToplWalletAlgebra
+import co.topl.shared.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
-import co.topl.shared.ToplNetworkIdentifiers
 
-class BaseToplWalletAlgebra extends ToplWalletAlgebra[IO] {
+class BaseToplWalletAlgebra[F[_]: Monad] extends ToplWalletAlgebra[F] {
 
   import UnitTestStubs._
 
@@ -21,7 +22,7 @@ class BaseToplWalletAlgebra extends ToplWalletAlgebra[IO] {
       sha256: String,
       waitTime: Int,
       currentHeight: Int
-  ): IO[Option[String]] = ???
+  ): F[Option[String]] = ???
 
   override def createSimpleAssetMintingTransactionFromParams(
       keyPair: KeyPair,
@@ -32,5 +33,5 @@ class BaseToplWalletAlgebra extends ToplWalletAlgebra[IO] {
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
       assetMintingStatement: AssetMintingStatement
-  ): IO[IoTransaction] = IO(iotransaction01)
+  ): F[IoTransaction] = iotransaction01.pure[F]
 }

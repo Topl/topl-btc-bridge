@@ -1,70 +1,46 @@
 package co.topl.bridge.controllers
 
-import co.topl.brambl.utils.Encoding
+import cats.effect.IO
+import co.topl.brambl.cli.mockbase.BaseWalletStateAlgebra
 import co.topl.bridge.stubs.BaseToplWalletAlgebra
 import co.topl.bridge.stubs.BaseTransactionAlgebra
 import co.topl.shared.ConfirmDepositRequest
 import munit.CatsEffectSuite
-import cats.effect.IO
+import co.topl.brambl.cli.mockbase.BaseTransactionBuilderApi
+import co.topl.bridge.stubs.UnitTestStubs
+import co.topl.brambl.models.Indices
+import co.topl.brambl.models.box.Lock
+import co.topl.brambl.models.LockAddress
 
 class ConfirmDepositControllerSpec extends CatsEffectSuite with SharedData {
 
   import co.topl.bridge.stubs.UnitTestStubs._
 
-  import ConfirmDepositController._
-  test("ConfirmDepositController should fail on invalid tx id for group UTXO") {
-    assertIOBoolean(
-      for {
-        keyPair <- walletManagementUtils.loadKeys(
-          toplWalletFile,
-          testToplPassword
-        )
-        res <- confirmDeposit(
-          keyPair,
-          testToplNetworkId.networkId,
-          ConfirmDepositRequest(
-            "sessionID",
-            "invalidBase58",
-            transactionOutputAddress02.index,
-            Encoding.encodeToBase58(transactionId01.value.toByteArray()),
-            transactionOutputAddress03.index,
-            1000L
-          ),
-          new BaseToplWalletAlgebra(),
-          new BaseTransactionAlgebra[IO](),
-          10L
-        )
-      } yield res.isLeft
-    )
+  val transactionBuilderApi = new BaseTransactionBuilderApi[IO]() {
+    override def lockAddress(lock: Lock): IO[LockAddress] = IO(lockAddress01)
   }
 
-  test(
-    "ConfirmDepositController should fail on invalid tx id for series UTXO"
-  ) {
-    assertIOBoolean(
-      for {
-        keyPair <- walletManagementUtils.loadKeys(
-          toplWalletFile,
-          testToplPassword
-        )
-        res <- confirmDeposit(
-          keyPair,
-          testToplNetworkId.networkId,
-          ConfirmDepositRequest(
-            "sessionID",
-            Encoding.encodeToBase58(transactionId01.value.toByteArray()),
-            transactionOutputAddress02.index,
-            "invalidBase58",
-            transactionOutputAddress03.index,
-            1000L
-          ),
-          new BaseToplWalletAlgebra(),
-          new BaseTransactionAlgebra[IO](),
-          10L
-        )
-      } yield res.isLeft
-    )
+  val walletStateAlgebra = new BaseWalletStateAlgebra[IO]() {
+    override def getCurrentIndicesForFunds(
+        fellowship: String,
+        template: String,
+        someInteraction: Option[Int]
+    ): IO[Option[Indices]] = IO.pure(Some(Indices(1, 1, 1)))
+
+    override def getLockByAddress(
+        lockAddress: String
+    ): IO[Option[Lock.Predicate]] = IO.pure(Some(lock01))
+
+    override def getLockByIndex(indices: Indices): IO[Option[Lock.Predicate]] =
+      IO.pure(Some(lock01))
+
   }
+
+  val confirmDepositController = new ConfirmDepositController[IO](
+    IO.asyncForIO,
+    walletStateAlgebra,
+    transactionBuilderApi
+  )
 
   test(
     "ConfirmDepositController should succeed on valid input"
@@ -75,19 +51,15 @@ class ConfirmDepositControllerSpec extends CatsEffectSuite with SharedData {
           toplWalletFile,
           testToplPassword
         )
-        res <- confirmDeposit(
+        res <- confirmDepositController.confirmDeposit(
           keyPair,
-          testToplNetworkId.networkId,
           ConfirmDepositRequest(
             "sessionID",
-            Encoding.encodeToBase58(transactionId01.value.toByteArray()),
-            transactionOutputAddress02.index,
-            Encoding.encodeToBase58(transactionId01.value.toByteArray()),
-            transactionOutputAddress03.index,
             1000L
           ),
-          new BaseToplWalletAlgebra(),
+          new BaseToplWalletAlgebra[IO](),
           new BaseTransactionAlgebra[IO](),
+          UnitTestStubs.makeGenusQueryAlgebraMockWithAddress[IO],
           10L
         )
       } yield res.isRight

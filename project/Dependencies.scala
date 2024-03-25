@@ -44,8 +44,11 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % "3.5.1"
   )
 
-  val grpcNetty: Seq[ModuleID] =
-    Seq("io.grpc" % "grpc-netty-shaded" % "1.59.0")
+  val grpcNetty =
+    Seq("io.grpc" % "grpc-netty-shaded" % "1.62.2")
+
+  val grpcRuntime =
+    Seq("com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion)
 
   lazy val scopt: Seq[ModuleID] = Seq("com.github.scopt" %% "scopt" % "4.0.1")
 
@@ -87,7 +90,8 @@ object Dependencies {
         http4s ++
         optics ++
         bitcoinS ++
-        grpcNetty
+        grpcNetty ++
+        grpcRuntime
 
     lazy val test: Seq[ModuleID] =
       (

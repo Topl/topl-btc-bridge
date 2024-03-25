@@ -45,10 +45,6 @@ case class ConfirmRedemptionRequest(
 
 case class ConfirmDepositRequest(
     sessionID: String,
-    groupTokenUtxoTxId: String,
-    groupTokenUtxoIdx: Int,
-    seriesTokenUtxoTxId: String,
-    seriesTokenUtxoIdx: Int,
     amount: Long
 )
 

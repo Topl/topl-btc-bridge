@@ -1,75 +1,78 @@
 package co.topl.bridge.controllers
 
+import cats.Monad
 import cats.effect.kernel.Sync
+import cats.implicits._
+import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.dataApi.GenusQueryAlgebra
+import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.box.AssetMintingStatement
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.TransactionAlgebra
-import co.topl.shared.ConfirmDepositRequest
-import quivr.models.KeyPair
-import quivr.models.Int128
-import com.google.protobuf.ByteString
-import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.utils.Encoding
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.constants.NetworkConstants
-import co.topl.shared.InvalidBase58
-import co.topl.shared.InvalidInput
+import co.topl.bridge.managers.WalletApiHelpers
 import co.topl.shared.BridgeError
+import co.topl.shared.ConfirmDepositRequest
 import co.topl.shared.ConfirmDepositResponse
+import com.google.protobuf.ByteString
+import quivr.models.Int128
+import quivr.models.KeyPair
+import co.topl.shared.InvalidInput
 
-object ConfirmDepositController {
+class ConfirmDepositController[F[_]](
+    psync: Sync[F],
+    walletStateApi: WalletStateAlgebra[F],
+    transactionBuilderApi: TransactionBuilderApi[F]
+) extends WalletApiHelpers[F] {
 
-  def confirmDeposit[F[_]: Sync](
+  implicit val sync: cats.effect.kernel.Sync[F] = psync
+
+  implicit val m: Monad[F] = psync
+
+  val wsa: WalletStateAlgebra[F] = walletStateApi
+
+  private def getCurrentAddress(
+      fromFellowship: String,
+      fromTemplate: String,
+      someFromInteraction: Option[Int]
+  ) = for {
+    someCurrentIndices <- getCurrentIndices(
+      fromFellowship,
+      fromTemplate,
+      someFromInteraction
+    )
+    predicateFundsToUnlock <- getPredicateFundsToUnlock(someCurrentIndices)
+    fromAddress <- transactionBuilderApi.lockAddress(
+      predicateFundsToUnlock.get
+    )
+  } yield fromAddress
+
+  def confirmDeposit(
       keyPair: KeyPair,
-      networkId: Int,
       confirmDepositRequest: ConfirmDepositRequest,
       toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
+      utxoAlgebra: GenusQueryAlgebra[F],
       fee: Long
   ): F[Either[BridgeError, ConfirmDepositResponse]] = {
     import cats.implicits._
     val fromFellowship = "self"
     val fromTemplate = "default"
-
+    println("confirmDeposit called")
+    // import address codecs
+    import co.topl.brambl.codecs.AddressCodecs.encodeAddress
     (for {
-      _ <- Sync[F].fromEither(
-        Either.cond(
-          confirmDepositRequest.groupTokenUtxoIdx >= 0,
-          (),
-          new InvalidInput("groupTokenUtxoIdx must be greater than or equal to 0")
-        )
+      currentAddress <- getCurrentAddress(
+        fromFellowship,
+        fromTemplate,
+        None
       )
-      _ <- Sync[F].fromEither(
-        Either.cond(
-          confirmDepositRequest.seriesTokenUtxoIdx >= 0,
-          (),
-          new InvalidInput("seriesTokenUtxoIdx must be greater than or equal to 0")
-        )
+      _ = println(s"currentAddress: ${encodeAddress(currentAddress)}")
+      txos <- utxoAlgebra.queryUtxo(
+        currentAddress
       )
-      groupTokenUtxoBytes <- Sync[F].fromEither(
-        Encoding
-          .decodeFromBase58(confirmDepositRequest.groupTokenUtxoTxId)
-          .left
-          .map(_ => InvalidBase58("groupTokenUtxoTxId is not valid base58"))
-      )
-      groupTokenUtxo = TransactionOutputAddress(
-        networkId,
-        NetworkConstants.MAIN_LEDGER_ID,
-        confirmDepositRequest.groupTokenUtxoIdx,
-        TransactionId(ByteString.copyFrom(groupTokenUtxoBytes))
-      )
-      seriesTokenUtxoBytes <- Sync[F].fromEither(
-        Encoding
-          .decodeFromBase58(confirmDepositRequest.seriesTokenUtxoTxId)
-          .left
-          .map(_ => InvalidBase58("seriesTokenUtxoTxId is not valid base58"))
-      )
-      seriesTokenUtxo = TransactionOutputAddress(
-        networkId,
-        NetworkConstants.MAIN_LEDGER_ID,
-        confirmDepositRequest.seriesTokenUtxoIdx,
-        TransactionId(ByteString.copyFrom(seriesTokenUtxoBytes))
-      )
+      _ = println(s"txos: $txos")
+      groupTokenUtxo = txos.filter(_.transactionOutput.value.value.isGroup).head.outputAddress
+      seriesTokenUtxo = txos.filter(_.transactionOutput.value.value.isSeries).head.outputAddress
       assetMintingStatement = AssetMintingStatement(
         groupTokenUtxo,
         seriesTokenUtxo,
@@ -99,6 +102,9 @@ object ConfirmDepositController {
         .flatMap(Sync[F].fromEither(_))
     } yield ConfirmDepositResponse(txId).asRight[BridgeError]).recover {
       case e: BridgeError => Left(e)
+      case e : Throwable => 
+        e.printStackTrace()
+        Left(InvalidInput("Error in confirmDeposit"))
     }
   }
 }

@@ -7,7 +7,8 @@ import {
 } from "react-router-dom"
 import Frame from './Frame.tsx'
 import './index.css'
-import App from './App.tsx'
+import StartSession from './views/StartSession.tsx'
+import WaitingForBTC from './views/WaitingForBTC.tsx'
 
 const router = createBrowserRouter([
   {
@@ -15,12 +16,16 @@ const router = createBrowserRouter([
     element: <Frame />,
     children: [
       {
-        path: "/pegin",
-        element: <App />,
+        path: "/pegin/startSession",
+        element: <StartSession />,
+      },
+      {
+        path: "/pegin/waitingForFunds",
+        element: <WaitingForBTC />,
       },
       {
         path: "/",
-        element: <Navigate to="/pegin" replace={true} />,
+        element: <Navigate to="/pegin/startSession" replace={true} />,
       },
     ]
   },

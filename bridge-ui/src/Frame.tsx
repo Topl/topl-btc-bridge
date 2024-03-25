@@ -8,6 +8,8 @@ function Frame() {
   function handleLogout() {
     deleteCookie("sessionID");
     deleteCookie("escrowAddress");
+    // reload the page
+    window.location.reload();
   }
 
 
@@ -16,7 +18,7 @@ function Frame() {
       <div className="border-end bg-white" id="sidebar-wrapper">
         <div className="sidebar-heading border-bottom bg-light">Topl-BTC Bridge</div>
         <div className="list-group list-group-flush">
-          <Link className="list-group-item list-group-item-action list-group-item-light p-3" to={`/pegin`}>Peg-in</Link>
+          <Link className="list-group-item list-group-item-action list-group-item-light p-3" to={`/pegin/startSession`}>Peg-in</Link>
         </div>
       </div>
       <div id="page-content-wrapper">
