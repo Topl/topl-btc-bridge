@@ -297,7 +297,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/confirm-redemption")
+                  .fromString("http://127.0.0.1:3000/api/confirm-redemption")
                   .toOption
                   .get
               ).withContentType(
