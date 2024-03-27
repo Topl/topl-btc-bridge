@@ -2,7 +2,6 @@ package co.topl.bridge.controllers
 
 import cats.Monad
 import cats.effect.kernel.Sync
-import cats.implicits._
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
@@ -13,10 +12,10 @@ import co.topl.bridge.managers.WalletApiHelpers
 import co.topl.shared.BridgeError
 import co.topl.shared.ConfirmDepositRequest
 import co.topl.shared.ConfirmDepositResponse
+import co.topl.shared.InvalidInput
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
-import co.topl.shared.InvalidInput
 
 class ConfirmDepositController[F[_]](
     psync: Sync[F],
@@ -30,21 +29,7 @@ class ConfirmDepositController[F[_]](
 
   val wsa: WalletStateAlgebra[F] = walletStateApi
 
-  private def getCurrentAddress(
-      fromFellowship: String,
-      fromTemplate: String,
-      someFromInteraction: Option[Int]
-  ) = for {
-    someCurrentIndices <- getCurrentIndices(
-      fromFellowship,
-      fromTemplate,
-      someFromInteraction
-    )
-    predicateFundsToUnlock <- getPredicateFundsToUnlock(someCurrentIndices)
-    fromAddress <- transactionBuilderApi.lockAddress(
-      predicateFundsToUnlock.get
-    )
-  } yield fromAddress
+  val tba: TransactionBuilderApi[F] = transactionBuilderApi
 
   def confirmDeposit(
       keyPair: KeyPair,
@@ -57,20 +42,16 @@ class ConfirmDepositController[F[_]](
     import cats.implicits._
     val fromFellowship = "self"
     val fromTemplate = "default"
-    println("confirmDeposit called")
     // import address codecs
-    import co.topl.brambl.codecs.AddressCodecs.encodeAddress
     (for {
       currentAddress <- getCurrentAddress(
         fromFellowship,
         fromTemplate,
         None
       )
-      _ = println(s"currentAddress: ${encodeAddress(currentAddress)}")
       txos <- utxoAlgebra.queryUtxo(
         currentAddress
       )
-      _ = println(s"txos: $txos")
       groupTokenUtxo = txos.filter(_.transactionOutput.value.value.isGroup).head.outputAddress
       seriesTokenUtxo = txos.filter(_.transactionOutput.value.value.isSeries).head.outputAddress
       assetMintingStatement = AssetMintingStatement(
