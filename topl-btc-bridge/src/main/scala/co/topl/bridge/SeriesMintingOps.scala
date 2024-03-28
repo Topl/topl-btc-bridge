@@ -14,6 +14,7 @@ import co.topl.genus.services.Txo
 import quivr.models.KeyPair
 
 import TransactionBuilderApi.implicits._
+import co.topl.brambl.models.transaction.IoTransaction
 
 trait SeriesMintingOps[G[_]] extends CommonTxOps {
 
@@ -37,20 +38,20 @@ trait SeriesMintingOps[G[_]] extends CommonTxOps {
       someNextIndices: Option[Indices],
       keyPair: KeyPair,
       seriesPolicy: Event.SeriesPolicy
-  ): G[Unit] =
+  ): G[IoTransaction] =
     for {
       changeAddress <- tba.lockAddress(
         lockForChange
       )
       eitherIoTransaction <- tba.buildSeriesMintingTransaction(
-          txos,
-          predicateFundsToUnlock,
-          seriesPolicy,
-          amount,
-          recipientLockAddress,
-          changeAddress,
-          fee
-        )
+        txos,
+        predicateFundsToUnlock,
+        seriesPolicy,
+        amount,
+        recipientLockAddress,
+        changeAddress,
+        fee
+      )
       ioTransaction <- Sync[G].fromEither(eitherIoTransaction)
       // Only save to wallet interaction if there is a change output in the transaction
       _ <-
@@ -71,13 +72,13 @@ trait SeriesMintingOps[G[_]] extends CommonTxOps {
             vk.map(x => Encoding.encodeToBase58(x.toByteArray)),
             someNextIndices.get
           )
-        } yield ()
+        } yield ioTransaction
         else {
-          Sync[G].delay(())
+          Sync[G].delay(ioTransaction)
         }
-    } yield ()
+    } yield ioTransaction
 
-  def buildSeriesTxAux(
+  def buildSeriesTx(
       lvlTxos: Seq[Txo],
       nonLvlTxos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
@@ -87,30 +88,32 @@ trait SeriesMintingOps[G[_]] extends CommonTxOps {
       keyPair: KeyPair,
       seriesPolicy: Event.SeriesPolicy,
       changeLock: Option[Lock]
-  ) = (if (lvlTxos.isEmpty) {
-         Sync[G].raiseError(CreateTxError("No LVL txos found"))
-       } else {
-         changeLock match {
-           case Some(lockPredicateForChange) =>
-             tba
-               .lockAddress(lockPredicateForChange)
-               .flatMap { changeAddress =>
-                 buildSeriesTransaction(
-                   lvlTxos ++ nonLvlTxos,
-                   predicateFundsToUnlock,
-                   lockPredicateForChange,
-                   changeAddress,
-                   amount,
-                   fee,
-                   someNextIndices,
-                   keyPair,
-                   seriesPolicy
-                 )
-               }
-           case None =>
-             Sync[G].raiseError(
-               CreateTxError("Unable to generate change lock")
-             )
-         }
-       })
+  ): G[IoTransaction] = (if (lvlTxos.isEmpty) {
+                           Sync[G].raiseError(
+                             CreateTxError("No LVL txos found")
+                           )
+                         } else {
+                           changeLock match {
+                             case Some(lockPredicateForChange) =>
+                               tba
+                                 .lockAddress(lockPredicateForChange)
+                                 .flatMap { changeAddress =>
+                                   buildSeriesTransaction(
+                                     lvlTxos ++ nonLvlTxos,
+                                     predicateFundsToUnlock,
+                                     lockPredicateForChange,
+                                     changeAddress,
+                                     amount,
+                                     fee,
+                                     someNextIndices,
+                                     keyPair,
+                                     seriesPolicy
+                                   )
+                                 }
+                             case None =>
+                               Sync[G].raiseError(
+                                 CreateTxError("Unable to generate change lock")
+                               )
+                           }
+                         })
 }

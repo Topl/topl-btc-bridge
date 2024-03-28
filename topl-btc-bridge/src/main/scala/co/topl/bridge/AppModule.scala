@@ -44,7 +44,7 @@ trait AppModule
       pegInWalletManager: BTCWalletAlgebra[IO],
       walletManager: BTCWalletAlgebra[IO],
       logger: SelfAwareStructuredLogger[IO],
-      currentState: Ref[IO,SystemGlobalState]
+      currentState: Ref[IO, SystemGlobalState]
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val walletKeyApi = WalletKeyApi.make[IO]()
@@ -131,7 +131,9 @@ trait AppModule
         transactionBuilderApi,
         walletStateAlgebra,
         walletApi,
+        keyPair,
         genusQueryAlgebra,
+        transactionAlgebra,
         currentState
       )(IO.asyncForIO, logger)
     )

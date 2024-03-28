@@ -28,7 +28,7 @@ trait GroupMintingOps[G[_]] extends CommonTxOps {
 
   val wa: WalletApi[G]
 
-  def buildGroupTxAux(
+  def buildGroupTx(
       lvlTxos: Seq[Txo],
       nonlvlTxos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
