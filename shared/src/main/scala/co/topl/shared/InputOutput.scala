@@ -45,10 +45,6 @@ case class ConfirmRedemptionRequest(
 
 case class ConfirmDepositRequest(
     sessionID: String,
-    groupTokenUtxoTxId: String,
-    groupTokenUtxoIdx: Int,
-    seriesTokenUtxoTxId: String,
-    seriesTokenUtxoIdx: Int,
     amount: Long
 )
 
@@ -59,7 +55,9 @@ case class ConfirmRedemptionResponse(
     tx: String
 )
 
-sealed trait BridgeError extends Throwable
+sealed trait BridgeError extends Throwable {
+  val error: String
+}
 
 case class SessionNotFoundError(error: String) extends BridgeError
 case class InvalidKey(error: String) extends BridgeError

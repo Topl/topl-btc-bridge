@@ -29,8 +29,8 @@ import co.topl.bridge.controllers.ConfirmRedemptionController
 import co.topl.bridge.controllers.StartSessionController
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.BTCWalletImpl
-import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.bridge.managers.SessionManagerAlgebra
+import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.ToplWalletImpl
 import co.topl.bridge.managers.TransactionAlgebra
@@ -44,11 +44,11 @@ import co.topl.shared.ConfirmDepositRequest
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.SessionNotFoundError
 import co.topl.shared.StartPeginSessionRequest
+import co.topl.shared.StartPegoutSessionRequest
 import co.topl.shared.SyncWalletRequest
 import co.topl.shared.ToplNetworkIdentifiers
 import co.topl.shared.utils.KeyGenerationUtils
 import io.circe.generic.auto._
-import io.circe.syntax._
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.circe._
@@ -61,13 +61,20 @@ import quivr.models.VerificationKey
 import scopt.OParser
 
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.StartPegoutSessionRequest
+import io.circe.Encoder
+import io.circe.Json
 
 object Main
     extends IOApp
     with BridgeParamsDescriptor
     with WalletStateResource
     with RpcChannelResource {
+
+  def webUI() = HttpRoutes.of[IO] { case request @ GET -> Root =>
+    StaticFile
+      .fromResource("/static/index.html", Some(request))
+      .getOrElseF(InternalServerError())
+  }
 
   def apiServices(
       walletApi: WalletApi[IO],
@@ -81,111 +88,129 @@ object Main
       transactionAlgebra: TransactionAlgebra[IO],
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
-      toplNetwork: ToplNetworkIdentifiers
-  ) = HttpRoutes.of[IO] {
-    case req @ POST -> Root / "sync-wallet" =>
-      implicit val syncWalletRequestDecoder
-          : EntityDecoder[IO, SyncWalletRequest] =
-        jsonOf[IO, SyncWalletRequest]
-      (for {
-        syncWalletRequest <- req.as[SyncWalletRequest]
-        res <-
-          if (syncWalletRequest.secret != "secret")
-            BadRequest("Invalid secret")
-          else
-            sync(
-              walletApi,
-              walletStateAlgebra,
-              genusQueryAlgebra,
-              toplNetwork.networkId,
-              "self",
-              "default"
-            ).flatMap(_ => Ok("Wallet Synced"))
-      } yield res).handleErrorWith { e =>
-        e.printStackTrace()
-        BadRequest("Error syncing wallet")
+      toplNetwork: ToplNetworkIdentifiers,
+      transactionBuilderApi: TransactionBuilderApi[IO]
+  ) = {
+    import io.circe.syntax._
+    implicit val bridgeErrorEncoder: Encoder[BridgeError] =
+      new Encoder[BridgeError] {
+
+        override def apply(a: BridgeError): Json = Json.obj(
+          ("error", Json.fromString(a.error))
+        )
+
       }
-    case req @ POST -> Root / BridgeContants.START_PEGIN_SESSION_PATH =>
-      import StartSessionController._
-      implicit val startSessionRequestDecoder
-          : EntityDecoder[IO, StartPeginSessionRequest] =
-        jsonOf[IO, StartPeginSessionRequest]
-      for {
-        x <- req.as[StartPeginSessionRequest]
-        res <- startPeginSession(
-          x,
-          pegInWalletManager,
-          sessionManager,
-          blockToRecover,
-          btcNetwork
-        )
-        resp <- res match {
-          case Left(e: BridgeError) => BadRequest(e.asJson)
-          case Right(value)         => Ok(value.asJson)
+    HttpRoutes.of[IO] {
+      case req @ POST -> Root / "sync-wallet" =>
+        implicit val syncWalletRequestDecoder
+            : EntityDecoder[IO, SyncWalletRequest] =
+          jsonOf[IO, SyncWalletRequest]
+        (for {
+          syncWalletRequest <- req.as[SyncWalletRequest]
+          res <-
+            if (syncWalletRequest.secret != "secret")
+              BadRequest("Invalid secret")
+            else
+              sync(
+                walletApi,
+                walletStateAlgebra,
+                genusQueryAlgebra,
+                toplNetwork.networkId,
+                "self",
+                "default"
+              ).flatMap(_ => Ok("Wallet Synced"))
+        } yield res).handleErrorWith { e =>
+          e.printStackTrace()
+          BadRequest("Error syncing wallet")
         }
-      } yield resp
-    case req @ POST -> Root / BridgeContants.START_PEGOUT_SESSION_PATH =>
-      import StartSessionController._
-      implicit val startSessionRequestDecoder
-          : EntityDecoder[IO, StartPegoutSessionRequest] =
-        jsonOf[IO, StartPegoutSessionRequest]
-      (for {
-        x <- req.as[StartPegoutSessionRequest]
-        res <- startPegoutSession(
-          x,
-          toplNetwork,
-          toplKeypair,
-          toplWalletAlgebra,
-          sessionManager,
-          1000
-        )
-        resp <- res match {
-          case Left(e: BridgeError) => BadRequest(e.asJson)
-          case Right(value)         => Ok(value.asJson)
+      case req @ POST -> Root / BridgeContants.START_PEGIN_SESSION_PATH =>
+        import StartSessionController._
+        implicit val startSessionRequestDecoder
+            : EntityDecoder[IO, StartPeginSessionRequest] =
+          jsonOf[IO, StartPeginSessionRequest]
+
+        for {
+          x <- req.as[StartPeginSessionRequest]
+          res <- startPeginSession(
+            x,
+            pegInWalletManager,
+            sessionManager,
+            blockToRecover,
+            btcNetwork
+          )
+          resp <- res match {
+            case Left(e: BridgeError) => BadRequest(e.asJson)
+            case Right(value)         => Ok(value.asJson)
+          }
+        } yield resp
+      case req @ POST -> Root / BridgeContants.START_PEGOUT_SESSION_PATH =>
+        import StartSessionController._
+        implicit val startSessionRequestDecoder
+            : EntityDecoder[IO, StartPegoutSessionRequest] =
+          jsonOf[IO, StartPegoutSessionRequest]
+        (for {
+          x <- req.as[StartPegoutSessionRequest]
+          res <- startPegoutSession(
+            x,
+            toplNetwork,
+            toplKeypair,
+            toplWalletAlgebra,
+            sessionManager,
+            1000
+          )
+          resp <- res match {
+            case Left(e: BridgeError) => BadRequest(e.asJson)
+            case Right(value)         => Ok(value.asJson)
+          }
+        } yield resp).handleErrorWith { case e =>
+          e.printStackTrace()
+          BadRequest("Error starting pegout session")
         }
-      } yield resp).handleErrorWith { case e =>
-        e.printStackTrace()
-        BadRequest("Error starting pegout session")
-      }
-    case req @ POST -> Root / "confirm-deposit" =>
-      implicit val confirmDepositRequestDecoder
-          : EntityDecoder[IO, ConfirmDepositRequest] =
-        jsonOf[IO, ConfirmDepositRequest]
-      import ConfirmDepositController._
-      for {
-        x <- req.as[ConfirmDepositRequest]
-        res <- confirmDeposit(
-          toplKeypair,
-          toplNetwork.networkId,
-          x,
-          toplWalletAlgebra,
-          transactionAlgebra,
-          10
+      case req @ POST -> Root / "confirm-deposit-btc" =>
+        implicit val confirmDepositRequestDecoder
+            : EntityDecoder[IO, ConfirmDepositRequest] =
+          jsonOf[IO, ConfirmDepositRequest]
+        val confirmDepositController = new ConfirmDepositController(
+          IO.asyncForIO,
+          walletStateAlgebra,
+          transactionBuilderApi
         )
-        resp <- res match {
-          case Left(e: BridgeError) => BadRequest(e.asJson)
-          case Right(value)         => Ok(value.asJson)
-        }
-      } yield resp
-    case req @ POST -> Root / "confirm-redemption" =>
-      import ConfirmRedemptionController._
-      implicit val confirmRedemptionRequestDecoder
-          : EntityDecoder[IO, ConfirmRedemptionRequest] =
-        jsonOf[IO, ConfirmRedemptionRequest]
-      for {
-        x <- req.as[ConfirmRedemptionRequest]
-        res <- confirmRedemption(
-          x,
-          pegInWalletManager,
-          walletManager,
-          sessionManager
-        )
-        resp <- res match {
-          case Left(e: SessionNotFoundError) => NotFound(e.asJson)
-          case Left(e: BridgeError)          => BadRequest(e.asJson)
-          case Right(value)                  => Ok(value.asJson)
-        }
-      } yield resp
+        println("Ready to decode request")
+        for {
+          x <- req.as[ConfirmDepositRequest]
+          res <- confirmDepositController.confirmDeposit(
+            toplKeypair,
+            x,
+            toplWalletAlgebra,
+            transactionAlgebra,
+            genusQueryAlgebra,
+            10
+          )
+          resp <- res match {
+            case Left(e: BridgeError) => BadRequest(e.asJson)
+            case Right(value)         => Ok(value.asJson)
+          }
+        } yield resp
+      case req @ POST -> Root / "confirm-redemption" =>
+        import ConfirmRedemptionController._
+        implicit val confirmRedemptionRequestDecoder
+            : EntityDecoder[IO, ConfirmRedemptionRequest] =
+          jsonOf[IO, ConfirmRedemptionRequest]
+        for {
+          x <- req.as[ConfirmRedemptionRequest]
+          res <- confirmRedemption(
+            x,
+            pegInWalletManager,
+            walletManager,
+            sessionManager
+          )
+          resp <- res match {
+            case Left(e: SessionNotFoundError) => NotFound(e.asJson)
+            case Left(e: BridgeError)          => BadRequest(e.asJson)
+            case Right(value)                  => Ok(value.asJson)
+          }
+        } yield resp
+    }
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -193,7 +218,7 @@ object Main
       parser,
       args,
       ToplBTCBridgeParamConfig(
-        toplHost = System.getenv("TOPL_HOST"),
+        toplHost = Option(System.getenv("TOPL_HOST")).getOrElse("localhost"),
         toplWalletDb = System.getenv("TOPL_WALLET_DB")
       )
     ) match {
@@ -329,6 +354,9 @@ object Main
         params.toplNetwork.networkId,
         NetworkConstants.MAIN_LEDGER_ID
       )
+      _ = println("top host is " + params.toplHost)
+      _ = println("top port is " + params.toplPort)
+      _ = println("top secure connection is " + params.toplSecureConnection)
       genusQueryAlgebra = GenusQueryAlgebra.make[IO](
         channelResource(
           params.toplHost,
@@ -368,7 +396,8 @@ object Main
         val sessionManager =
           SessionManagerImpl.make[IO](new ConcurrentHashMap())
         val router = Router.define(
-          "/" -> apiServices(
+          "/" -> webUI(),
+          "/api" -> apiServices(
             walletApi,
             walletStateAlgebra,
             genusQueryAlgebra,
@@ -380,7 +409,8 @@ object Main
             transactionAlgebra,
             params.blockToRecover,
             params.btcNetwork,
-            params.toplNetwork
+            params.toplNetwork,
+            transactionBuilderApi
           )
         )(default = staticAssetsService)
         Kleisli[IO, Request[IO], Response[IO]] { request =>

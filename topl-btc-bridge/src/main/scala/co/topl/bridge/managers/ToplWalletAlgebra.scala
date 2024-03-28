@@ -27,7 +27,7 @@ import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import co.topl.shared.InvalidInput
 
-trait ToplWalletAlgebra[F[_]] {
+trait ToplWalletAlgebra[+F[_]] {
 
   def createSimpleAssetMintingTransactionFromParams(
       keyPair: KeyPair,

@@ -7,3 +7,4 @@ wallet.json
 project/project/
 metals.sbt
 logs/
+static/

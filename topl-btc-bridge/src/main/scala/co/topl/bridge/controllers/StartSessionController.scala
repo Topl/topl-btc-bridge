@@ -44,8 +44,11 @@ object StartSessionController {
     import cats.implicits._
     for {
       hash <- Sync[F].fromOption(
-        ByteVector.fromHex(sha256),
+        ByteVector.fromHex(sha256.toLowerCase()),
         InvalidHash(s"Invalid hash $sha256")
+      )
+      _ <- Sync[F].delay(
+        if (hash.size != 32) throw InvalidHash(s"Sha length is too short, only ${hash.size} bytes")
       )
       userPKey <- Sync[F]
         .delay(ECPublicKey.fromHex(pUserPKey))

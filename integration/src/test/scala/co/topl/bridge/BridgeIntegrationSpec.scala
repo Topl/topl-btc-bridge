@@ -196,7 +196,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                 method = Method.POST,
                 Uri
                   .fromString(
-                    "http://127.0.0.1:3000/" + BridgeContants.START_PEGIN_SESSION_PATH
+                    "http://127.0.0.1:3000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
                   )
                   .toOption
                   .get
@@ -220,7 +220,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/sync-wallet")
+                  .fromString("http://127.0.0.1:3000/api/sync-wallet")
                   .toOption
                   .get
               ).withContentType(
@@ -271,7 +271,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/confirm-deposit")
+                  .fromString("http://127.0.0.1:3000/api/confirm-deposit-btc")
                   .toOption
                   .get
               ).withContentType(
@@ -279,10 +279,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               ).withEntity(
                 ConfirmDepositRequest(
                   startSessionResponse.sessionID,
-                  txId,
-                  1,
-                  txId,
-                  2,
                   4999000000L
                 )
               )
@@ -301,7 +297,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/confirm-redemption")
+                  .fromString("http://127.0.0.1:3000/api/confirm-redemption")
                   .toOption
                   .get
               ).withContentType(
