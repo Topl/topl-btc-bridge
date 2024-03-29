@@ -92,8 +92,9 @@ object ConfirmRedemptionController {
             bridgeSig
           )
         )
-    } yield ConfirmRedemptionResponse(txWit.hex).asRight[BridgeError]).recover {
-      case e: BridgeError => Left(e)
+    } yield ConfirmRedemptionResponse(txWit.hex, sessionInfo.redeemAddress)
+      .asRight[BridgeError]).recover { case e: BridgeError =>
+      Left(e)
     }
   }
 }

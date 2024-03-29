@@ -52,7 +52,8 @@ case class ConfirmDepositResponse(
     txId: String
 )
 case class ConfirmRedemptionResponse(
-    tx: String
+    tx: String,
+    redeemAddress: String
 )
 
 sealed trait BridgeError extends Throwable {
