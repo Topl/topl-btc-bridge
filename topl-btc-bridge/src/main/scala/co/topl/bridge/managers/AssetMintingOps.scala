@@ -45,7 +45,8 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
       assetMintingStatement: AssetMintingStatement,
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
-      changeLock: Option[Lock]
+      changeLock: Option[Lock],
+      recipientLockAddress: LockAddress
   ) = (if (lvlTxos.isEmpty) {
          Sync[G].raiseError(CreateTxError("No LVL txos found"))
        } else {
@@ -53,13 +54,13 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
            case Some(lockPredicateForChange) =>
              tba
                .lockAddress(lockPredicateForChange)
-               .flatMap { changeAddress =>
+               .flatMap { _ =>
                  buildAssetTransaction(
                    keyPair,
                    lvlTxos ++ nonLvlTxos :+ groupTxo :+ seriesTxo,
                    Map(lockAddrToUnlock -> lockPredicateFrom),
                    lockPredicateForChange,
-                   changeAddress,
+                   recipientLockAddress, // recipient lock address
                    fee,
                    assetMintingStatement,
                    ephemeralMetadata.map(toStruct(_).getStructValue),

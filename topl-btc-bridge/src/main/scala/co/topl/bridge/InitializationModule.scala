@@ -9,6 +9,7 @@ import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.Event
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.syntax._
+import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletApiHelpers
@@ -65,6 +66,7 @@ class InitializationModule[F[_]: Async: Logger](
 
   def checkForLvls(): F[Unit] = (for {
     _ <- info"Checking for LVLs"
+    currentAddress <- wsa.getCurrentAddress
     txos <- getTxos()
     hasLvls <-
       if (txos.filter(_.transactionOutput.value.value.isLvl).nonEmpty) {
@@ -82,12 +84,13 @@ class InitializationModule[F[_]: Async: Logger](
           .update(
             _.copy(
               currentStatus = Some("Checking wallet..."),
-              currentError =
-                Some("No LVLs found. Please fund the bridge wallet."),
+              currentError = Some(
+                s"No LVLs found. Please fund the bridge wallet: $currentAddress"
+              ),
               isReady = false
             )
-          )
-        Async[F].pure(false)
+          ) >>
+          Async[F].pure(false)
       }
     _ <-
       if (!hasLvls)
@@ -118,8 +121,8 @@ class InitializationModule[F[_]: Async: Logger](
         info"Group Token not minted, checking txos in 5 seconds" >> currentState
           .update(
             _.copy(
-              currentStatus = Some("Checking wallet..."),
-              currentError = Some("Group Token not minted"),
+              currentStatus = Some("Waiting for group tokens..."),
+              currentError = None,
               isReady = false
             )
           ) >> Async[F].sleep(5.second) >> checkIfGroupTokenMinted()
@@ -135,15 +138,15 @@ class InitializationModule[F[_]: Async: Logger](
             _.copy(
               currentStatus = Some("Series Token minted"),
               currentError = None,
-              isReady = false
+              isReady = true
             )
           )
       } else {
         info"Series Token not minted, checking txos in 5 seconds" >> currentState
           .update(
             _.copy(
-              currentStatus = Some("Checking wallet..."),
-              currentError = Some("Series Token not minted"),
+              currentStatus = Some("Waiting for series tokens..."),
+              currentError = None,
               isReady = false
             )
           ) >> Async[F].sleep(5.second) >> checkIfSeriesTokenMinted()
@@ -302,12 +305,15 @@ class InitializationModule[F[_]: Async: Logger](
     for {
       _ <- info"Checking for Group Tokens"
       txos <- getTxos()
+      groupTxos = txos.filter(_.transactionOutput.value.value.isGroup)
       hasGroupToken <-
-        if (txos.filter(_.transactionOutput.value.value.isGroup).nonEmpty) {
-          (info"Found Group Tokens: ${int128AsBigInt(sumLvls(txos))}" >> currentState
+        if (groupTxos.nonEmpty) {
+          (info"Found Group Tokens" >> currentState
             .update(
               _.copy(
-                currentStatus = Some("Group token found"),
+                currentStatus = Some(
+                  s"Group token found: ${Encoding.encodeToHex(groupTxos.head.transactionOutput.value.value.group.get.groupId.value.toByteArray())}"
+                ),
                 currentError = None,
                 isReady = false
               )

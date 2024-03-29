@@ -40,6 +40,7 @@ import org.http4s.dsl.io._
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import cats.effect.kernel.Ref
+import org.typelevel.log4cats.Logger
 
 trait ApiServicesModule {
 
@@ -138,7 +139,7 @@ trait ApiServicesModule {
       toplNetwork: ToplNetworkIdentifiers,
       transactionBuilderApi: TransactionBuilderApi[IO],
       currentState: Ref[IO, SystemGlobalState]
-  ) = {
+  )(implicit logger: Logger[IO]) = {
     import io.circe.syntax._
     implicit val bridgeErrorEncoder: Encoder[BridgeError] =
       new Encoder[BridgeError] {
@@ -189,6 +190,8 @@ trait ApiServicesModule {
             pegInWalletManager,
             sessionManager,
             blockToRecover,
+            toplKeypair,
+            toplWalletAlgebra,
             btcNetwork
           )
           resp <- res match {
@@ -219,25 +222,24 @@ trait ApiServicesModule {
           e.printStackTrace()
           BadRequest("Error starting pegout session")
         }
-      case req @ POST -> Root / "confirm-deposit-btc" =>
+      case req @ POST -> Root / BridgeContants.CONFIRM_DEPOSIT_BTC_PATH =>
         implicit val confirmDepositRequestDecoder
             : EntityDecoder[IO, ConfirmDepositRequest] =
           jsonOf[IO, ConfirmDepositRequest]
-        val confirmDepositController = new ConfirmDepositController(
-          IO.asyncForIO,
-          walletStateAlgebra,
-          transactionBuilderApi
-        )
-        println("Ready to decode request")
         for {
           x <- req.as[ConfirmDepositRequest]
+          confirmDepositController = new ConfirmDepositController[IO](
+            walletStateAlgebra,
+            transactionBuilderApi
+          )(IO.asyncForIO, logger)
           res <- confirmDepositController.confirmDeposit(
             toplKeypair,
             x,
             toplWalletAlgebra,
             transactionAlgebra,
             genusQueryAlgebra,
-            10
+            10,
+            sessionManager
           )
           resp <- res match {
             case Left(e: BridgeError) => BadRequest(e.asJson)

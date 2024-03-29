@@ -37,10 +37,19 @@ object ConfirmRedemptionController {
           )
         )
       sessionInfo = genericSessionInfo match {
-        case PeginSessionInfo(currentWalletIdx, scriptAsm) =>
+        case PeginSessionInfo(
+              currentWalletIdx,
+              mintTemplateName,
+              scriptAsm,
+              redeemAddress,
+              state
+            ) =>
           PeginSessionInfo(
             currentWalletIdx,
-            scriptAsm
+            mintTemplateName,
+            scriptAsm,
+            redeemAddress,
+            state
           )
         case _ =>
           throw new RuntimeException(

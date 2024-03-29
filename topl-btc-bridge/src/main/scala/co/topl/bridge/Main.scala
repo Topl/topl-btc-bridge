@@ -19,6 +19,15 @@ case class SystemGlobalState(
     isReady: Boolean = false
 )
 
+sealed trait MintingBTCState
+
+case object MintingBTCState {
+  case object MintingBTCStateReady extends MintingBTCState
+  case object MintingBTCStateMinting extends MintingBTCState
+  case object MintingBTCStateWaiting extends MintingBTCState
+  case class MintingBTCStateMinted(address: String) extends MintingBTCState
+}
+
 object Main extends IOApp with BridgeParamsDescriptor with AppModule {
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -65,13 +74,15 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       walletManager <- BTCWalletImpl.make[IO](walletKm)
       logger =
         org.typelevel.log4cats.slf4j.Slf4jLogger.getLoggerFromName[IO]("App")
-      ref <- Ref[IO].of(SystemGlobalState(Some("Setting up wallet..."), None))
+      globalState <- Ref[IO].of(
+        SystemGlobalState(Some("Setting up wallet..."), None)
+      )
       appAndInit <- createApp(
         params,
         pegInWalletManager,
         walletManager,
         logger,
-        ref
+        globalState
       )
       (app, init) = appAndInit
       _ <- EmberServerBuilder

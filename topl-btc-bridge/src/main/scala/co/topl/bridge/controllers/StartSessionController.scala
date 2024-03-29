@@ -30,16 +30,19 @@ import java.util.UUID
 import co.topl.shared.StartPegoutSessionResponse
 import quivr.models.KeyPair
 import co.topl.shared.WalletSetupError
+import co.topl.bridge.MintingBTCState
 
 object StartSessionController {
 
   private def createPeginSessionInfo[F[_]: Sync](
       currentWalletIdx: Int,
+      mintTemplateName: String,
       sha256: String,
       pUserPKey: String,
       bridgePKey: String,
       blockToRecover: Int,
-      btcNetwork: BitcoinNetworkIdentifiers
+      btcNetwork: BitcoinNetworkIdentifiers,
+      redeemAddress: String
   ): F[(String, PeginSessionInfo)] = {
     import cats.implicits._
     for {
@@ -48,7 +51,8 @@ object StartSessionController {
         InvalidHash(s"Invalid hash $sha256")
       )
       _ <- Sync[F].delay(
-        if (hash.size != 32) throw InvalidHash(s"Sha length is too short, only ${hash.size} bytes")
+        if (hash.size != 32)
+          throw InvalidHash(s"Sha length is too short, only ${hash.size} bytes")
       )
       userPKey <- Sync[F]
         .delay(ECPublicKey.fromHex(pUserPKey))
@@ -78,7 +82,10 @@ object StartSessionController {
       address,
       PeginSessionInfo(
         currentWalletIdx,
-        scriptAsm.toHex
+        mintTemplateName,
+        redeemAddress,
+        scriptAsm.toHex,
+        MintingBTCState.MintingBTCStateReady
       )
     )
   }
@@ -88,19 +95,33 @@ object StartSessionController {
       pegInWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       blockToRecover: Int,
+      keyPair: KeyPair,
+      toplWalletAlgebra: ToplWalletAlgebra[F],
       btcNetwork: BitcoinNetworkIdentifiers
   ): F[Either[BridgeError, StartPeginSessionResponse]] = {
     import cats.implicits._
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
+      mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
+      someRedeemAdress <- toplWalletAlgebra.setupBridgeWalletForMinting(
+        mintTemplateName,
+        keyPair,
+        req.sha256
+      )
+      _ = assert(
+        someRedeemAdress.isDefined,
+        "Redeem address was not generated correctly"
+      )
       addressAndsessionInfo <- createPeginSessionInfo(
         idx,
+        mintTemplateName,
         req.sha256,
         req.pkey,
         newKey.hex,
         blockToRecover,
-        btcNetwork
+        btcNetwork,
+        someRedeemAdress.get
       )
       (address, sessionInfo) = addressAndsessionInfo
       sessionId <- sessionManager.createNewSession(sessionInfo)

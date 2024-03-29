@@ -2,6 +2,7 @@ package co.topl.bridge
 
 import cats.data.Kleisli
 import cats.effect.IO
+import cats.effect.kernel.Ref
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.GenusQueryAlgebra
@@ -26,7 +27,6 @@ import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 import java.util.concurrent.ConcurrentHashMap
-import cats.effect.kernel.Ref
 
 trait AppModule
     extends WalletStateResource
@@ -120,7 +120,7 @@ trait AppModule
           params.toplNetwork,
           transactionBuilderApi,
           currentState
-        )
+        )(logger)
       )(default = staticAssetsService)
 
     } yield (

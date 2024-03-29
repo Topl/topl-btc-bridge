@@ -4,12 +4,16 @@ import munit.CatsEffectSuite
 import java.util.concurrent.ConcurrentHashMap
 import cats.effect.IO
 import java.util.UUID
+import co.topl.bridge.MintingBTCState
 
 class SessionManagerSpec extends CatsEffectSuite {
 
   val sessionInfo = PeginSessionInfo(
     0,
+    "mintTemplateName",
+    "redeemAddress",
     "scriptAsm",
+    MintingBTCState.MintingBTCStateReady
   )
 
   test("SessionManagerAlgebra should create and retrieve a session") {
