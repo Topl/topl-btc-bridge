@@ -188,7 +188,7 @@ class ConfirmDepositController[F[_]: Async: Logger](
         sessionManager,
         utxoAlgebra
       )
-    } yield ConfirmDepositResponse(txId).asRight[BridgeError]).recover {
+    } yield ConfirmDepositResponse(txId, sessionInfo.redeemAddress).asRight[BridgeError]).recover {
       case e: BridgeError => Left(e)
       case e: Throwable =>
         e.printStackTrace()

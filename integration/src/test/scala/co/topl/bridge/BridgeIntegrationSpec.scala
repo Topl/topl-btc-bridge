@@ -311,6 +311,15 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
             )
           })
         _ <- IO.println("confirmDepositResponse: " + confirmDepositResponse)
+        _ <- IO.sleep(10.seconds)
+        _ <- getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
+          .use(_.exitValue)
+          .iterateUntil(_ == 0)
+        _ <- assertIOBoolean(
+          getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
+            .use(getText)
+            .map(_.contains("Asset"))
+        )
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]
@@ -340,16 +349,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               )
             )
           })
-        _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
-        _ <- IO.sleep(10.seconds)
-        _ <- getCurrentUtxosFromAddress(confirmRedemptionResponse.redeemAddress)
-          .use(_.exitValue)
-          .iterateUntil(_ == 0)
-        _ <- assertIOBoolean(
-          getCurrentUtxosFromAddress(confirmRedemptionResponse.redeemAddress)
-            .use(getText)
-            .map(_.contains("Asset"))
-        )
       } yield (),
       ()
     )
