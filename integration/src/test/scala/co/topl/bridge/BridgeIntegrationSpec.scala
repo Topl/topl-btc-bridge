@@ -318,7 +318,10 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
         _ <- assertIOBoolean(
           getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
             .use(getText)
-            .map(_.contains("Asset"))
+            .map { x =>
+              println("Found: " + x)
+              x.contains("Asset")
+            }
         )
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
