@@ -7,4 +7,6 @@ object BridgeContants {
 
   val CONFIRM_DEPOSIT_BTC_PATH = "confirm-deposit-btc"
 
+  val TOPL_MINTING_STATUS = "topl-minting-status"
+
 }

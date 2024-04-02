@@ -6,6 +6,7 @@ export interface SessionInformation {
   sessionID: string;
   escrowAddress: string;
   currentState: string;
+  redeemAddress: string;
 }
 
 export interface StartSessionRequest {
@@ -69,7 +70,7 @@ function errorValidation(error: string) {
 
 function StartSession() {
 
-  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart" })
+  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart", redeemAddress: "" })
   const [hash, setHash] = useState<string>("")
   const [error, setError] = useState<string>("")
 
@@ -77,14 +78,19 @@ function StartSession() {
     const sessionId = getCookie("sessionID");
     const escrowAddress = getCookie("escrowAddress");
     const currentState = getCookie("currentState");
-    if (sessionId !== undefined && escrowAddress !== undefined && currentState !== undefined) {
-      setSession({ isSet: true, sessionID: sessionId, escrowAddress: escrowAddress, currentState: currentState });
+    const redeemAddress = getCookie("redeemAddress");
+    if (sessionId !== undefined && escrowAddress !== undefined && currentState !== undefined && redeemAddress !== undefined) {
+      setSession({ isSet: true, sessionID: sessionId, escrowAddress: escrowAddress, currentState: currentState, redeemAddress: redeemAddress });
       if (currentState === "WaitingForBTC") {
         // redirect to waiting for BTC
         window.location.href = "/pegin/waitingForFunds";
       }
+      if (currentState === "MintingTBTC") {
+        // redirect to minting
+        window.location.href = "/pegin/minting";
+      }
     } else {
-      setSession({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart" });
+      setSession({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart", redeemAddress: "" });
     }
   }, []);
 
@@ -96,10 +102,11 @@ function StartSession() {
     }
     const response = await startSession(startSessionRequest);
     if (typeof response === 'object' && !("error" in response)) {
-      setSession({ isSet: true, sessionID: response.sessionID, escrowAddress: response.escrowAddress, currentState: "SessionStarted" });
+      setSession({ isSet: true, sessionID: response.sessionID, escrowAddress: response.escrowAddress, currentState: "SessionStarted", redeemAddress: "" });
       setCookie("sessionID", response.sessionID);
       setCookie("escrowAddress", response.escrowAddress);
       setCookie("currentState", "SessionStarted");
+      setCookie("redeemAddress", "");
       setError("");
     } else {
       setError(response.error);
@@ -109,6 +116,7 @@ function StartSession() {
   async function handleSubmitBTCTransferred(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     // redirect to waiting for BTC
+    setCookie("currentState", "WaitingForBTC");
     window.location.href = "/pegin/waitingForFunds";
   }
   const style = {

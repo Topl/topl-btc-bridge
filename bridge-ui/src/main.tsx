@@ -9,6 +9,7 @@ import Frame from './Frame.tsx'
 import './index.css'
 import StartSession from './views/StartSession.tsx'
 import WaitingForBTC from './views/WaitingForBTC.tsx'
+import WaitingForMint from './views/WaitingForMint.tsx'
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ const router = createBrowserRouter([
       {
         path: "/pegin/waitingForFunds",
         element: <WaitingForBTC />,
+      },
+      {
+        path: "/pegin/minting",
+        element: <WaitingForMint />,
       },
       {
         path: "/",

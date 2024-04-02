@@ -28,16 +28,26 @@ async function confirmDeposit(confirmDepositRequest: ConfirmDepositRequest): Pro
 
 
 function WaitingForBTC() {
-  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart" })
+  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart", redeemAddress: "" })
 
   useEffect(() => {
     const sessionId = getCookie("sessionID");
     const escrowAddress = getCookie("escrowAddress");
     const currentState = getCookie("currentState");
-    if (sessionId !== undefined && escrowAddress !== undefined && currentState !== undefined) {
-      setSession({ isSet: true, sessionID: sessionId, escrowAddress: escrowAddress, currentState: currentState });
+    const redeemAddress = getCookie("redeemAddress");
+    if (sessionId !== undefined && escrowAddress !== undefined && currentState !== undefined && redeemAddress !== undefined) {
+      setSession({ isSet: true, sessionID: sessionId, escrowAddress: escrowAddress, currentState: currentState, redeemAddress: redeemAddress });
+      console.log(currentState);
+      if (currentState === "SessionStart") {
+        // redirect to waiting for BTC
+        // window.location.href = "/pegin/startSession";
+      }
+      if (currentState === "MintingTBTC") {
+        // redirect to minting
+        window.location.href = "/pegin/minting";
+      }
     } else {
-      setSession({ isSet: false, sessionID: "", escrowAddress: "", currentState: "SessionStart" });
+      window.location.href = "/pegin/startSession";
     }
   }, []);
 
@@ -52,8 +62,9 @@ function WaitingForBTC() {
 
     const response = await confirmDeposit(confirmDepositRequest);
     if (typeof response === 'object' && !("error" in response)) {
-      setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: "MintingStarted" });
-      setCookie("currentState", "MintingStarted");
+      setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: "MintingTBTC", redeemAddress: "" });
+      setCookie("currentState", "MintingTBTC");
+      window.location.href = "/pegin/minting";
     }
   }
 

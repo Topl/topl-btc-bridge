@@ -25,7 +25,7 @@ case object MintingBTCState {
   case object MintingBTCStateReady extends MintingBTCState
   case object MintingBTCStateMinting extends MintingBTCState
   case object MintingBTCStateWaiting extends MintingBTCState
-  case class MintingBTCStateMinted(address: String) extends MintingBTCState
+  case object MintingBTCStateMinted extends MintingBTCState
 }
 
 object Main extends IOApp with BridgeParamsDescriptor with AppModule {

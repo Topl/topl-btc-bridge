@@ -70,7 +70,8 @@ class ConfirmDepositController[F[_]: Async: Logger](
           sessionManager.updateSession(
             sessionID,
             sessionInfo.copy(
-              mintingBTCState = MintingBTCState.MintingBTCStateMinted(address)
+              mintingBTCState = MintingBTCState.MintingBTCStateMinted,
+              redeemAddress = address
             )
           )
       } else {
@@ -188,7 +189,8 @@ class ConfirmDepositController[F[_]: Async: Logger](
         sessionManager,
         utxoAlgebra
       )
-    } yield ConfirmDepositResponse(txId, sessionInfo.redeemAddress).asRight[BridgeError]).recover {
+    } yield ConfirmDepositResponse(txId, sessionInfo.redeemAddress)
+      .asRight[BridgeError]).recover {
       case e: BridgeError => Left(e)
       case e: Throwable =>
         e.printStackTrace()

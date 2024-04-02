@@ -18,6 +18,15 @@ case class StartPegoutSessionRequest(
     sha256: String
 )
 
+case class MintingStatusRequest(
+    sessionID: String
+)
+
+case class MintingStatusResponse(
+    mintingStatus: String,
+    address: String
+)
+
 case class SyncWalletRequest(
     secret: String
 )

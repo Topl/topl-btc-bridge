@@ -41,6 +41,9 @@ import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import cats.effect.kernel.Ref
 import org.typelevel.log4cats.Logger
+import co.topl.shared.MintingStatusRequest
+import co.topl.shared.MintingStatusResponse
+import co.topl.bridge.managers.PeginSessionInfo
 
 trait ApiServicesModule {
 
@@ -222,6 +225,27 @@ trait ApiServicesModule {
           e.printStackTrace()
           BadRequest("Error starting pegout session")
         }
+      case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
+        
+        implicit val mintingRequestDecoder
+            : EntityDecoder[IO, MintingStatusRequest] =
+          jsonOf[IO, MintingStatusRequest]
+        for {
+          x <- req.as[MintingStatusRequest]
+          _ <- IO.println("Session ID: " + x.sessionID)
+          session <- sessionManager.getSession(x.sessionID)
+          pegin <- session match {
+            case p: PeginSessionInfo => IO.pure(p)
+            case _ => IO.raiseError(new Exception("Invalid session type"))
+          }
+          resp <- Ok(
+            MintingStatusResponse(
+              pegin.mintingBTCState.toString(),
+              pegin.redeemAddress
+            ).asJson
+          )
+          _ <- IO.println("Minting status response: " + resp)
+        } yield resp
       case req @ POST -> Root / BridgeContants.CONFIRM_DEPOSIT_BTC_PATH =>
         implicit val confirmDepositRequestDecoder
             : EntityDecoder[IO, ConfirmDepositRequest] =
