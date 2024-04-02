@@ -319,7 +319,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
             .use(getText)
             .map { x =>
-              println("Found: " + x)
               x.contains("Asset")
             }
         )

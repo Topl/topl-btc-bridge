@@ -477,14 +477,6 @@ object ToplWalletImpl {
             )
           )
         )
-      _ <- Sync[F].delay(
-        println(  // TODO: Remove me
-          "Minting to: " + AddressCodecs
-            .decodeAddress(redeemLockAddress)
-            .toOption
-            .get
-        )
-      )
       ioTransaction <- buildAssetTxAux(
         keyPair,
         lvlTxos,
