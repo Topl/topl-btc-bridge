@@ -66,7 +66,7 @@ class ConfirmDepositController[F[_]: Async: Logger](
     newTxos <- getTxosFromMinting(genusQueryAlgebra, sessionInfo.redeemAddress)
     _ <-
       if (newTxos.filter(_.transactionOutput.value.value.isAsset).nonEmpty) {
-        info"tBTC minted successfully" >>
+        info"tBTC minted successfully to address $address" >>
           sessionManager.updateSession(
             sessionID,
             sessionInfo.copy(
