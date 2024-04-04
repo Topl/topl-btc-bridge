@@ -2,8 +2,8 @@ package co.topl.bridge.controllers
 
 import cats.Monad
 import cats.effect.kernel.Async
-import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.box.AssetMintingStatement
@@ -23,8 +23,8 @@ import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import quivr.models.Int128
 import quivr.models.KeyPair
+
 import scala.concurrent.duration._
-import co.topl.brambl.codecs.AddressCodecs
 
 class ConfirmDepositController[F[_]: Async: Logger](
     walletStateApi: WalletStateAlgebra[F],
@@ -33,7 +33,7 @@ class ConfirmDepositController[F[_]: Async: Logger](
 
   import org.typelevel.log4cats.syntax._
 
-  val sync: cats.effect.kernel.Sync[F] = implicitly[Sync[F]]
+  // val sync: cats.effect.kernel.Sync[F] = implicitly[Sync[F]]
 
   val m: Monad[F] = implicitly[Monad[F]]
 
@@ -172,23 +172,23 @@ class ConfirmDepositController[F[_]: Async: Logger](
           ioTransaction,
           keyPair
         )
-        .flatMap(Sync[F].fromEither(_))
+        .flatMap(Async[F].fromEither(_))
       txId <- transactionAlgebra
         .broadcastSimpleTransactionFromParams(provedIoTx)
-        .flatMap(Sync[F].fromEither(_))
+        .flatMap(Async[F].fromEither(_))
       _ <- sessionManager.updateSession(
         confirmDepositRequest.sessionID,
         sessionInfo.copy(
           mintingBTCState = MintingBTCState.MintingBTCStateMinting
         )
       )
-      _ <- checkIfAssetTokenMinted(
-        sessionInfo.redeemAddress,
-        confirmDepositRequest.sessionID,
-        sessionInfo,
-        sessionManager,
-        utxoAlgebra
-      )
+      _ <- Async[F].background(checkIfAssetTokenMinted(
+          sessionInfo.redeemAddress,
+          confirmDepositRequest.sessionID,
+          sessionInfo,
+          sessionManager,
+          utxoAlgebra
+        )).allocated
     } yield ConfirmDepositResponse(txId, sessionInfo.redeemAddress)
       .asRight[BridgeError]).recover {
       case e: BridgeError => Left(e)
