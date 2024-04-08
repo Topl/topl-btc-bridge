@@ -14,11 +14,11 @@ const currentView = (session: SessionInformation, setSession: React.Dispatch<Rea
     case PeginUIState.WaitingForBTC:
       return WaitingForBTC(session, setSession)
     case PeginUIState.WaitingForMint:
-      return WaitingForMint(session, setSession)
+      return WaitingForMint(session)
     case PeginUIState.MintingTBTC:
-      return WaitingForMint(session, setSession)
+      return WaitingForMint(session)
     case PeginUIState.MintedTBTC:
-      return WaitingForMint(session, setSession)
+      return WaitingForMint(session)
     default:
       return StartSession(session, setSession)
   }

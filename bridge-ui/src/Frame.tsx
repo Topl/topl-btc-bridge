@@ -1,8 +1,8 @@
-import { Link, Outlet } from 'react-router-dom';
-import { deleteCookie } from './cookie-typescript-utils';
 import { useEffect, useState } from 'react';
+import { Link, Outlet } from 'react-router-dom';
+import { PeginUIState, mintedBTC, setupSession } from './controllers/PeginController';
+import { deleteCookie } from './cookie-typescript-utils';
 import { ErrorResponse, SessionInformation } from './views/StartSession';
-import { PeginUIState, mintedBTC, mintingBTC, setupSession, waitingForTBTC } from './controllers/PeginController';
 
 export type SessionCtx = {
   session: SessionInformation;

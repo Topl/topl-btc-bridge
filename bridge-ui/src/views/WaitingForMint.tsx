@@ -4,7 +4,7 @@ import { PeginUIState } from "../controllers/PeginController";
 import { SessionInformation } from "./StartSession";
 
 
-function WaitingForMint(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>) {
+function WaitingForMint(session: SessionInformation) {
 
 
   const style66 = {
