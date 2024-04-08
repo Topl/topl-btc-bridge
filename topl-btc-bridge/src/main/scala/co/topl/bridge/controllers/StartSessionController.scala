@@ -42,6 +42,7 @@ object StartSessionController {
       bridgePKey: String,
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
+      toplBridgePKey: String,
       redeemAddress: String
   ): F[(String, PeginSessionInfo)] = {
     import cats.implicits._
@@ -85,6 +86,8 @@ object StartSessionController {
         mintTemplateName,
         redeemAddress,
         scriptAsm.toHex,
+        toplBridgePKey,
+        sha256,
         MintingBTCState.MintingBTCStateReady
       )
     )
@@ -104,15 +107,17 @@ object StartSessionController {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
-      someRedeemAdress <- toplWalletAlgebra.setupBridgeWalletForMinting(
+      someRedeemAdressAndKey <- toplWalletAlgebra.setupBridgeWalletForMinting(
         mintTemplateName,
         keyPair,
         req.sha256
       )
+      someRedeemAdress = someRedeemAdressAndKey.map(_._1)
       _ = assert(
         someRedeemAdress.isDefined,
         "Redeem address was not generated correctly"
       )
+      bridgeToplKey = someRedeemAdressAndKey.map(_._2).get
       addressAndsessionInfo <- createPeginSessionInfo(
         idx,
         mintTemplateName,
@@ -121,6 +126,7 @@ object StartSessionController {
         newKey.hex,
         blockToRecover,
         btcNetwork,
+        bridgeToplKey,
         someRedeemAdress.get
       )
       (address, sessionInfo) = addressAndsessionInfo

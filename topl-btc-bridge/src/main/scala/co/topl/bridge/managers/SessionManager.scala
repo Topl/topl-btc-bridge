@@ -18,6 +18,10 @@ sealed trait SessionInfo
   *   The address where the pegin will be redeemed.
   * @param scriptAsm
   *   The script that is used to redeem the pegin.
+  * @param toplBridgePKey
+  *   The public key of the bridge.
+  * @param sha256
+  *   The hash of the secret that is used to redeem the pegin.
   * @param mintingBTCState
   *   The state of the minting process for this session.
   */
@@ -26,6 +30,8 @@ case class PeginSessionInfo(
     mintTemplateName: String,
     redeemAddress: String,
     scriptAsm: String,
+    toplBridgePKey: String,
+    sha256: String,
     mintingBTCState: MintingBTCState
 ) extends SessionInfo
 

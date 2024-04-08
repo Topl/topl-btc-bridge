@@ -26,7 +26,7 @@ class BaseToplWalletAlgebra[F[_]] extends ToplWalletAlgebra[F] {
       mintTemplateName: String,
       keypair: KeyPair,
       sha256: String
-  ): F[Option[String]] = ???
+  ): F[Option[(String, String)]] = ???
 
 
   override def setupBridgeWallet(

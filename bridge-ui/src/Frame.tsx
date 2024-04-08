@@ -17,6 +17,8 @@ interface MintingStatusRequest {
 interface MintingStatusResponse {
   mintingStatus: string;
   address: string;
+  bridgePKey: string;
+  redeemTemplate: string;
 }
 
 async function checkMintingStatus(mintingStatusRequest: MintingStatusRequest): Promise<MintingStatusResponse | ErrorResponse> {
@@ -40,13 +42,13 @@ async function checkMintingStatus(mintingStatusRequest: MintingStatusRequest): P
 function Frame() {
 
 
-  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: PeginUIState.InitialState, redeemAddress: "" });
+  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: PeginUIState.InitialState, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
   useEffect(() => setupSession(session, setSession), []);
   const updateStatus = async (sessionId: string) => {
     if ((session.currentState === PeginUIState.MintingTBTC) ||
       (session.currentState === PeginUIState.WaitingForMint)) {
       const currentStatus = await checkMintingStatus({ sessionID: sessionId });
-      if (typeof currentStatus === 'object' && ("mintingStatus" in currentStatus) ) {
+      if (typeof currentStatus === 'object' && ("mintingStatus" in currentStatus)) {
         console.log(currentStatus.mintingStatus);
         if (currentStatus.mintingStatus !== "MintingBTCStateMinted") {
           // if (currentStatus.mintingStatus === "MintingBTCStateMinting") {
@@ -59,7 +61,7 @@ function Frame() {
             updateStatus(sessionId);
           }, 5000);
         } else {
-          mintedBTC(setSession, session, currentStatus.address);
+          mintedBTC(setSession, session, currentStatus.address, currentStatus.bridgePKey, currentStatus.redeemTemplate);
         }
       }
     } else {

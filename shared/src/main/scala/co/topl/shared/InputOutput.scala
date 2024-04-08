@@ -24,7 +24,9 @@ case class MintingStatusRequest(
 
 case class MintingStatusResponse(
     mintingStatus: String,
-    address: String
+    address: String,
+    bridgePKey: String,
+    redeemScript: String
 )
 
 case class SyncWalletRequest(

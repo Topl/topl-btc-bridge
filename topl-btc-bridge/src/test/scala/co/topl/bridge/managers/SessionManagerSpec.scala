@@ -13,6 +13,8 @@ class SessionManagerSpec extends CatsEffectSuite {
     "mintTemplateName",
     "redeemAddress",
     "scriptAsm",
+    "toplBridgePKey",
+    "sha256",
     MintingBTCState.MintingBTCStateReady
   )
 

@@ -42,6 +42,8 @@ object ConfirmRedemptionController {
               mintTemplateName,
               scriptAsm,
               redeemAddress,
+              toplBridgePKey,
+              sha256,
               state
             ) =>
           PeginSessionInfo(
@@ -49,6 +51,8 @@ object ConfirmRedemptionController {
             mintTemplateName,
             scriptAsm,
             redeemAddress,
+            toplBridgePKey,
+            sha256,
             state
           )
         case _ =>

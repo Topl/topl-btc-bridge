@@ -56,7 +56,7 @@ trait ToplWalletAlgebra[+F[_]] {
       mintTemplateName: String,
       keypair: KeyPair,
       sha256: String
-  ): F[Option[String]]
+  ): F[Option[(String, String)]]
 
 }
 
@@ -128,7 +128,7 @@ object ToplWalletImpl {
         mintTemplateName: String,
         keypair: KeyPair,
         sha256: String
-    ): F[Option[String]] = {
+    ): F[Option[(String, String)]] = {
 
       import cats.implicits._
       import TransactionBuilderApi.implicits._
@@ -205,7 +205,7 @@ object ToplWalletImpl {
             None
           )
           .liftT
-      } yield currentAddress).value
+      } yield (currentAddress, deriveChildKeyBridgeString)).value
     }
 
     private def computeSerializedTemplate(

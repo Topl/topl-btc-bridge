@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PeginUIState, btcArrived, btcSent, sessionStarted } from '../controllers/PeginController';
+import { PeginUIState, btcSent, sessionStarted } from '../controllers/PeginController';
 
 export interface SessionInformation {
   isSet: boolean;
@@ -7,6 +7,8 @@ export interface SessionInformation {
   escrowAddress: string;
   currentState: PeginUIState;
   redeemAddress: string;
+  toplBridgePKey: string;
+  redeemTemplate: string;
 }
 
 export interface StartSessionRequest {

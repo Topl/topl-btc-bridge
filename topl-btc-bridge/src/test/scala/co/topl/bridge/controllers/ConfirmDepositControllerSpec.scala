@@ -70,6 +70,8 @@ class ConfirmDepositControllerSpec extends CatsEffectSuite with SharedData {
             "mintTemplateName",
             "ptetP7jshHUwFCmPv2JdE75DfvENZKu3cJ36cNummadfxDxcK9ckBWU5J8GK",
             "scriptAsm",
+            "toplBridgePKey",
+            "sha256",
             MintingBTCState.MintingBTCStateReady
           )
         )

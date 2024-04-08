@@ -118,6 +118,8 @@ class ConfirmDepositController[F[_]: Async: Logger](
               mintTemplateName,
               redeemAddress,
               scriptAsm,
+              toplBridgePKey,
+              sha256,
               state
             ) =>
           PeginSessionInfo(
@@ -125,6 +127,8 @@ class ConfirmDepositController[F[_]: Async: Logger](
             mintTemplateName,
             redeemAddress,
             scriptAsm,
+            toplBridgePKey,
+            sha256,
             state
           )
         case _ =>
@@ -182,14 +186,21 @@ class ConfirmDepositController[F[_]: Async: Logger](
           mintingBTCState = MintingBTCState.MintingBTCStateMinting
         )
       )
-      _ <- Async[F].background(checkIfAssetTokenMinted(
-          sessionInfo.redeemAddress,
-          confirmDepositRequest.sessionID,
-          sessionInfo,
-          sessionManager,
-          utxoAlgebra
-        )).allocated
-    } yield ConfirmDepositResponse(txId, sessionInfo.redeemAddress)
+      _ <- Async[F]
+        .background(
+          checkIfAssetTokenMinted(
+            sessionInfo.redeemAddress,
+            confirmDepositRequest.sessionID,
+            sessionInfo,
+            sessionManager,
+            utxoAlgebra
+          )
+        )
+        .allocated
+    } yield ConfirmDepositResponse(
+      txId,
+      sessionInfo.redeemAddress
+    )
       .asRight[BridgeError]).recover {
       case e: BridgeError => Left(e)
       case e: Throwable =>

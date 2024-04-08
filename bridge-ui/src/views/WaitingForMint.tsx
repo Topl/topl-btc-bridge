@@ -14,7 +14,7 @@ function WaitingForMint(session: SessionInformation, setSession: React.Dispatch<
     width: '75%'
   };
 
-  const waitingView = (mintingStatus: PeginUIState, redeemAddress: string) => {
+  const waitingView = (mintingStatus: PeginUIState, redeemAddress: string, redeemTemplate: string) => {
     if (mintingStatus === PeginUIState.MintingTBTC) {
       return (
         <>
@@ -72,6 +72,14 @@ function WaitingForMint(session: SessionInformation, setSession: React.Dispatch<
                   <div className="mb-3">
                     <div className="d-flex align-items-center">
                       <strong role="status">Tokens minted sucessfully</strong>
+                      <div className="input-group mb-3">
+                        <span className="input-group-text" id="basic-addon1">Redeem address</span>
+                        <input value={redeemAddress} type="text" className="form-control" aria-label="Redeem address" aria-describedby="basic-addon1" />
+                      </div>
+                      <div className="input-group mb-3">
+                        <span className="input-group-text" id="basic-addon1">Redeem template</span>
+                        <input value={redeemTemplate} type="text" className="form-control" aria-label="Redeem template" aria-describedby="basic-addon1" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -86,7 +94,7 @@ function WaitingForMint(session: SessionInformation, setSession: React.Dispatch<
 
   return (
     <>
-      {waitingView(session.currentState, session.redeemAddress)}
+      {waitingView(session.currentState, session.redeemAddress, session.redeemTemplate)}
     </>
   );
 }
