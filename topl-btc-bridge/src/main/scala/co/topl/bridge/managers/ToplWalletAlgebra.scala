@@ -19,13 +19,14 @@ import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
 import co.topl.genus.services.Txo
 import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
 import co.topl.shared.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
-import co.topl.shared.InvalidInput
+import co.topl.brambl.codecs.AddressCodecs
 
 trait ToplWalletAlgebra[+F[_]] {
 
@@ -37,7 +38,8 @@ trait ToplWalletAlgebra[+F[_]] {
       fee: Long,
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
-      assetMintingStatement: AssetMintingStatement
+      assetMintingStatement: AssetMintingStatement,
+      redeemLockAddress: String
   ): F[IoTransaction]
 
   def setupBridgeWallet(
@@ -49,6 +51,12 @@ trait ToplWalletAlgebra[+F[_]] {
       waitTime: Int,
       currentHeight: Int
   ): F[Option[String]]
+
+  def setupBridgeWalletForMinting(
+      mintTemplateName: String,
+      keypair: KeyPair,
+      sha256: String
+  ): F[Option[(String, String)]]
 
 }
 
@@ -78,6 +86,127 @@ object ToplWalletImpl {
     val wa = walletApi
 
     val templateName = "bridgeTemplate"
+    val fromFellowship = "self" // FIXME: Make global
+
+    private def computeSerializedTemplateMintLock(
+        sha256: String
+    ) = {
+      import cats.implicits._
+      for {
+        decodedHex <- OptionT(
+          Encoding
+            .decodeFromHex(sha256)
+            .toOption
+            .map(x => Sync[F].delay(x))
+            .orElse(
+              Some(
+                Sync[F].raiseError[Array[Byte]](
+                  new InvalidHash(
+                    s"Invalid hash $sha256"
+                  )
+                )
+              )
+            )
+            .sequence
+        )
+        lockTemplateAsJson <- OptionT(Sync[F].delay(s"""{
+                "threshold":1,
+                "innerTemplates":[
+                  {
+                    "left": {"routine":"ExtendedEd25519","entityIdx":0,"type":"signature"},
+                    "right": {"routine":"Sha256","digest": "${Encoding
+            .encodeToBase58(decodedHex)}","type":"digest"},
+                    "type": "or"
+                  }
+                ],
+                "type":"predicate"}
+              """.some))
+      } yield lockTemplateAsJson
+    }
+
+    def setupBridgeWalletForMinting(
+        mintTemplateName: String,
+        keypair: KeyPair,
+        sha256: String
+    ): F[Option[(String, String)]] = {
+
+      import cats.implicits._
+      import TransactionBuilderApi.implicits._
+      implicit class ImplicitConversion[A](x: F[A]) {
+        def optionT = OptionT(x.map(_.some))
+      }
+      implicit class ImplicitConversion1[A](x: F[Option[A]]) {
+        def liftT = OptionT(x)
+      }
+      (for {
+        lockTemplateAsJson <- computeSerializedTemplateMintLock(
+          sha256
+        )
+        _ <- templateStorageAlgebra
+          .addTemplate(
+            WalletTemplate(0, mintTemplateName, lockTemplateAsJson)
+          )
+          .optionT
+        indices <- wsa
+          .getCurrentIndicesForFunds(
+            fromFellowship,
+            mintTemplateName,
+            None
+          )
+          .liftT
+        bk <- wa
+          .deriveChildKeysPartial(
+            keypair,
+            indices.x,
+            indices.y
+          )
+          .optionT
+        bridgeVk <- wa
+          .deriveChildVerificationKey(
+            bk.vk,
+            1
+          )
+          .optionT
+        lockTempl <- wsa
+          .getLockTemplate(mintTemplateName)
+          .liftT
+        deriveChildKeyBridgeString = Encoding.encodeToBase58(
+          bridgeVk.toByteArray
+        )
+        lock <- lockTempl
+          .build(
+            bridgeVk :: Nil
+          )
+          .map(_.toOption)
+          .liftT
+        lockAddress <- tba.lockAddress(lock).optionT
+        _ <- wsa
+          .updateWalletState(
+            Encoding.encodeToBase58Check(
+              lock.getPredicate.toByteArray
+            ), // lockPredicate
+            lockAddress.toBase58(), // lockAddress
+            Some("ExtendedEd25519"),
+            Some(deriveChildKeyBridgeString),
+            indices
+          )
+          .optionT
+        _ <- wsa
+          .addEntityVks(
+            fromFellowship,
+            mintTemplateName,
+            deriveChildKeyBridgeString :: Nil
+          )
+          .optionT
+        currentAddress <- wsa
+          .getAddress(
+            fromFellowship,
+            mintTemplateName,
+            None
+          )
+          .liftT
+      } yield (currentAddress, deriveChildKeyBridgeString)).value
+    }
 
     private def computeSerializedTemplate(
         sha256: String,
@@ -283,7 +412,8 @@ object ToplWalletImpl {
         fee: Long,
         ephemeralMetadata: Option[Json],
         commitment: Option[ByteString],
-        assetMintingStatement: AssetMintingStatement
+        assetMintingStatement: AssetMintingStatement,
+        redeemLockAddress: String
     ): F[IoTransaction] = for {
       tuple <- sharedOps(
         fromFellowship,
@@ -360,7 +490,8 @@ object ToplWalletImpl {
         assetMintingStatement,
         ephemeralMetadata,
         commitment,
-        changeLock
+        changeLock,
+        AddressCodecs.decodeAddress(redeemLockAddress).toOption.get
       )
     } yield ioTransaction
   }

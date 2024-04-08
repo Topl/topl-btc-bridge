@@ -18,6 +18,17 @@ case class StartPegoutSessionRequest(
     sha256: String
 )
 
+case class MintingStatusRequest(
+    sessionID: String
+)
+
+case class MintingStatusResponse(
+    mintingStatus: String,
+    address: String,
+    bridgePKey: String,
+    redeemScript: String
+)
+
 case class SyncWalletRequest(
     secret: String
 )
@@ -49,7 +60,8 @@ case class ConfirmDepositRequest(
 )
 
 case class ConfirmDepositResponse(
-    txId: String
+    txId: String,
+    redeemAddress: String
 )
 case class ConfirmRedemptionResponse(
     tx: String

@@ -37,10 +37,23 @@ object ConfirmRedemptionController {
           )
         )
       sessionInfo = genericSessionInfo match {
-        case PeginSessionInfo(currentWalletIdx, scriptAsm) =>
+        case PeginSessionInfo(
+              currentWalletIdx,
+              mintTemplateName,
+              scriptAsm,
+              redeemAddress,
+              toplBridgePKey,
+              sha256,
+              state
+            ) =>
           PeginSessionInfo(
             currentWalletIdx,
-            scriptAsm
+            mintTemplateName,
+            scriptAsm,
+            redeemAddress,
+            toplBridgePKey,
+            sha256,
+            state
           )
         case _ =>
           throw new RuntimeException(
@@ -83,8 +96,9 @@ object ConfirmRedemptionController {
             bridgeSig
           )
         )
-    } yield ConfirmRedemptionResponse(txWit.hex).asRight[BridgeError]).recover {
-      case e: BridgeError => Left(e)
+    } yield ConfirmRedemptionResponse(txWit.hex)
+      .asRight[BridgeError]).recover { case e: BridgeError =>
+      Left(e)
     }
   }
 }

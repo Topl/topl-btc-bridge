@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentMap
+import co.topl.bridge.MintingBTCState
 
 sealed trait SessionInfo
 
@@ -11,12 +12,27 @@ sealed trait SessionInfo
   *
   * @param currentWalletIdx
   *   The index of the wallet that is currently being used.
+  * @param mintTemplateName
+  *   The name under which the mint template is stored.
+  * @param redeemAddress
+  *   The address where the pegin will be redeemed.
   * @param scriptAsm
   *   The script that is used to redeem the pegin.
+  * @param toplBridgePKey
+  *   The public key of the bridge.
+  * @param sha256
+  *   The hash of the secret that is used to redeem the pegin.
+  * @param mintingBTCState
+  *   The state of the minting process for this session.
   */
 case class PeginSessionInfo(
     currentWalletIdx: Int,
-    scriptAsm: String
+    mintTemplateName: String,
+    redeemAddress: String,
+    scriptAsm: String,
+    toplBridgePKey: String,
+    sha256: String,
+    mintingBTCState: MintingBTCState
 ) extends SessionInfo
 
 case class PegoutSessionInfo(
@@ -32,6 +48,11 @@ trait SessionManagerAlgebra[F[_]] {
   def getSession(
       sessionId: String
   ): F[SessionInfo]
+
+  def updateSession(
+      sessionId: String,
+      sessionInfo: SessionInfo
+  ): F[Unit]
 }
 
 object SessionManagerImpl {
@@ -57,6 +78,13 @@ object SessionManagerImpl {
         },
         new IllegalArgumentException("Invalid session ID")
       )
+    }
+
+    def updateSession(
+        sessionId: String,
+        sessionInfo: SessionInfo
+    ): F[Unit] = {
+      Sync[F].delay(map.put(sessionId, sessionInfo))
     }
 
   }

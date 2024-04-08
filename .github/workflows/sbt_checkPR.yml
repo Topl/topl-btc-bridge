@@ -43,7 +43,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push images to registries
-        run: sbt "toplBtcBridge / Docker / publish"
+        run: sbt "buildClient; toplBtcBridge / Docker / publish"
         env:
           DOCKER_PUBLISH: true
   integration-test:
@@ -54,7 +54,7 @@ jobs:
       # Label used to access the service container
       bifrost:
         # Docker Hub image
-        image: docker.io/toplprotocol/bifrost-node:2.0.0-alpha10
+        image: docker.io/toplprotocol/bifrost-node:2.0.0-beta3
         #
         ports:
            - 9084:9084
@@ -176,7 +176,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - if: github.event.release
         name: Push images to registries
-        run: sbt "toplBtcBridge / Docker / publish"
+        run: sbt "buildClient; toplBtcBridge / Docker / publish"
         env:
           DOCKER_PUBLISH: true
           RELEASE_PUBLISH: true

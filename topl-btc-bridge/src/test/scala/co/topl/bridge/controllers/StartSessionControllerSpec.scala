@@ -1,36 +1,37 @@
 package co.topl.bridge.controllers
 
-import munit.CatsEffectSuite
-import co.topl.shared.utils.KeyGenerationUtils
-import co.topl.shared.RegTest
-import co.topl.bridge.managers.BTCWalletImpl
 import cats.effect.IO
-import co.topl.bridge.managers.SessionManagerImpl
-import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.managers.PeginSessionInfo
-import co.topl.shared.StartPeginSessionRequest
-import co.topl.shared.InvalidKey
-import co.topl.shared.InvalidHash
-import co.topl.bridge.managers.SessionInfo
-import co.topl.shared.ToplPrivatenet
-import co.topl.shared.StartPegoutSessionRequest
-import co.topl.brambl.wallet.WalletApi
-import co.topl.brambl.servicekit.WalletKeyApi
-import co.topl.bridge.managers.WalletManagementUtils
-import co.topl.bridge.managers.ToplWalletImpl
-import co.topl.brambl.servicekit.FellowshipStorageApi
-import co.topl.brambl.servicekit.TemplateStorageApi
-import co.topl.brambl.servicekit.WalletStateResource
-import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.RpcChannelResource
+import co.topl.brambl.servicekit.FellowshipStorageApi
+import co.topl.brambl.servicekit.TemplateStorageApi
+import co.topl.brambl.servicekit.WalletKeyApi
+import co.topl.brambl.servicekit.WalletStateApi
+import co.topl.brambl.servicekit.WalletStateResource
+import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.managers.BTCWalletImpl
+import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
+import co.topl.bridge.managers.SessionInfo
+import co.topl.bridge.managers.SessionManagerImpl
+import co.topl.bridge.managers.ToplWalletImpl
+import co.topl.bridge.managers.WalletManagementUtils
+import co.topl.shared.InvalidHash
+import co.topl.shared.InvalidInput
+import co.topl.shared.InvalidKey
+import co.topl.shared.RegTest
+import co.topl.shared.StartPeginSessionRequest
+import co.topl.shared.StartPegoutSessionRequest
+import co.topl.shared.ToplPrivatenet
+import co.topl.shared.utils.KeyGenerationUtils
+import munit.CatsEffectSuite
+
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.Files
-import co.topl.shared.InvalidInput
+import java.util.concurrent.ConcurrentHashMap
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -40,38 +41,82 @@ class StartSessionControllerSpec
 
   val tmpDirectory = FunFixture[Path](
     setup = { _ =>
+      try {
+        Files.delete(Paths.get(toplWalletDb))
+      } catch {
+        case _: Throwable => ()
+      }
       val initialWalletDb = Paths.get(toplWalletDbInitial)
       Files.copy(initialWalletDb, Paths.get(toplWalletDb))
     },
-    teardown = { f => Files.delete(f) }
+    teardown = { _ =>
+      Files.delete(Paths.get(toplWalletDb))
+    }
   )
 
-  test("StartSessionController should start a pegin session") {
-    assertIOBoolean(
-      for {
-        km0 <- KeyGenerationUtils.createKeyManager[IO](
-          RegTest,
-          peginWalletFile,
-          testPassword
+  tmpDirectory.test("StartSessionController should start a pegin session") {
+    _ =>
+      val walletKeyApi = WalletKeyApi.make[IO]()
+      val walletApi = WalletApi.make[IO](walletKeyApi)
+      val walletManagementUtils = new WalletManagementUtils(
+        walletApi,
+        walletKeyApi
+      )
+      val walletStateAlgebra = WalletStateApi
+        .make[IO](walletResource(toplWalletDb), walletApi)
+      val transactionBuilderApi = TransactionBuilderApi.make[IO](
+        ToplPrivatenet.networkId,
+        NetworkConstants.MAIN_LEDGER_ID
+      )
+      val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
+        channelResource(
+          "localhost",
+          9084,
+          false
         )
-        peginWallet <- BTCWalletImpl.make[IO](km0)
-        currentPubKey <- peginWallet.getCurrentPubKey()
-        sessionManager = SessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
-        res <- StartSessionController.startPeginSession(
-          StartPeginSessionRequest(
-            testKey,
-            testHash
-          ),
-          peginWallet,
-          sessionManager,
-          testBlockToRecover,
-          RegTest
-        )
-        sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-      } yield (sessionInfo.asInstanceOf[PeginSessionInfo].currentWalletIdx == 0)
-    )
+      )
+      assertIOBoolean(
+        for {
+          km0 <- KeyGenerationUtils.createKeyManager[IO](
+            RegTest,
+            peginWalletFile,
+            testPassword
+          )
+          peginWallet <- BTCWalletImpl.make[IO](km0)
+          currentPubKey <- peginWallet.getCurrentPubKey()
+          sessionManager = SessionManagerImpl.make[IO](
+            new ConcurrentHashMap[String, SessionInfo]()
+          )
+          toplWalletImpl = ToplWalletImpl.make[IO](
+            IO.asyncForIO,
+            walletApi,
+            FellowshipStorageApi.make(walletResource(toplWalletDb)),
+            TemplateStorageApi.make(walletResource(toplWalletDb)),
+            walletStateAlgebra,
+            transactionBuilderApi,
+            genusQueryAlgebra
+          )
+          keyPair <- walletManagementUtils.loadKeys(
+            toplWalletFile,
+            testToplPassword
+          )
+          res <- StartSessionController.startPeginSession(
+            StartPeginSessionRequest(
+              testKey,
+              testHash
+            ),
+            peginWallet,
+            sessionManager,
+            testBlockToRecover,
+            keyPair,
+            toplWalletImpl,
+            RegTest
+          )
+          sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
+        } yield (sessionInfo
+          .asInstanceOf[PeginSessionInfo]
+          .currentWalletIdx == 0)
+      )
   }
 
   tmpDirectory.test("StartSessionController should start a pegout session") {
@@ -190,9 +235,43 @@ class StartSessionControllerSpec
     )
   }
 
-  test("StartSessionController should fai with invalid key (pegin)") {
+  tmpDirectory.test(
+    "StartSessionController should fai with invalid key (pegin)"
+  ) { _ =>
+    val walletKeyApi = WalletKeyApi.make[IO]()
+    val walletApi = WalletApi.make[IO](walletKeyApi)
+    val walletManagementUtils = new WalletManagementUtils(
+      walletApi,
+      walletKeyApi
+    )
+    val walletStateAlgebra = WalletStateApi
+      .make[IO](walletResource(toplWalletDb), walletApi)
+    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+      ToplPrivatenet.networkId,
+      NetworkConstants.MAIN_LEDGER_ID
+    )
+    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
+      channelResource(
+        "localhost",
+        9084,
+        false
+      )
+    )
     assertIOBoolean(
       for {
+        keypair <- walletManagementUtils.loadKeys(
+          toplWalletFile,
+          testToplPassword
+        )
+        toplWalletImpl = ToplWalletImpl.make[IO](
+          IO.asyncForIO,
+          walletApi,
+          FellowshipStorageApi.make(walletResource(toplWalletDb)),
+          TemplateStorageApi.make(walletResource(toplWalletDb)),
+          walletStateAlgebra,
+          transactionBuilderApi,
+          genusQueryAlgebra
+        )
         km0 <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
           peginWalletFile,
@@ -211,6 +290,8 @@ class StartSessionControllerSpec
           peginWallet,
           sessionManager,
           testBlockToRecover,
+          keypair,
+          toplWalletImpl,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidKey(
@@ -220,8 +301,50 @@ class StartSessionControllerSpec
   }
 
   test("StartSessionController should fai with invalid hash") {
+    val walletKeyApi = WalletKeyApi.make[IO]()
+    val walletApi = WalletApi.make[IO](walletKeyApi)
+    val walletManagementUtils = new WalletManagementUtils(
+      walletApi,
+      walletKeyApi
+    )
+    val walletStateAlgebra = WalletStateApi
+      .make[IO](walletResource(toplWalletDb), walletApi)
+    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+      ToplPrivatenet.networkId,
+      NetworkConstants.MAIN_LEDGER_ID
+    )
+    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
+      channelResource(
+        "localhost",
+        9084,
+        false
+      )
+    )
     assertIOBoolean(
       for {
+        keypair <- walletManagementUtils.loadKeys(
+          toplWalletFile,
+          testToplPassword
+        )
+        toplWalletImpl = ToplWalletImpl.make[IO](
+          IO.asyncForIO,
+          walletApi,
+          FellowshipStorageApi.make(walletResource(toplWalletDb)),
+          TemplateStorageApi.make(walletResource(toplWalletDb)),
+          walletStateAlgebra,
+          transactionBuilderApi,
+          genusQueryAlgebra
+        )
+        km0 <- KeyGenerationUtils.createKeyManager[IO](
+          RegTest,
+          peginWalletFile,
+          testPassword
+        )
+        peginWallet <- BTCWalletImpl.make[IO](km0)
+        currentPubKey <- peginWallet.getCurrentPubKey()
+        sessionManager = SessionManagerImpl.make[IO](
+          new ConcurrentHashMap[String, SessionInfo]()
+        )
         km0 <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
           peginWalletFile,
@@ -240,6 +363,8 @@ class StartSessionControllerSpec
           peginWallet,
           sessionManager,
           testBlockToRecover,
+          keypair,
+          toplWalletImpl,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidHash(

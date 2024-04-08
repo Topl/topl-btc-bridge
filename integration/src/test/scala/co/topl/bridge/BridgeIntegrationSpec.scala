@@ -134,6 +134,31 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     )
     .spawn[IO]
 
+  def getCurrentUtxosFromAddress(address: String) = process
+    .ProcessBuilder(
+      "./cs",
+      Seq(
+        "launch",
+        "-r",
+        "https://s01.oss.sonatype.org/content/repositories/releases",
+        "co.topl:brambl-cli_2.13:2.0.0-beta1",
+        "--",
+        "genus-query",
+        "utxo-by-address",
+        "--host",
+        "localhost",
+        "--port",
+        "9084",
+        "--secure",
+        "false",
+        "--walletdb",
+        "data/topl-wallet.db",
+        "--from-address",
+        address
+      ): _*
+    )
+    .spawn[IO]
+
   test("Bridge should mint assets on the Topl network") {
     import io.circe._, io.circe.parser._
     import io.circe.generic.auto._
@@ -148,7 +173,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val syncWalletRequestDecoder
         : EntityEncoder[IO, SyncWalletRequest] =
       jsonEncoderOf[IO, SyncWalletRequest]
-    implicit val startSessionResponse: EntityDecoder[IO, StartPeginSessionResponse] =
+    implicit val startSessionResponse
+        : EntityDecoder[IO, StartPeginSessionResponse] =
       jsonOf[IO, StartPeginSessionResponse]
     implicit val confirmRedemptionRequestDecoder
         : EntityEncoder[IO, ConfirmRedemptionRequest] =
@@ -285,6 +311,17 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
             )
           })
         _ <- IO.println("confirmDepositResponse: " + confirmDepositResponse)
+        _ <- IO.sleep(10.seconds)
+        _ <- getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
+          .use(_.exitValue)
+          .iterateUntil(_ == 0)
+        _ <- assertIOBoolean(
+          getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
+            .use(getText)
+            .map { x =>
+              x.contains("Asset")
+            }
+        )
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]
@@ -314,12 +351,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               )
             )
           })
-        _ <- IO.println("startSessionResponse: " + confirmRedemptionResponse)
-        _ <- IO.sleep(10.seconds)
-        _ <- getCurrentUtxos.use(_.exitValue).iterateUntil(_ == 0)
-        _ <- assertIOBoolean(
-          getCurrentUtxos.use(getText).map(_.contains("Asset"))
-        )
       } yield (),
       ()
     )

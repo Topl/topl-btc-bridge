@@ -1,26 +1,22 @@
-package co.topl.bridge.managers
-
-
+package co.topl.bridge
 
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.models.Event
 import co.topl.brambl.models.Indices
 import co.topl.brambl.models.LockAddress
-import co.topl.brambl.models.box.AssetMintingStatement
 import co.topl.brambl.models.box.Lock
-import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.managers.CreateTxError
 import co.topl.genus.services.Txo
-import com.google.protobuf.ByteString
-import com.google.protobuf.struct.Struct
-import io.circe.Json
 import quivr.models.KeyPair
 
 import TransactionBuilderApi.implicits._
+import co.topl.brambl.models.transaction.IoTransaction
 
-trait AssetMintingOps[G[_]] extends CommonTxOps {
+trait GroupMintingOps[G[_]] extends CommonTxOps {
 
   import cats.implicits._
 
@@ -32,21 +28,16 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
 
   val wa: WalletApi[G]
 
-  def buildAssetTxAux(
-      keyPair: KeyPair,
+  def buildGroupTx(
       lvlTxos: Seq[Txo],
-      nonLvlTxos: Seq[Txo],
-      groupTxo: Txo,
-      seriesTxo: Txo,
-      lockAddrToUnlock: LockAddress,
-      lockPredicateFrom: Lock.Predicate,
+      nonlvlTxos: Seq[Txo],
+      predicateFundsToUnlock: Lock.Predicate,
+      amount: Long,
       fee: Long,
       someNextIndices: Option[Indices],
-      assetMintingStatement: AssetMintingStatement,
-      ephemeralMetadata: Option[Json],
-      commitment: Option[ByteString],
-      changeLock: Option[Lock],
-      recipientLockAddress: LockAddress
+      keyPair: KeyPair,
+      groupPolicy: Event.GroupPolicy,
+      changeLock: Option[Lock]
   ) = (if (lvlTxos.isEmpty) {
          Sync[G].raiseError(CreateTxError("No LVL txos found"))
        } else {
@@ -54,18 +45,17 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
            case Some(lockPredicateForChange) =>
              tba
                .lockAddress(lockPredicateForChange)
-               .flatMap { _ =>
-                 buildAssetTransaction(
-                   keyPair,
-                   lvlTxos ++ nonLvlTxos :+ groupTxo :+ seriesTxo,
-                   Map(lockAddrToUnlock -> lockPredicateFrom),
+               .flatMap { changeAddress =>
+                 buildGroupTransaction(
+                   lvlTxos ++ nonlvlTxos,
+                   predicateFundsToUnlock,
                    lockPredicateForChange,
-                   recipientLockAddress, // recipient lock address
+                   changeAddress,
+                   amount,
                    fee,
-                   assetMintingStatement,
-                   ephemeralMetadata.map(toStruct(_).getStructValue),
-                   commitment,
-                   someNextIndices
+                   someNextIndices,
+                   keyPair,
+                   groupPolicy
                  )
                }
            case None =>
@@ -75,31 +65,29 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
          }
        })
 
-  private def buildAssetTransaction(
-      keyPair: KeyPair,
+  private def buildGroupTransaction(
       txos: Seq[Txo],
-      lockPredicateFrom: Map[LockAddress, Lock.Predicate],
+      predicateFundsToUnlock: Lock.Predicate,
       lockForChange: Lock,
       recipientLockAddress: LockAddress,
+      amount: Long,
       fee: Long,
-      assetMintingStatement: AssetMintingStatement,
-      ephemeralMetadata: Option[Struct],
-      commitment: Option[ByteString],
-      someNextIndices: Option[Indices]
+      someNextIndices: Option[Indices],
+      keyPair: KeyPair,
+      groupPolicy: Event.GroupPolicy
   ): G[IoTransaction] =
     for {
       changeAddress <- tba.lockAddress(
         lockForChange
       )
-      eitherIoTransaction <- tba.buildAssetMintingTransaction(
-        assetMintingStatement,
+      eitherIoTransaction <- tba.buildGroupMintingTransaction(
         txos,
-        lockPredicateFrom,
-        fee,
+        predicateFundsToUnlock,
+        groupPolicy,
+        amount,
         recipientLockAddress,
         changeAddress,
-        ephemeralMetadata,
-        commitment
+        fee
       )
       ioTransaction <- Sync[G].fromEither(eitherIoTransaction)
       // Only save to wallet interaction if there is a change output in the transaction
@@ -126,4 +114,5 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
           Sync[G].delay(())
         }
     } yield ioTransaction
+
 }

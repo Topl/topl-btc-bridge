@@ -1,9 +1,80 @@
+import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
+import { PeginUIState, mintedBTC, setupSession } from './controllers/PeginController';
 import { deleteCookie } from './cookie-typescript-utils';
+import { ErrorResponse, SessionInformation } from './views/StartSession';
 
+export type SessionCtx = {
+  session: SessionInformation;
+  setSession: React.Dispatch<React.SetStateAction<SessionInformation>>;
+}
+
+
+interface MintingStatusRequest {
+  sessionID: string;
+}
+
+interface MintingStatusResponse {
+  mintingStatus: string;
+  address: string;
+  bridgePKey: string;
+  redeemTemplate: string;
+}
+
+async function checkMintingStatus(mintingStatusRequest: MintingStatusRequest): Promise<MintingStatusResponse | ErrorResponse> {
+  const response = await fetch('/api/topl-minting-status',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mintingStatusRequest)
+    });
+  if (response.status == 200) {
+    const data = await response.json();
+    return data;
+  } else {
+    return { error: "Error" };
+  }
+}
 
 
 function Frame() {
+
+
+  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: PeginUIState.InitialState, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
+  useEffect(() => setupSession(session, setSession), []);
+  const updateStatus = async (sessionId: string) => {
+    if ((session.currentState === PeginUIState.MintingTBTC) ||
+      (session.currentState === PeginUIState.WaitingForMint)) {
+      const currentStatus = await checkMintingStatus({ sessionID: sessionId });
+      if (typeof currentStatus === 'object' && ("mintingStatus" in currentStatus)) {
+        console.log(currentStatus.mintingStatus);
+        if (currentStatus.mintingStatus !== "MintingBTCStateMinted") {
+          // if (currentStatus.mintingStatus === "MintingBTCStateMinting") {
+          //   mintingBTC(setSession, session);
+          // }
+          // if (currentStatus.mintingStatus === "MintingBTCStateWaiting") {
+          //   waitingForTBTC(setSession, session);
+          // }
+          setTimeout(() => {
+            updateStatus(sessionId);
+          }, 5000);
+        } else {
+          mintedBTC(setSession, session, currentStatus.address, currentStatus.bridgePKey, currentStatus.redeemTemplate);
+        }
+      }
+    } else {
+      setTimeout(() => {
+        updateStatus(sessionId);
+      }, 5000);
+    }
+  }
+
+  useEffect(() => {
+    updateStatus(session.sessionID);
+  }, [session.currentState]);
+
 
   function handleLogout() {
     deleteCookie("sessionID");
@@ -39,7 +110,7 @@ function Frame() {
           </ul>
         </nav>
         <div className='container'>
-          <Outlet />
+          <Outlet context={{ session, setSession } satisfies SessionCtx} />
         </div>
       </div>
     </>
