@@ -154,7 +154,6 @@ object ToplWalletImpl {
             None
           )
           .liftT
-        _ = println(s"Indices: ${indices.x}, ${indices.y}, ${indices.z}") // TODO: remove
         bk <- wa
           .deriveChildKeysPartial(
             keypair,
@@ -171,7 +170,6 @@ object ToplWalletImpl {
         lockTempl <- wsa
           .getLockTemplate(mintTemplateName)
           .liftT
-        _ = println(s"lockTempl: $lockTempl") // TODO: remove
         bridgePartialVk = Encoding.encodeToBase58(
           bk.vk.toByteArray
         )
