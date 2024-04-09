@@ -16,3 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Default port is now 4000.
+- `brambl-cli` version (for IT) is now 2.0.0-beta3.
