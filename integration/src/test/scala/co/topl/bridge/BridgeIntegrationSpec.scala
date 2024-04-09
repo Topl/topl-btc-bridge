@@ -222,7 +222,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                 method = Method.POST,
                 Uri
                   .fromString(
-                    "http://127.0.0.1:3000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
+                    "http://127.0.0.1:4000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
                   )
                   .toOption
                   .get
@@ -246,7 +246,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/api/sync-wallet")
+                  .fromString("http://127.0.0.1:4000/api/sync-wallet")
                   .toOption
                   .get
               ).withContentType(
