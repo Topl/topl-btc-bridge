@@ -18,7 +18,7 @@ interface MintingStatusResponse {
   mintingStatus: string;
   address: string;
   bridgePKey: string;
-  redeemTemplate: string;
+  redeemScript: string;
 }
 
 async function checkMintingStatus(mintingStatusRequest: MintingStatusRequest): Promise<MintingStatusResponse | ErrorResponse> {
@@ -61,7 +61,7 @@ function Frame() {
             updateStatus(sessionId);
           }, 5000);
         } else {
-          mintedBTC(setSession, session, currentStatus.address, currentStatus.bridgePKey, currentStatus.redeemTemplate);
+          mintedBTC(setSession, session, currentStatus.address, currentStatus.bridgePKey, currentStatus.redeemScript);
         }
       }
     } else {

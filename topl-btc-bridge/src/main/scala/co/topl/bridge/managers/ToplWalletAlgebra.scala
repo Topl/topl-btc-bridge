@@ -154,6 +154,7 @@ object ToplWalletImpl {
             None
           )
           .liftT
+        _ = println(s"Indices: ${indices.x}, ${indices.y}, ${indices.z}") // TODO: remove
         bk <- wa
           .deriveChildKeysPartial(
             keypair,
@@ -170,6 +171,10 @@ object ToplWalletImpl {
         lockTempl <- wsa
           .getLockTemplate(mintTemplateName)
           .liftT
+        _ = println(s"lockTempl: $lockTempl") // TODO: remove
+        bridgePartialVk = Encoding.encodeToBase58(
+          bk.vk.toByteArray
+        )
         deriveChildKeyBridgeString = Encoding.encodeToBase58(
           bridgeVk.toByteArray
         )
@@ -195,7 +200,7 @@ object ToplWalletImpl {
           .addEntityVks(
             fromFellowship,
             mintTemplateName,
-            deriveChildKeyBridgeString :: Nil
+            bridgePartialVk :: Nil
           )
           .optionT
         currentAddress <- wsa
@@ -205,7 +210,7 @@ object ToplWalletImpl {
             None
           )
           .liftT
-      } yield (currentAddress, deriveChildKeyBridgeString)).value
+      } yield (currentAddress, bridgePartialVk)).value
     }
 
     private def computeSerializedTemplate(

@@ -14,7 +14,7 @@ function WaitingForMint(session: SessionInformation) {
     width: '75%'
   };
 
-  const waitingView = (mintingStatus: PeginUIState, redeemAddress: string, redeemTemplate: string) => {
+  const waitingView = (mintingStatus: PeginUIState, redeemAddress: string, bridgePKey: string, redeemTemplate: string) => {
     if (mintingStatus === PeginUIState.MintingTBTC) {
       return (
         <>
@@ -72,14 +72,18 @@ function WaitingForMint(session: SessionInformation) {
                   <div className="mb-3">
                     <div className="d-flex align-items-center">
                       <strong role="status">Tokens minted sucessfully</strong>
-                      <div className="input-group mb-3">
-                        <span className="input-group-text" id="basic-addon1">Redeem address</span>
-                        <input value={redeemAddress} type="text" className="form-control" aria-label="Redeem address" aria-describedby="basic-addon1" />
-                      </div>
-                      <div className="input-group mb-3">
-                        <span className="input-group-text" id="basic-addon1">Redeem template</span>
-                        <input value={redeemTemplate} type="text" className="form-control" aria-label="Redeem template" aria-describedby="basic-addon1" />
-                      </div>
+                    </div>
+                    <div className="input-group mb-3">
+                      <span className="input-group-text" id="basic-addon1">Redeem address</span>
+                      <input disabled value={redeemAddress} type="text" className="form-control" aria-label="Redeem address" aria-describedby="basic-addon1" />
+                    </div>
+                    <div className="input-group mb-3">
+                      <span className="input-group-text" id="basic-addon1">Bridge Key</span>
+                      <input disabled value={bridgePKey} type="text" className="form-control" aria-label="Redeem template" aria-describedby="basic-addon1" />
+                    </div>
+                    <div className="input-group mb-3">
+                      <span className="input-group-text" id="basic-addon1">Redeem template</span>
+                      <input disabled value={redeemTemplate} type="text" className="form-control" aria-label="Redeem template" aria-describedby="basic-addon1" />
                     </div>
                   </div>
                 </div>
@@ -94,7 +98,7 @@ function WaitingForMint(session: SessionInformation) {
 
   return (
     <>
-      {waitingView(session.currentState, session.redeemAddress, session.redeemTemplate)}
+      {waitingView(session.currentState, session.redeemAddress, session.toplBridgePKey, session.redeemTemplate)}
     </>
   );
 }
