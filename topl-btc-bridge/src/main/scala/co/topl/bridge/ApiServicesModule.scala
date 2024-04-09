@@ -243,7 +243,7 @@ trait ApiServicesModule {
               pegin.mintingBTCState.toString(),
               pegin.redeemAddress,
               pegin.toplBridgePKey,
-              s"threshold(1, or(sign(0), sha256(${pegin.sha256})))",
+              s"threshold(1, sign(0) or sha256(${pegin.sha256}))",
             ).asJson
           )
           _ <- IO.println("Minting status response: " + resp)

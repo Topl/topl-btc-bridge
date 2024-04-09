@@ -205,7 +205,7 @@ class ConfirmDepositController[F[_]: Async: Logger](
       case e: BridgeError => Left(e)
       case e: Throwable =>
         e.printStackTrace()
-        Left(InvalidInput("Error in confirmDeposit"))
+        Left(InvalidInput(s"Error in confirmDeposit: ${e.getMessage}"))
     }
   }
 }

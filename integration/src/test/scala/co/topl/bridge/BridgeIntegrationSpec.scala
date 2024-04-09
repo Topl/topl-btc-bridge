@@ -118,7 +118,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
         "launch",
         "-r",
         "https://s01.oss.sonatype.org/content/repositories/releases",
-        "co.topl:brambl-cli_2.13:2.0.0-beta1",
+        "co.topl:brambl-cli_2.13:2.0.0-beta3",
         "--",
         "genus-query",
         "utxo-by-address",
@@ -141,7 +141,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
         "launch",
         "-r",
         "https://s01.oss.sonatype.org/content/repositories/releases",
-        "co.topl:brambl-cli_2.13:2.0.0-beta1",
+        "co.topl:brambl-cli_2.13:2.0.0-beta3",
         "--",
         "genus-query",
         "utxo-by-address",
@@ -222,7 +222,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                 method = Method.POST,
                 Uri
                   .fromString(
-                    "http://127.0.0.1:3000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
+                    "http://127.0.0.1:4000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
                   )
                   .toOption
                   .get
@@ -246,7 +246,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/api/sync-wallet")
+                  .fromString("http://127.0.0.1:4000/api/sync-wallet")
                   .toOption
                   .get
               ).withContentType(
@@ -297,7 +297,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/api/confirm-deposit-btc")
+                  .fromString("http://127.0.0.1:4000/api/confirm-deposit-btc")
                   .toOption
                   .get
               ).withContentType(
@@ -334,7 +334,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/api/confirm-redemption")
+                  .fromString("http://127.0.0.1:4000/api/confirm-redemption")
                   .toOption
                   .get
               ).withContentType(

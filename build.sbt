@@ -67,7 +67,7 @@ lazy val commonDockerSettings = List(
 )
 
 lazy val dockerPublishSettingsBroker = List(
-  dockerExposedPorts ++= Seq(3000),
+  dockerExposedPorts ++= Seq(4000),
   Docker / packageName := "topl-btc-bridge"
 ) ++ commonDockerSettings
 

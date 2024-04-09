@@ -70,7 +70,7 @@ jobs:
         image: ghcr.io/topl/topl-btc-bridge:latest
         #
         ports:
-          - 3000:3000
+          - 4000:4000
         options: --name topl_bridge
         volumes:
           - ${{ github.workspace }}/data:/data
