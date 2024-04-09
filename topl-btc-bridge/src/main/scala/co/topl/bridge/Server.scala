@@ -19,7 +19,7 @@ object ServerConfig {
       .getOrElse(false)
 
   val port: Port = {
-    val portStr = Option(java.lang.System.getProperty("port")).getOrElse("3000")
+    val portStr = Option(java.lang.System.getProperty("port")).getOrElse("4000")
     Port
       .fromString(portStr)
       .getOrElse(throw new Exception(s"Bad port option: `${portStr}`"))
