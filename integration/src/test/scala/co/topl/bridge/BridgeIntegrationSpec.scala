@@ -297,7 +297,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/api/confirm-deposit-btc")
+                  .fromString("http://127.0.0.1:4000/api/confirm-deposit-btc")
                   .toOption
                   .get
               ).withContentType(
@@ -334,7 +334,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               Request[IO](
                 method = Method.POST,
                 Uri
-                  .fromString("http://127.0.0.1:3000/api/confirm-redemption")
+                  .fromString("http://127.0.0.1:4000/api/confirm-redemption")
                   .toOption
                   .get
               ).withContentType(
