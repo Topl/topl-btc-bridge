@@ -153,10 +153,9 @@ object ToplWalletImpl {
           )
           .optionT
         indices <- wsa
-          .getCurrentIndicesForFunds(
+          .getNextIndicesForFunds(
             fromFellowship,
-            mintTemplateName,
-            None
+            mintTemplateName
           )
           .liftT
         bk <- wa
