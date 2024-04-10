@@ -107,7 +107,9 @@ object StartSessionController {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (idx, newKey) = idxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
+      fromFellowship = mintTemplateName
       someRedeemAdressAndKey <- toplWalletAlgebra.setupBridgeWalletForMinting(
+        fromFellowship,
         mintTemplateName,
         keyPair,
         req.sha256
@@ -157,6 +159,7 @@ object StartSessionController {
           toplNetwork,
           keyPair,
           req.userBaseKey,
+          fellowshipId,
           fellowshipId,
           req.sha256,
           waitTime,
