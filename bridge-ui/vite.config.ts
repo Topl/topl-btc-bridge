@@ -14,7 +14,7 @@ export default defineConfig({
       // #TODO Can't we just proxy everything except index.html and /app?
       // #TODO hide away the proxy config (do we even need it?)
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://localhost:4000",
         secure: false,
         configure: (proxy, _options) => {
           proxy.on("error", (err, _req, _res) => {

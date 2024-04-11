@@ -26,8 +26,8 @@ function WaitingForMint(session: SessionInformation) {
               <form className='row g-3'>
                 <div className="row">
                   <div className="mb-3">
-                    <div className="d-flex align-items-center">
                       <strong role="status">Starting tBTC minting process...</strong>
+                    <div className="d-flex float-end">
                       <div className="spinner-border ms-auto" aria-hidden="true"></div>
                     </div>
                   </div>
@@ -48,7 +48,7 @@ function WaitingForMint(session: SessionInformation) {
               <form className='row g-3'>
                 <div className="row">
                   <div className="mb-3">
-                    <div className="d-flex align-items-center">
+                    <div className="d-flex float-end">
                       <strong role="status">Waiting for funds to be minted...</strong>
                       <div className="spinner-border ms-auto" aria-hidden="true"></div>
                     </div>
