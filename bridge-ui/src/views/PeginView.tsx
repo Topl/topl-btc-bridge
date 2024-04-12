@@ -1,7 +1,6 @@
 import { useOutletContext } from "react-router-dom";
 import { PeginUIState } from "../controllers/PeginController";
 import StartSession, { SessionInformation } from "./StartSession";
-import WaitingForBTC from "./WaitingForBTC";
 import WaitingForMint from "./WaitingForMint";
 import { SessionCtx } from "../Frame";
 
@@ -11,8 +10,6 @@ const currentView = (session: SessionInformation, setSession: React.Dispatch<Rea
       return StartSession(session, setSession)
     case PeginUIState.SessionStarted:
       return StartSession(session, setSession)
-    case PeginUIState.WaitingForBTC:
-      return WaitingForBTC(session, setSession)
     case PeginUIState.WaitingForMint:
       return WaitingForMint(session)
     case PeginUIState.MintingTBTC:
