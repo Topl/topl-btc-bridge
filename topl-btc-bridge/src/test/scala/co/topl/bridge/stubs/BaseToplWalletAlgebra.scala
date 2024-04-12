@@ -23,6 +23,7 @@ class BaseToplWalletAlgebra[F[_]] extends ToplWalletAlgebra[F] {
   ): F[IoTransaction] = ???
 
   override def setupBridgeWalletForMinting(
+      mintFellowshipName: String,
       mintTemplateName: String,
       keypair: KeyPair,
       sha256: String
@@ -33,7 +34,8 @@ class BaseToplWalletAlgebra[F[_]] extends ToplWalletAlgebra[F] {
       networkId: ToplNetworkIdentifiers,
       keyPair: KeyPair,
       userBaseKey: String,
-      sessionId: String,
+      fellowshipName: String,
+      templateName: String,
       sha256: String,
       waitTime: Int,
       currentHeight: Int

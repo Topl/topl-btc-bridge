@@ -138,7 +138,7 @@ jobs:
         with:
           files: |
             integration/target/test-reports/**/*.xml
-            integration/target/it-reports/**/*.xml
+            topl-btc-bridge/target/test-reports/**/*.xml
   publish:
     name: Publish Docker Images
     runs-on: ubuntu-20.04

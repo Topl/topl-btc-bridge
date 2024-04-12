@@ -41,9 +41,6 @@ class ConfirmDepositController[F[_]: Async: Logger](
 
   val tba: TransactionBuilderApi[F] = transactionBuilderApi
 
-  val fromFellowship = "self"
-  val fromTemplate = "default"
-
   import cats.implicits._
   private def getTxosFromMinting(
       genusQueryAlgebra: GenusQueryAlgebra[F],

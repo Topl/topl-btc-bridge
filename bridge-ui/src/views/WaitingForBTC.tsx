@@ -57,8 +57,8 @@ function WaitingForBTC(session: SessionInformation, setSession: React.Dispatch<R
           <form className='row g-3' onSubmit={handleBTCArrived}>
             <div className="row">
               <div className="mb-3">
-                <div className="d-flex align-items-center">
-                  <strong role="status">Waiting for funds to arrive to escrow address...</strong>
+                <strong role="status">Waiting for funds to arrive to escrow address...</strong>
+                <div className="d-flex float-end">
                   <div className="spinner-border ms-auto" aria-hidden="true"></div>
                 </div>
               </div>

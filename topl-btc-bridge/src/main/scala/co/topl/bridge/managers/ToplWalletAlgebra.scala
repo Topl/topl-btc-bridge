@@ -4,6 +4,7 @@ import cats.Monad
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.FellowshipStorageAlgebra
 import co.topl.brambl.dataApi.GenusQueryAlgebra
@@ -26,7 +27,6 @@ import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
-import co.topl.brambl.codecs.AddressCodecs
 
 trait ToplWalletAlgebra[+F[_]] {
 
@@ -46,13 +46,15 @@ trait ToplWalletAlgebra[+F[_]] {
       networkId: ToplNetworkIdentifiers,
       keyPair: KeyPair,
       userBaseKey: String,
-      sessionId: String,
+      fellowshipName: String,
+      templateName: String,
       sha256: String,
       waitTime: Int,
       currentHeight: Int
   ): F[Option[String]]
 
   def setupBridgeWalletForMinting(
+      fromFellowship: String,
       mintTemplateName: String,
       keypair: KeyPair,
       sha256: String
@@ -84,9 +86,6 @@ object ToplWalletImpl {
     val tba = transactionBuilderApi
 
     val wa = walletApi
-
-    val templateName = "bridgeTemplate"
-    val fromFellowship = "self" // FIXME: Make global
 
     private def computeSerializedTemplateMintLock(
         sha256: String
@@ -125,6 +124,7 @@ object ToplWalletImpl {
     }
 
     def setupBridgeWalletForMinting(
+        fromFellowship: String,
         mintTemplateName: String,
         keypair: KeyPair,
         sha256: String
@@ -142,16 +142,20 @@ object ToplWalletImpl {
         lockTemplateAsJson <- computeSerializedTemplateMintLock(
           sha256
         )
+        _ <- fellowshipStorageAlgebra
+          .addFellowship(
+            WalletFellowship(0, fromFellowship)
+          )
+          .optionT
         _ <- templateStorageAlgebra
           .addTemplate(
             WalletTemplate(0, mintTemplateName, lockTemplateAsJson)
           )
           .optionT
         indices <- wsa
-          .getCurrentIndicesForFunds(
+          .getNextIndicesForFunds(
             fromFellowship,
-            mintTemplateName,
-            None
+            mintTemplateName
           )
           .liftT
         bk <- wa
@@ -275,6 +279,7 @@ object ToplWalletImpl {
         keypair: KeyPair,
         userBaseKey: String,
         fellowshipName: String,
+        templateName: String,
         sha256: String,
         waitTime: Int,
         currentHeight: Int
