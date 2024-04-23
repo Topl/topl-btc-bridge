@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { PeginUIState, btcSent, sessionStarted } from '../controllers/PeginController';
+import { useState, useEffect } from 'react';
+import { PeginUIState, sessionStarted, mintingBTC } from '../controllers/PeginController';
 
 export interface SessionInformation {
   isSet: boolean;
@@ -75,6 +75,31 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
   const [hash, setHash] = useState<string>("")
   const [error, setError] = useState<string>("")
 
+  useEffect(() => {
+    const sessionPoll = setInterval(async () => { 
+      if((session.currentState == PeginUIState.SessionStarted)){
+        const response = await fetch('/api/topl-minting-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({sessionID: session.sessionID})
+        })
+        if (response.status == 200) {
+          const data = await response.json();
+          const mintStatus = (data?.mintingStatus || "") as string
+          if(mintStatus !== "MintingBTCStateReady") {
+            mintingBTC(setSession, session)
+            clearInterval(sessionPoll)
+          }
+        } else {
+          console.error(response)
+        }
+      }
+    }, 1000)
+    return () => clearInterval(sessionPoll);
+  })
+
   async function handleSubmitSha(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const startSessionRequest: StartSessionRequest = {
@@ -90,10 +115,6 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
     }
   }
 
-  async function handleSubmitBTCTransferred(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    btcSent(setSession, session);
-  }
   const style = {
     width: '25%'
   };
@@ -118,17 +139,18 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
               </div>
             </div>
           </form>
-          <form className='row g-3' onSubmit={handleSubmitBTCTransferred}>
+          <div className='row g-3'>
             <div className="row">
+            <div className="mb-3">
+                <label htmlFor="sessionId" className="form-label">Session</label>
+                <input type="text" value={session.sessionID} className="form-control" id="sessionId" disabled />
+              </div>
               <div className="mb-3">
                 <label htmlFor="escrowAddress" className="form-label">Escrow Address</label>
                 <input type="text" value={session.escrowAddress} className="form-control" id="escrowAddress" disabled />
               </div>
-              <div className="mb-3">
-                <button type="submit" className="btn btn-primary mb-3" disabled={session.currentState !== PeginUIState.SessionStarted}>BTC Transferred</button>
-              </div>
             </div>
-          </form>
+          </div>
         </div>
         {alertInstructions(session.isSet)}
       </div>

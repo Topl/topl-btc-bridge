@@ -5,7 +5,6 @@ import { SessionInformation, StartSessionResponse } from '../views/StartSession'
 export enum PeginUIState {
   InitialState,
   SessionStarted,
-  WaitingForBTC,
   MintingTBTC,
   WaitingForMint,
   MintedTBTC
@@ -17,8 +16,6 @@ function stringToPeginUIState(state: string): PeginUIState {
       return PeginUIState.InitialState;
     case "SessionStarted":
       return PeginUIState.SessionStarted;
-    case "WaitingForBTC":
-      return PeginUIState.WaitingForBTC;
     case "MintingTBTC":
       return PeginUIState.MintingTBTC;
     case "WaitingForMint":
@@ -53,10 +50,6 @@ export function sessionStarted(setSession: React.Dispatch<React.SetStateAction<S
   setSession({ isSet: true, sessionID: response.sessionID, escrowAddress: response.escrowAddress, currentState: PeginUIState.SessionStarted, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
 }
 
-export function btcSent(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
-  setCookie("currentState", "WaitingForBTC");
-  setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.WaitingForBTC, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
-}
 export function btcArrived(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
   setCookie("currentState", "MintingTBTC");
   setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.MintingTBTC, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
