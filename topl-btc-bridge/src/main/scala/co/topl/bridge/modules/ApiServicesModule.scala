@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.modules
 
 import cats.effect.IO
 import co.topl.brambl.builders.TransactionBuilderApi
@@ -44,6 +44,7 @@ import org.typelevel.log4cats.Logger
 import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.bridge.managers.PeginSessionInfo
+import co.topl.bridge.SystemGlobalState
 
 trait ApiServicesModule {
 

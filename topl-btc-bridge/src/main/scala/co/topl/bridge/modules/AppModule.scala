@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.modules
 
 import cats.data.Kleisli
 import cats.effect.IO
@@ -13,6 +13,7 @@ import co.topl.brambl.servicekit.WalletKeyApi
 import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.SystemGlobalState
 import co.topl.bridge.ToplBTCBridgeParamConfig
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionManagerImpl

@@ -12,6 +12,7 @@ import org.bitcoins.keymanager.bip39.BIP39KeyManager
 import org.http4s.ember.server.EmberServerBuilder
 import scopt.OParser
 import cats.effect.kernel.Ref
+import co.topl.bridge.modules.AppModule
 
 case class SystemGlobalState(
     currentStatus: Option[String],
