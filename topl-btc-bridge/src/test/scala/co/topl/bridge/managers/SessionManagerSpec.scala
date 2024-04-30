@@ -4,7 +4,8 @@ import munit.CatsEffectSuite
 import java.util.concurrent.ConcurrentHashMap
 import cats.effect.IO
 import java.util.UUID
-import co.topl.bridge.MintingBTCState
+import co.topl.bridge.PeginSessionState
+import cats.effect.std.Queue
 
 class SessionManagerSpec extends CatsEffectSuite {
 
@@ -15,14 +16,17 @@ class SessionManagerSpec extends CatsEffectSuite {
     "scriptAsm",
     "toplBridgePKey",
     "sha256",
-    MintingBTCState.MintingBTCStateReady
+    PeginSessionState.PeginSessionStateWaitingForBTC
   )
 
   test("SessionManagerAlgebra should create and retrieve a session") {
-    val sut =
-      SessionManagerImpl.make[IO](new ConcurrentHashMap[String, SessionInfo]())
     assertIO(
       for {
+        queue <- Queue.unbounded[IO, SessionEvent]
+        sut = SessionManagerImpl.make[IO](
+          queue,
+          new ConcurrentHashMap[String, SessionInfo]()
+        )
         sessionId <- sut.createNewSession(sessionInfo)
         retrievedSession <- sut.getSession(sessionId)
       } yield {
@@ -33,11 +37,13 @@ class SessionManagerSpec extends CatsEffectSuite {
   }
 
   test("SessionManagerAlgebra should fail to retrieve a non existing session") {
-    val sut =
-      SessionManagerImpl.make[IO](new ConcurrentHashMap[String, SessionInfo]())
-
     assertIO(
       (for {
+        queue <- Queue.unbounded[IO, SessionEvent]
+        sut = SessionManagerImpl.make[IO](
+          queue,
+          new ConcurrentHashMap[String, SessionInfo]()
+        )
         _ <- sut.createNewSession(sessionInfo)
         _ <- sut.getSession(UUID.randomUUID().toString)
       } yield {

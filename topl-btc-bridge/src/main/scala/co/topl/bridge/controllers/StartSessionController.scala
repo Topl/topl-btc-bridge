@@ -30,7 +30,7 @@ import java.util.UUID
 import co.topl.shared.StartPegoutSessionResponse
 import quivr.models.KeyPair
 import co.topl.shared.WalletSetupError
-import co.topl.bridge.MintingBTCState
+import co.topl.bridge.PeginSessionState
 
 object StartSessionController {
 
@@ -88,7 +88,7 @@ object StartSessionController {
         scriptAsm.toHex,
         toplBridgePKey,
         sha256,
-        MintingBTCState.MintingBTCStateReady
+        PeginSessionState.PeginSessionStateWaitingForBTC
       )
     )
   }

@@ -11,19 +11,16 @@ import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.LockId
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.controllers.ConfirmDepositController
 import co.topl.bridge.controllers.ConfirmRedemptionController
 import co.topl.bridge.controllers.StartSessionController
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.ToplWalletAlgebra
-import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.genus.services.Txo
 import co.topl.genus.services.TxoState
 import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
-import co.topl.shared.ConfirmDepositRequest
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.SessionNotFoundError
 import co.topl.shared.StartPeginSessionRequest
@@ -40,7 +37,6 @@ import org.http4s.dsl.io._
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import cats.effect.kernel.Ref
-import org.typelevel.log4cats.Logger
 import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.bridge.managers.PeginSessionInfo
@@ -137,13 +133,11 @@ trait ApiServicesModule {
       pegInWalletManager: BTCWalletAlgebra[IO],
       walletManager: BTCWalletAlgebra[IO],
       toplWalletAlgebra: ToplWalletAlgebra[IO],
-      transactionAlgebra: TransactionAlgebra[IO],
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
       toplNetwork: ToplNetworkIdentifiers,
-      transactionBuilderApi: TransactionBuilderApi[IO],
       currentState: Ref[IO, SystemGlobalState]
-  )(implicit logger: Logger[IO]) = {
+  ) = {
     import io.circe.syntax._
     implicit val bridgeErrorEncoder: Encoder[BridgeError] =
       new Encoder[BridgeError] {
@@ -227,13 +221,12 @@ trait ApiServicesModule {
           BadRequest("Error starting pegout session")
         }
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
-        
+
         implicit val mintingRequestDecoder
             : EntityDecoder[IO, MintingStatusRequest] =
           jsonOf[IO, MintingStatusRequest]
         for {
           x <- req.as[MintingStatusRequest]
-          _ <- IO.println("Session ID: " + x.sessionID)
           session <- sessionManager.getSession(x.sessionID)
           pegin <- session match {
             case p: PeginSessionInfo => IO.pure(p)
@@ -242,36 +235,11 @@ trait ApiServicesModule {
           resp <- Ok(
             MintingStatusResponse(
               pegin.mintingBTCState.toString(),
-              pegin.redeemAddress,
+              pegin.escrowAddress,
               pegin.toplBridgePKey,
               s"threshold(1, sign(0) or sha256(${pegin.sha256}))",
             ).asJson
           )
-          _ <- IO.println("Minting status response: " + resp)
-        } yield resp
-      case req @ POST -> Root / BridgeContants.CONFIRM_DEPOSIT_BTC_PATH =>
-        implicit val confirmDepositRequestDecoder
-            : EntityDecoder[IO, ConfirmDepositRequest] =
-          jsonOf[IO, ConfirmDepositRequest]
-        for {
-          x <- req.as[ConfirmDepositRequest]
-          confirmDepositController = new ConfirmDepositController[IO](
-            walletStateAlgebra,
-            transactionBuilderApi
-          )(IO.asyncForIO, logger)
-          res <- confirmDepositController.confirmDeposit(
-            toplKeypair,
-            x,
-            toplWalletAlgebra,
-            transactionAlgebra,
-            genusQueryAlgebra,
-            10,
-            sessionManager
-          )
-          resp <- res match {
-            case Left(e: BridgeError) => BadRequest(e.asJson)
-            case Right(value)         => Ok(value.asJson)
-          }
         } yield resp
       case req @ POST -> Root / "confirm-redemption" =>
         import ConfirmRedemptionController._

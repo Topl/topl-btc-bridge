@@ -32,6 +32,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
+import cats.effect.std.Queue
+import co.topl.bridge.managers.SessionEvent
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -83,8 +85,9 @@ class StartSessionControllerSpec
             testPassword
           )
           peginWallet <- BTCWalletImpl.make[IO](km0)
-          currentPubKey <- peginWallet.getCurrentPubKey()
+          queue <- Queue.unbounded[IO, SessionEvent]
           sessionManager = SessionManagerImpl.make[IO](
+            queue,
             new ConcurrentHashMap[String, SessionInfo]()
           )
           toplWalletImpl = ToplWalletImpl.make[IO](
@@ -140,11 +143,14 @@ class StartSessionControllerSpec
           false
         )
       )
-      val sessionManager = SessionManagerImpl.make[IO](
-        new ConcurrentHashMap[String, SessionInfo]()
-      )
+
       assertIOBoolean(
         for {
+          queue <- Queue.unbounded[IO, SessionEvent]
+          sessionManager = SessionManagerImpl.make[IO](
+            queue,
+            new ConcurrentHashMap[String, SessionInfo]()
+          )
           keypair <- walletManagementUtils.loadKeys(
             toplWalletFile,
             testToplPassword
@@ -199,11 +205,13 @@ class StartSessionControllerSpec
         false
       )
     )
-    val sessionManager = SessionManagerImpl.make[IO](
-      new ConcurrentHashMap[String, SessionInfo]()
-    )
     assertIOBoolean(
       for {
+        queue <- Queue.unbounded[IO, SessionEvent]
+        sessionManager = SessionManagerImpl.make[IO](
+          queue,
+          new ConcurrentHashMap[String, SessionInfo]()
+        )
         keypair <- walletManagementUtils.loadKeys(
           toplWalletFile,
           testToplPassword
@@ -278,8 +286,9 @@ class StartSessionControllerSpec
           testPassword
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
-        currentPubKey <- peginWallet.getCurrentPubKey()
+        queue <- Queue.unbounded[IO, SessionEvent]
         sessionManager = SessionManagerImpl.make[IO](
+          queue,
           new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- StartSessionController.startPeginSession(
@@ -335,14 +344,9 @@ class StartSessionControllerSpec
           transactionBuilderApi,
           genusQueryAlgebra
         )
-        km0 <- KeyGenerationUtils.createKeyManager[IO](
-          RegTest,
-          peginWalletFile,
-          testPassword
-        )
-        peginWallet <- BTCWalletImpl.make[IO](km0)
-        currentPubKey <- peginWallet.getCurrentPubKey()
+        queue <- Queue.unbounded[IO, SessionEvent]
         sessionManager = SessionManagerImpl.make[IO](
+          queue,
           new ConcurrentHashMap[String, SessionInfo]()
         )
         km0 <- KeyGenerationUtils.createKeyManager[IO](
@@ -351,10 +355,6 @@ class StartSessionControllerSpec
           testPassword
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
-        currentPubKey <- peginWallet.getCurrentPubKey()
-        sessionManager = SessionManagerImpl.make[IO](
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
         res <- StartSessionController.startPeginSession(
           StartPeginSessionRequest(
             testKey,
@@ -395,11 +395,13 @@ class StartSessionControllerSpec
         false
       )
     )
-    val sessionManager = SessionManagerImpl.make[IO](
-      new ConcurrentHashMap[String, SessionInfo]()
-    )
     assertIOBoolean(
       for {
+        queue <- Queue.unbounded[IO, SessionEvent]
+        sessionManager = SessionManagerImpl.make[IO](
+          queue,
+          new ConcurrentHashMap[String, SessionInfo]()
+        )
         keypair <- walletManagementUtils.loadKeys(
           toplWalletFile,
           testToplPassword
@@ -453,11 +455,14 @@ class StartSessionControllerSpec
         false
       )
     )
-    val sessionManager = SessionManagerImpl.make[IO](
-      new ConcurrentHashMap[String, SessionInfo]()
-    )
+
     assertIOBoolean(
       for {
+        queue <- Queue.unbounded[IO, SessionEvent]
+        sessionManager = SessionManagerImpl.make[IO](
+          queue,
+          new ConcurrentHashMap[String, SessionInfo]()
+        )
         keypair <- walletManagementUtils.loadKeys(
           toplWalletFile,
           testToplPassword

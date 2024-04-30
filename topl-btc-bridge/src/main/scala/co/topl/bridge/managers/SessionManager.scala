@@ -4,7 +4,17 @@ import cats.effect.kernel.Sync
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentMap
-import co.topl.bridge.MintingBTCState
+import co.topl.bridge.PeginSessionState
+import cats.effect.std.Queue
+
+import cats.implicits._
+
+sealed trait SessionEvent
+
+case class SessionCreated(sessionId: String, sessionInfo: SessionInfo)
+    extends SessionEvent
+case class SessionUpdated(sessionId: String, sessionInfo: SessionInfo)
+    extends SessionEvent
 
 sealed trait SessionInfo
 
@@ -14,7 +24,7 @@ sealed trait SessionInfo
   *   The index of the wallet that is currently being used.
   * @param mintTemplateName
   *   The name under which the mint template is stored.
-  * @param redeemAddress
+  * @param escrowAddress
   *   The address where the pegin will be redeemed.
   * @param scriptAsm
   *   The script that is used to redeem the pegin.
@@ -28,11 +38,11 @@ sealed trait SessionInfo
 case class PeginSessionInfo(
     currentWalletIdx: Int,
     mintTemplateName: String,
-    redeemAddress: String,
+    escrowAddress: String,
     scriptAsm: String,
     toplBridgePKey: String,
     sha256: String,
-    mintingBTCState: MintingBTCState
+    mintingBTCState: PeginSessionState
 ) extends SessionInfo
 
 case class PegoutSessionInfo(
@@ -57,15 +67,16 @@ trait SessionManagerAlgebra[F[_]] {
 
 object SessionManagerImpl {
   def make[F[_]: Sync](
+      queue: Queue[F, SessionEvent],
       map: ConcurrentMap[String, SessionInfo]
   ): SessionManagerAlgebra[F] = new SessionManagerAlgebra[F] {
     def createNewSession(
         sessionInfo: SessionInfo
     ): F[String] = {
-      import cats.implicits._
       for {
         sessionId <- Sync[F].delay(UUID.randomUUID().toString)
         _ <- Sync[F].delay(map.put(sessionId, sessionInfo))
+        _ <- queue.offer(SessionCreated(sessionId, sessionInfo))
       } yield sessionId
     }
 
@@ -84,7 +95,8 @@ object SessionManagerImpl {
         sessionId: String,
         sessionInfo: SessionInfo
     ): F[Unit] = {
-      Sync[F].delay(map.put(sessionId, sessionInfo))
+      Sync[F].delay(map.put(sessionId, sessionInfo)) >>
+        queue.offer(SessionUpdated(sessionId, sessionInfo))
     }
 
   }

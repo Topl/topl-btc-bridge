@@ -2,8 +2,6 @@ package co.topl.bridge
 
 import cats.effect.IO
 import co.topl.shared.BridgeContants
-import co.topl.shared.ConfirmDepositRequest
-import co.topl.shared.ConfirmDepositResponse
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
 import co.topl.shared.StartPeginSessionRequest
@@ -182,12 +180,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val confirmRedemptionResponse
         : EntityDecoder[IO, ConfirmRedemptionResponse] =
       jsonOf[IO, ConfirmRedemptionResponse]
-    implicit val confirmDepositRequestEncoder
-        : EntityEncoder[IO, ConfirmDepositRequest] =
-      jsonEncoderOf[IO, ConfirmDepositRequest]
-    implicit val confirmDepositRequestDecoder
-        : EntityDecoder[IO, ConfirmDepositResponse] =
-      jsonOf[IO, ConfirmDepositResponse]
     assertIO(
       for {
         createWalletOut <- process
@@ -289,39 +281,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .head
           .split("#")
           .head
-        confirmDepositResponse <- EmberClientBuilder
-          .default[IO]
-          .build
-          .use({ client =>
-            client.expect[ConfirmDepositResponse](
-              Request[IO](
-                method = Method.POST,
-                Uri
-                  .fromString("http://127.0.0.1:4000/api/confirm-deposit-btc")
-                  .toOption
-                  .get
-              ).withContentType(
-                `Content-Type`.apply(MediaType.application.json)
-              ).withEntity(
-                ConfirmDepositRequest(
-                  startSessionResponse.sessionID,
-                  4999000000L
-                )
-              )
-            )
-          })
-        _ <- IO.println("confirmDepositResponse: " + confirmDepositResponse)
-        _ <- IO.sleep(10.seconds)
-        _ <- getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
-          .use(_.exitValue)
-          .iterateUntil(_ == 0)
-        _ <- assertIOBoolean(
-          getCurrentUtxosFromAddress(confirmDepositResponse.redeemAddress)
-            .use(getText)
-            .map { x =>
-              x.contains("Asset")
-            }
-        )
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
           .spawn[IO]

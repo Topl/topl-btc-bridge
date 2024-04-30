@@ -6,13 +6,23 @@ object Dependencies {
 
   lazy val http4sVersion = "0.23.23"
 
+  lazy val slf4jVersion = "2.0.12"
+
+  val akkaSlf4j: Seq[ModuleID] = Seq(
+     "com.typesafe.akka" %% "akka-slf4j" % "2.6.20"
+  )
+
   val logback: Seq[ModuleID] = Seq(
     "ch.qos.logback" % "logback-classic" % "1.4.11"
   )
 
+  lazy val slf4j: Seq[ModuleID] = Seq(
+    "org.slf4j" % "slf4j-api" % slf4jVersion
+  )
+
   val log4cats: Seq[ModuleID] = Seq(
-    "org.typelevel" %% "log4cats-core" % "2.6.0",
-    "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
+    "org.typelevel" %% "log4cats-core" % "2.4.0",
+    "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
   )
 
   lazy val toplOrg = "co.topl"
@@ -91,7 +101,9 @@ object Dependencies {
         optics ++
         bitcoinS ++
         grpcNetty ++
-        grpcRuntime
+        grpcRuntime ++
+        akkaSlf4j ++
+        slf4j
 
     lazy val test: Seq[ModuleID] =
       (

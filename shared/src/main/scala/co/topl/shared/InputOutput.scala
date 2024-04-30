@@ -53,16 +53,6 @@ case class ConfirmRedemptionRequest(
     amount: Long,
     secret: String
 )
-
-case class ConfirmDepositRequest(
-    sessionID: String,
-    amount: Long
-)
-
-case class ConfirmDepositResponse(
-    txId: String,
-    redeemAddress: String
-)
 case class ConfirmRedemptionResponse(
     tx: String
 )
