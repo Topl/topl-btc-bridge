@@ -13,6 +13,7 @@ class SessionManagerSpec extends CatsEffectSuite {
     0,
     "mintTemplateName",
     "redeemAddress",
+    "escrowAddress",
     "scriptAsm",
     "toplBridgePKey",
     "sha256",
