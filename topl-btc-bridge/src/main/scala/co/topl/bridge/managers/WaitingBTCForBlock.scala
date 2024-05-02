@@ -27,6 +27,7 @@ import quivr.models.Int128
 import quivr.models.KeyPair
 
 import scala.concurrent.duration._
+import co.topl.bridge.utils.MiscUtils
 
 class WaitingBTCForBlock[F[_]: Async: Logger](
     sessionManager: SessionManagerAlgebra[F],
@@ -120,16 +121,16 @@ class WaitingBTCForBlock[F[_]: Async: Logger](
       sessionManager: SessionManagerAlgebra[F],
       genusQueryAlgebra: GenusQueryAlgebra[F]
   ): F[Unit] = for {
-    newTxos <- getTxosFromMinting(genusQueryAlgebra, sessionInfo.escrowAddress)
+    newTxos <- getTxosFromMinting(genusQueryAlgebra, sessionInfo.redeemAddress)
     _ <-
       if (newTxos.filter(_.transactionOutput.value.value.isAsset).nonEmpty) {
-        info"tBTC minted successfully to address ${sessionInfo.escrowAddress}" >>
+        info"tBTC minted successfully to address ${sessionInfo.redeemAddress}" >>
           sessionManager.updateSession(
             sessionID,
             sessionInfo.copy(
               mintingBTCState =
                 PeginSessionState.PeginSessionWaitingForRedemption,
-              escrowAddress = sessionInfo.escrowAddress
+              redeemAddress = sessionInfo.redeemAddress
             )
           )
       } else {
@@ -199,10 +200,11 @@ class WaitingBTCForBlock[F[_]: Async: Logger](
         )
       )
     )
+    _ <- info"Starting to mint tBTC for session $sessionId"
     _ <- startMintingProcess(
       fromFellowship,
       fromTemplate,
-      peginSessionInfo.escrowAddress,
+      peginSessionInfo.redeemAddress,
       toplKeypair,
       outputs.map(_.value.satoshis.toLong).sum,
       toplWalletAlgebra,
@@ -237,26 +239,25 @@ class WaitingBTCForBlock[F[_]: Async: Logger](
   ) = {
 
     val (scriptPubkey, outputs) = output
-    import monocle.macros.GenPrism
-    val prism = GenPrism[SessionInfo, PeginSessionInfo]
     val bech32Address = Bech32Address.fromString(escrowAddress)
     if (scriptPubkey == bech32Address.scriptPubKey) {
       (for {
         sessionInfo <- sessionManager.getSession(sessionId)
-        _ <- prism
+        _ <- MiscUtils.sessionInfoPeginPrism
           .getOption(sessionInfo)
           .map(peginSessionInfo =>
-            mintAndWait(
-              peginSessionInfo,
-              sessionId,
-              toplKeypair,
-              fromFellowship,
-              fromTemplate,
-              toplWalletAlgebra,
-              transactionAlgebra,
-              utxoAlgebra,
-              outputs
-            )
+            info"Starting minting process for session $sessionId" >>
+              mintAndWait(
+                peginSessionInfo,
+                sessionId,
+                toplKeypair,
+                fromFellowship,
+                fromTemplate,
+                toplWalletAlgebra,
+                transactionAlgebra,
+                utxoAlgebra,
+                outputs
+              )
           )
           .getOrElse(Async[F].unit)
       } yield ())

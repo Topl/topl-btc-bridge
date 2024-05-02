@@ -1,10 +1,14 @@
 package co.topl.bridge.controllers
 
+import cats.effect.kernel.Sync
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.utils.BitcoinUtils
+import co.topl.bridge.utils.MiscUtils
+import co.topl.shared.BridgeError
 import co.topl.shared.ConfirmRedemptionRequest
 import co.topl.shared.ConfirmRedemptionResponse
+import co.topl.shared.SessionNotFoundError
 import org.bitcoins.core.currency.SatoshisLong
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
 import org.bitcoins.core.protocol.script.P2WSHWitnessV0
@@ -14,10 +18,6 @@ import org.bitcoins.core.script.constant.OP_0
 import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
-import co.topl.shared.SessionNotFoundError
-import cats.effect.kernel.Sync
-import co.topl.shared.BridgeError
-import co.topl.bridge.managers.PeginSessionInfo
 
 object ConfirmRedemptionController {
 
@@ -28,6 +28,7 @@ object ConfirmRedemptionController {
       sessionManager: SessionManagerAlgebra[F]
   ): F[Either[BridgeError, ConfirmRedemptionResponse]] = {
     import cats.implicits._
+
     (for {
       genericSessionInfo <- sessionManager
         .getSession(req.sessionID)
@@ -36,25 +37,10 @@ object ConfirmRedemptionController {
             s"Session with id ${req.sessionID} not found"
           )
         )
-      sessionInfo = genericSessionInfo match {
-        case PeginSessionInfo(
-              currentWalletIdx,
-              mintTemplateName,
-              scriptAsm,
-              redeemAddress,
-              toplBridgePKey,
-              sha256,
-              state
-            ) =>
-          PeginSessionInfo(
-            currentWalletIdx,
-            mintTemplateName,
-            scriptAsm,
-            redeemAddress,
-            toplBridgePKey,
-            sha256,
-            state
-          )
+      sessionInfo = MiscUtils.sessionInfoPeginPrism.getOption(
+        genericSessionInfo
+      ) match {
+        case Some(value) => value
         case _ =>
           throw new RuntimeException(
             "Session info is not a pegin session info"

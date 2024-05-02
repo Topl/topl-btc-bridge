@@ -85,6 +85,7 @@ object StartSessionController {
         currentWalletIdx,
         mintTemplateName,
         redeemAddress,
+        address,
         scriptAsm.toHex,
         toplBridgePKey,
         sha256,

@@ -235,7 +235,7 @@ trait ApiServicesModule {
           resp <- Ok(
             MintingStatusResponse(
               pegin.mintingBTCState.toString(),
-              pegin.escrowAddress,
+              pegin.redeemAddress,
               pegin.toplBridgePKey,
               s"threshold(1, sign(0) or sha256(${pegin.sha256}))",
             ).asJson

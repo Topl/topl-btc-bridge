@@ -24,8 +24,10 @@ sealed trait SessionInfo
   *   The index of the wallet that is currently being used.
   * @param mintTemplateName
   *   The name under which the mint template is stored.
-  * @param escrowAddress
+  * @param redeemAddress
   *   The address where the pegin will be redeemed.
+  * @param escrowAddress
+  *   The address where the BTC to peg in will be deposited.
   * @param scriptAsm
   *   The script that is used to redeem the pegin.
   * @param toplBridgePKey
@@ -38,6 +40,7 @@ sealed trait SessionInfo
 case class PeginSessionInfo(
     currentWalletIdx: Int,
     mintTemplateName: String,
+    redeemAddress: String,
     escrowAddress: String,
     scriptAsm: String,
     toplBridgePKey: String,

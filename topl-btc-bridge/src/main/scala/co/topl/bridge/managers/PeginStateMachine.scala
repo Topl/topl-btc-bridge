@@ -66,23 +66,17 @@ class PeginStateMachine[F[_]: Async: Logger](
       sessionEvent: SessionEvent
   ): F[Unit] = {
     sessionEvent match {
-      case SessionCreated(
-            sessionId,
-            PeginSessionInfo(_, _, redeemAddress, _, _, _, _)
-          ) =>
-        info"New session created, waiting for funds at $redeemAddress" >> Sync[
+      case SessionCreated(sessionId, psi: PeginSessionInfo) =>
+        info"New session created, waiting for funds at ${psi.escrowAddress}" >> Sync[
           F
         ].delay(
           map.put(
             sessionId,
-            WaitingForBTC(redeemAddress)
+            WaitingForBTC(psi.escrowAddress)
           )
         )
-      case SessionUpdated(
-            sessionId,
-            PeginSessionInfo(_, _, _, _, _, _, state)
-          ) =>
-        val newState = state match {
+      case SessionUpdated(sessionId, psi: PeginSessionInfo) =>
+        val newState = psi.mintingBTCState match {
           case PeginSessionStateMintingTBTC(amount) =>
             MintingTBTC(amount)
           case PeginSessionWaitingForRedemption =>
