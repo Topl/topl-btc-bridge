@@ -58,18 +58,6 @@ jobs:
         #
         ports:
            - 9084:9084
-      topl-btc-bridge:
-        # Docker Hub image
-        image: ghcr.io/topl/topl-btc-bridge:latest
-        #
-        ports:
-          - 4000:4000
-        options: --name topl_bridge
-        volumes:
-          - ${{ github.workspace }}/data:/data
-        env:
-          TOPL_HOST: "bifrost"
-          TOPL_WALLET_DB: "/data/topl-wallet.db"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
@@ -122,8 +110,10 @@ jobs:
       - name: Run integration tests
         run: |
               docker run -d --rm --add-host host.docker.internal:host-gateway -p 18444:18444 -p 18443:18443 -p 28332:28332 --name=bitcoin ruimarinho/bitcoin-core -chain=regtest -zmqpubrawblock=tcp://0.0.0.0:28332 -rpcuser=bitcoin -rpcpassword=password -port=18444 -rpcport=18443 -rpcbind=:18443 -rpcallowip=0.0.0.0/0
+              docker run -d --rm --add-host host.docker.internal:host-gateway -p 4000:4000 --name=topl_bridge ghcr.io/topl/topl-btc-bridge:latest
               sbt "integration / test"
               docker kill bitcoin
+              docker kill topl_bridge
       - uses: actions/download-artifact@v3
         with:
           path: topl-btc-bridge/target/test-reports/
