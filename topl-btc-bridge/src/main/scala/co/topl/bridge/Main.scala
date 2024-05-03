@@ -78,7 +78,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
       walletManager <- BTCWalletImpl.make[IO](walletKm)
       logger =
-        org.typelevel.log4cats.slf4j.Slf4jLogger.getLoggerFromName[IO]("App")
+        org.typelevel.log4cats.slf4j.Slf4jLogger.getLoggerFromName[IO]("btc-bridge")
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )

@@ -58,15 +58,6 @@ jobs:
         #
         ports:
            - 9084:9084
-      bitcoin:
-        # Docker Hub image
-        image: docker.io/1maa/bitcoin:v25-regtest
-        #
-        ports:
-          - 18444:18444  
-          - 18443:18443
-          - 28332:28332
-        options: --name bitcoin  -zmqpubrawblock=tcp://0.0.0.0:28332 -rpcuser=test -rpcpassword=test -port=18444 -rpcport=18443 -rpcbind=:18443 -rpcallowip=0.0.0.0/0
       topl-btc-bridge:
         # Docker Hub image
         image: ghcr.io/topl/topl-btc-bridge:latest
@@ -129,7 +120,9 @@ jobs:
         with:
           args: docker restart topl_bridge
       - name: Run integration tests
-        run: sbt "integration / test"
+        run: |
+              docker run -d --rm --add-host host.docker.internal:host-gateway -p 18444:18444 -p 18443:18443 -p 28332:28332 --name=bitcoind ruimarinho/bitcoin-core -chain=regtest -zmqpubrawblock=tcp://0.0.0.0:28332 -rpcuser=test -rpcpassword=test -port=18444 -rpcport=18443 -rpcbind=:18443 -rpcallowip=0.0.0.0/0
+              sbt "integration / test"
       - uses: actions/download-artifact@v3
         with:
           path: topl-btc-bridge/target/test-reports/
