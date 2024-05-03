@@ -34,8 +34,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin-cli",
     "-regtest",
     "-named",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "createwallet",
     "wallet_name=testwallet"
   )
@@ -43,8 +43,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "exec",
     "bitcoin",
     "bitcoin-cli",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "-regtest",
     "-rpcwallet=testwallet",
     "getnewaddress"
@@ -54,8 +54,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "generatetoaddress",
     blocks.toString,
     address
@@ -65,8 +65,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "generatetoaddress",
     "101",
     address
@@ -76,8 +76,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "-rpcwallet=testwallet",
     "signrawtransactionwithwallet",
     tx
@@ -87,8 +87,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "sendrawtransaction",
     signedTx
   )
@@ -97,8 +97,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "exec",
     "bitcoin",
     "bitcoin-cli",
-    "-rpcuser=test",
-    "-rpcpassword=test",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
     "-regtest",
     "-rpcwallet=testwallet",
     "listunspent"

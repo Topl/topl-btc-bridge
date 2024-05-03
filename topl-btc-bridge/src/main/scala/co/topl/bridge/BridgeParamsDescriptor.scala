@@ -72,16 +72,14 @@ trait BridgeParamsDescriptor {
         .validate(x =>
           if (x.trim().isEmpty) failure("Topl node host may not be empty")
           else success
-        )
-        .required(),
+        ),
       opt[String]("btc-url")
         .action((x, c) => c.copy(btcUrl = x))
         .text("The url of the Bitcoin node. (mandatory)")
         .validate(x =>
           if (x.trim().isEmpty) failure("Bitcoin node url may not be empty")
           else success
-        )
-        .required(),
+        ),
       opt[String]("btc-user")
         .action((x, c) => c.copy(btcUser = x))
         .text("The username for the Bitcoin node. (mandatory)")
@@ -89,8 +87,7 @@ trait BridgeParamsDescriptor {
           if (x.trim().isEmpty)
             failure("Bitcoin node username may not be empty")
           else success
-        )
-        .required(),
+        ),
       opt[String]("btc-password")
         .action((x, c) => c.copy(btcPassword = x))
         .text("The password for the Bitcoin node. (mandatory)")
@@ -98,16 +95,14 @@ trait BridgeParamsDescriptor {
           if (x.trim().isEmpty)
             failure("Bitcoin node password may not be empty")
           else success
-        )
-        .required(),
+        ),
       opt[Int]("topl-port")
         .action((x, c) => c.copy(toplPort = x))
         .text("Port for Topl node. (mandatory)")
         .validate(x =>
           if (x >= 0 && x <= 65536) success
           else failure("Port must be between 0 and 65536")
-        )
-        .required(),
+        ),
       opt[Boolean]("topl-secure")
         .action((x, c) => c.copy(toplSecureConnection = x))
         .text("Enables the secure connection to the node. (optional)")
