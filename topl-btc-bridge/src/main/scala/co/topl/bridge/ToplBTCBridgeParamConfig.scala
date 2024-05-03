@@ -15,7 +15,7 @@ case class ToplBTCBridgeParamConfig(
     toplWalletSeedFile: String = "topl-wallet.json",
     toplWalletPassword: String = "password",
     toplWalletDb: String = "topl-wallet.db",
-    btcUrl: String = "http://localhost",
+    btcUrl: String = "http://bitcoin",
     btcUser: String = "bitcoin",
     btcPassword: String = "password",
     btcNetwork: BitcoinNetworkIdentifiers = RegTest,
