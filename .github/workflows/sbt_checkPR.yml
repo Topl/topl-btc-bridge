@@ -58,13 +58,6 @@ jobs:
         #
         ports:
            - 9084:9084
-      topl-btc-bridge:
-        # Docker Hub image
-        image: ghcr.io/topl/topl-btc-bridge:latest
-        #
-        ports:
-          - 4000:4000
-        options: --name topl_bridge
         volumes:
           - ${{ github.workspace }}/data:/data
         env:
@@ -115,12 +108,9 @@ jobs:
           sudo chmod 777 topl-btc-bridge/src/universal/topl-wallet.db
           mkdir ${{ github.workspace }}/data
           cp topl-btc-bridge/src/universal/topl-wallet.db ${{ github.workspace }}/data/topl-wallet.db
-      - name: Restart Topl Bridge
-        uses: docker://docker
-        with:
-          args: docker restart topl_bridge
       - name: Run integration tests
         run: |
+              docker run -d --rm -p 9085:9085 -p 9084:9084 -p 9091:9091 docker.io/toplprotocol/bifrost-node:2.0.0-beta3
               docker run -d --rm --add-host host.docker.internal:host-gateway -p 18444:18444 -p 18443:18443 -p 28332:28332 --name=bitcoin ruimarinho/bitcoin-core -chain=regtest -zmqpubrawblock=tcp://0.0.0.0:28332 -rpcuser=bitcoin -rpcpassword=password -port=18444 -rpcport=18443 -rpcbind=:18443 -rpcallowip=0.0.0.0/0
               sbt "integration / test"
               docker kill bitcoin
