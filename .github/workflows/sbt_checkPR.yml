@@ -64,7 +64,9 @@ jobs:
         #
         ports:
           - 18444:18444  
-        options: --name bitcoin
+          - 18443:18443
+          - 28332:28332
+        options: --name bitcoin  -zmqpubrawblock=tcp://0.0.0.0:28332 -rpcuser=test -rpcpassword=test -port=18444 -rpcport=18443 -rpcbind=:18443 -rpcallowip=0.0.0.0/0
       topl-btc-bridge:
         # Docker Hub image
         image: ghcr.io/topl/topl-btc-bridge:latest

@@ -18,6 +18,9 @@ import org.http4s.ember.client._
 import org.http4s.headers.`Content-Type`
 
 import scala.concurrent.duration._
+import org.checkerframework.checker.units.qual.s
+import co.topl.shared.MintingStatusRequest
+import co.topl.shared.MintingStatusResponse
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
@@ -31,6 +34,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin-cli",
     "-regtest",
     "-named",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "createwallet",
     "wallet_name=testwallet"
   )
@@ -38,6 +43,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "exec",
     "bitcoin",
     "bitcoin-cli",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "-regtest",
     "-rpcwallet=testwallet",
     "getnewaddress"
@@ -47,6 +54,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "generatetoaddress",
     blocks.toString,
     address
@@ -56,6 +65,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "generatetoaddress",
     "101",
     address
@@ -65,6 +76,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "-rpcwallet=testwallet",
     "signrawtransactionwithwallet",
     tx
@@ -74,6 +87,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "bitcoin",
     "bitcoin-cli",
     "-regtest",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "sendrawtransaction",
     signedTx
   )
@@ -82,6 +97,8 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     "exec",
     "bitcoin",
     "bitcoin-cli",
+    "-rpcuser=test",
+    "-rpcpassword=test",
     "-regtest",
     "-rpcwallet=testwallet",
     "listunspent"
@@ -171,9 +188,15 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val syncWalletRequestDecoder
         : EntityEncoder[IO, SyncWalletRequest] =
       jsonEncoderOf[IO, SyncWalletRequest]
+    implicit val mintingStatusRequesEncoder
+        : EntityEncoder[IO, MintingStatusRequest] =
+      jsonEncoderOf[IO, MintingStatusRequest]
     implicit val startSessionResponse
         : EntityDecoder[IO, StartPeginSessionResponse] =
       jsonOf[IO, StartPeginSessionResponse]
+    implicit val MintingStatusResponseDecoder
+        : EntityDecoder[IO, MintingStatusResponse] =
+      jsonOf[IO, MintingStatusResponse]
     implicit val confirmRedemptionRequestDecoder
         : EntityEncoder[IO, ConfirmRedemptionRequest] =
       jsonEncoderOf[IO, ConfirmRedemptionRequest]
@@ -230,27 +253,28 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               )
             )
           })
-        syncWalletResponse <- EmberClientBuilder
-          .default[IO]
-          .build
-          .use({ client =>
-            client.expect[String](
-              Request[IO](
-                method = Method.POST,
-                Uri
-                  .fromString("http://127.0.0.1:4000/api/sync-wallet")
-                  .toOption
-                  .get
-              ).withContentType(
-                `Content-Type`.apply(MediaType.application.json)
-              ).withEntity(
-                SyncWalletRequest(
-                  "secret"
-                )
-              )
-            )
-          })
-        _ <- IO.println("syncWalletResponse: " + syncWalletResponse)
+        // syncWalletResponse <- EmberClientBuilder
+        //   .default[IO]
+        //   .build
+        //   .use({ client =>
+        //     client.expect[String](
+        //       Request[IO](
+        //         method = Method.POST,
+        //         Uri
+        //           .fromString("http://127.0.0.1:4000/api/sync-wallet")
+        //           .toOption
+        //           .get
+        //       ).withContentType(
+        //         `Content-Type`.apply(MediaType.application.json)
+        //       ).withEntity(
+        //         SyncWalletRequest(
+        //           "secret"
+        //         )
+        //       )
+        //     )
+        //   })
+        // _ <- IO.println("syncWalletResponse: " + syncWalletResponse)
+        _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
@@ -270,46 +294,36 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
-        genusQueryresult <- getCurrentUtxos.use(getText)
-        txId = genusQueryresult
-          .split("\n")
-          .filter(_.endsWith("#1"))
-          .head
-          .split(":")
-          .map(_.trim)
-          .tail
-          .head
-          .split("#")
-          .head
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(10, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-        confirmRedemptionResponse <- EmberClientBuilder
+        _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
-            client.expect[ConfirmRedemptionResponse](
-              Request[IO](
-                method = Method.POST,
-                Uri
-                  .fromString("http://127.0.0.1:4000/api/confirm-redemption")
-                  .toOption
-                  .get
-              ).withContentType(
-                `Content-Type`.apply(MediaType.application.json)
-              ).withEntity(
-                ConfirmRedemptionRequest(
-                  startSessionResponse.sessionID,
-                  sentTxId,
-                  0,
-                  2,
-                  4999000000L,
-                  "secret"
+            (IO.println("Requesting..") >> client
+              .expect[MintingStatusResponse](
+                Request[IO](
+                  method = Method.POST,
+                  Uri
+                    .fromString(
+                      "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+                    )
+                    .toOption
+                    .get
+                ).withContentType(
+                  `Content-Type`.apply(MediaType.application.json)
+                ).withEntity(
+                  MintingStatusRequest(startSessionResponse.sessionID)
                 )
               )
-            )
+              .flatMap(x => IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)))
+              .iterateUntil(
+                _.mintingStatus == "PeginSessionWaitingForRedemption"
+              )
           })
+
       } yield (),
       ()
     )

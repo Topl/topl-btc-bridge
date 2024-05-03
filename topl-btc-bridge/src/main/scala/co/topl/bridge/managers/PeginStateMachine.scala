@@ -33,7 +33,7 @@ class PeginStateMachine[F[_]: Async: Logger](
 
   def handleNewBlock(block: Block) = {
     import scala.jdk.CollectionConverters._
-    info"Starting handling new block ${block.blockHeader.hashBE.hex}" >> (for {
+    info"Handling new block ${block.blockHeader.hashBE.hex}" >> (for {
       entry <- map.entrySet().asScala.toList
       transaction <- block.transactions.toList
       output <- transaction.outputs.groupBy(_.scriptPubKey)
