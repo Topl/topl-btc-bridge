@@ -103,7 +103,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         params.btcUrl,
         credentials
       )
-      monitor <- BitcoinMonitor(bitcoindInstance)
+      monitor <- BitcoinMonitor(bitcoindInstance, zmqHost = "localhost")
       _ <- IO.asyncForIO
         .background(
           fs2.Stream
