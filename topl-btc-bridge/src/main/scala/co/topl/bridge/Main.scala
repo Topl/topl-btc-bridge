@@ -103,7 +103,8 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         params.btcUrl,
         credentials
       )
-      monitor <- BitcoinMonitor(bitcoindInstance, zmqHost = "localhost")
+      // FIXME: Convert this to a parameter and make it configurable, env variable might be required for GH Actions
+      monitor <- BitcoinMonitor(bitcoindInstance, zmqHost = "bitcoin")
       _ <- IO.asyncForIO
         .background(
           fs2.Stream
