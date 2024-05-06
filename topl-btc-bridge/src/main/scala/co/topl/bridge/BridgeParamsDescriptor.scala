@@ -103,6 +103,20 @@ trait BridgeParamsDescriptor {
           if (x >= 0 && x <= 65536) success
           else failure("Port must be between 0 and 65536")
         ),
+      opt[Int]("zmq-port")
+        .action((x, c) => c.copy(zmqPort = x))
+        .text("Port for ZMQ. (optional)")
+        .validate(x =>
+          if (x >= 0 && x <= 65536) success
+          else failure("Port must be between 0 and 65536")
+        ),
+      opt[String]("zmq-host")
+        .action((x, c) => c.copy(zmqHost = x))
+        .text("Host for ZMQ. (optional)")
+        .validate(x =>
+          if (x.trim().isEmpty) failure("ZMQ host may not be empty")
+          else success
+        ),
       opt[Boolean]("topl-secure")
         .action((x, c) => c.copy(toplSecureConnection = x))
         .text("Enables the secure connection to the node. (optional)")

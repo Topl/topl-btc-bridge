@@ -41,7 +41,13 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       args,
       ToplBTCBridgeParamConfig(
         toplHost = Option(System.getenv("TOPL_HOST")).getOrElse("localhost"),
-        toplWalletDb = System.getenv("TOPL_WALLET_DB")
+        toplWalletDb = System.getenv("TOPL_WALLET_DB"),
+        zmqHost = Option(System.getenv("ZMQ_HOST")).getOrElse("localhost"),
+        zmqPort =
+          Option(System.getenv("ZMQ_PORT")).map(_.toInt).getOrElse(28332),
+        btcUrl = Option(System.getenv("BTC_URL")).getOrElse("http://localhost"),
+        btcUser = Option(System.getenv("BTC_USER")).getOrElse("bitcoin"),
+        btcPassword = Option(System.getenv("BTC_PASSWORD")).getOrElse("password"),
       )
     ) match {
       case Some(config) =>
@@ -78,7 +84,8 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
       walletManager <- BTCWalletImpl.make[IO](walletKm)
       logger =
-        org.typelevel.log4cats.slf4j.Slf4jLogger.getLoggerFromName[IO]("btc-bridge")
+        org.typelevel.log4cats.slf4j.Slf4jLogger
+          .getLoggerFromName[IO]("btc-bridge")
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
@@ -103,8 +110,11 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         params.btcUrl,
         credentials
       )
-      // FIXME: Convert this to a parameter and make it configurable, env variable might be required for GH Actions
-      monitor <- BitcoinMonitor(bitcoindInstance, zmqHost = "bitcoin")
+      monitor <- BitcoinMonitor(
+        bitcoindInstance,
+        zmqHost = params.zmqHost,
+        zmqPort = params.zmqPort
+      )
       _ <- IO.asyncForIO
         .background(
           fs2.Stream

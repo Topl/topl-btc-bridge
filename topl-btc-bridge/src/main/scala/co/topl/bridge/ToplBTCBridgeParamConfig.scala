@@ -17,6 +17,8 @@ case class ToplBTCBridgeParamConfig(
     toplWalletDb: String = "topl-wallet.db",
     btcUrl: String = "http://localhost",
     btcUser: String = "bitcoin",
+    zmqHost: String = "localhost",
+    zmqPort: Int = 28332,
     btcPassword: String = "password",
     btcNetwork: BitcoinNetworkIdentifiers = RegTest,
     toplNetwork: ToplNetworkIdentifiers = ToplPrivatenet,

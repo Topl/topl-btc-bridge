@@ -79,6 +79,9 @@ jobs:
         env:
           TOPL_HOST: "bifrost"
           TOPL_WALLET_DB: "/data/topl-wallet.db"
+          ZMQ_HOST: "bitcoin"
+          ZMQ_PORT: "28332"
+          BTC_URL: "http://bitcoin"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
