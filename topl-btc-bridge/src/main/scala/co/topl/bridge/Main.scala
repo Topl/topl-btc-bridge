@@ -77,7 +77,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
     )
 
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
-
+    import org.typelevel.log4cats.syntax._
     (for {
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
@@ -86,6 +86,26 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       logger =
         org.typelevel.log4cats.slf4j.Slf4jLogger
           .getLoggerFromName[IO]("btc-bridge")
+      // For each parameter, log its value to info
+      _ <- info"Command line arguments"(logger)
+      _ <- info"block-to-tecover      : ${params.blockToRecover}"(logger)
+      _ <- info"peg-in-seed-file      : ${params.pegInSeedFile}"(logger)
+      _ <- info"peg-in-password       : ******"(logger)
+      _ <- info"wallet-seed-file      : ${params.walletSeedFile}"(logger)
+      _ <- info"wallet-password       : ******"(logger)
+      _ <- info"topl-wallet-seed-file : ${params.toplWalletSeedFile}"(logger)
+      _ <- info"topl-wallet-password  : ******"(logger)
+      _ <- info"topl-wallet-db        : ${params.toplWalletDb}"(logger)
+      _ <- info"btc-url               : ${params.btcUrl}"(logger)
+      _ <- info"btc-user              : ${params.btcUser}"(logger)
+      _ <- info"zmq-host              : ${params.zmqHost}"(logger)
+      _ <- info"zmq-port              : ${params.zmqPort}"(logger)
+      _ <- info"btc-password          : ******"(logger)
+      _ <- info"btc-network           : ${params.btcNetwork}"(logger)
+      _ <- info"topl-network          : ${params.toplNetwork}"(logger)
+      _ <- info"topl-host             : ${params.toplHost}"(logger)
+      _ <- info"topl-port             : ${params.toplPort}"(logger)
+      _ <- info"topl-secure-connection: ${params.toplSecureConnection}"(logger)
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )

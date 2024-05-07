@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependency on `akka-slf4j`.
 - New parameters for the launcher:  `--btc-url`, `--btc-port`, `--btc-user`, `--btc-password`, `--zmq-url`, `--zmq-port`. These allow to connect to the Bitcoin node and the ZMQ server.
 - Support for monitoring the Bitcoin network.
+- Logging all command line arguments when starting the application.
 
 
 ### Changed
