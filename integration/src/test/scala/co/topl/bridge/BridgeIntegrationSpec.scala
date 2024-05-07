@@ -253,27 +253,6 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
               )
             )
           })
-        // syncWalletResponse <- EmberClientBuilder
-        //   .default[IO]
-        //   .build
-        //   .use({ client =>
-        //     client.expect[String](
-        //       Request[IO](
-        //         method = Method.POST,
-        //         Uri
-        //           .fromString("http://127.0.0.1:4000/api/sync-wallet")
-        //           .toOption
-        //           .get
-        //       ).withContentType(
-        //         `Content-Type`.apply(MediaType.application.json)
-        //       ).withEntity(
-        //         SyncWalletRequest(
-        //           "secret"
-        //         )
-        //       )
-        //     )
-        //   })
-        // _ <- IO.println("syncWalletResponse: " + syncWalletResponse)
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         bitcoinTx <- process
           .ProcessBuilder(
