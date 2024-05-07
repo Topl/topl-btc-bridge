@@ -60,10 +60,12 @@ jobs:
            - 9084:9084
       bitcoin:
         # Docker Hub image
-        image: docker.io/1maa/bitcoin:v25-regtest
+        image: toplprotocol/bitcoin-zmq:v25-regtest
         #
         ports:
-          - 18444:18444  
+          - 18444:18444
+          - 18443:18443
+          - 28332:28332
         options: --name bitcoin
       topl-btc-bridge:
         # Docker Hub image
@@ -77,6 +79,9 @@ jobs:
         env:
           TOPL_HOST: "bifrost"
           TOPL_WALLET_DB: "/data/topl-wallet.db"
+          ZMQ_HOST: "bitcoin"
+          ZMQ_PORT: "28332"
+          BTC_URL: "http://bitcoin"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2
@@ -127,7 +132,8 @@ jobs:
         with:
           args: docker restart topl_bridge
       - name: Run integration tests
-        run: sbt "integration / test"
+        run: |
+              sbt "integration / test"
       - uses: actions/download-artifact@v3
         with:
           path: topl-btc-bridge/target/test-reports/

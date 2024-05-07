@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.modules
 
 import com.google.protobuf.struct.ListValue
 import com.google.protobuf.struct.NullValue

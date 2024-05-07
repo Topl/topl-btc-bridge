@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.modules
 
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
@@ -16,7 +16,7 @@ import quivr.models.KeyPair
 import TransactionBuilderApi.implicits._
 import co.topl.brambl.models.transaction.IoTransaction
 
-trait SeriesMintingOps[G[_]] extends CommonTxOps {
+trait GroupMintingOps[G[_]] extends CommonTxOps {
 
   import cats.implicits._
 
@@ -28,7 +28,44 @@ trait SeriesMintingOps[G[_]] extends CommonTxOps {
 
   val wa: WalletApi[G]
 
-  private def buildSeriesTransaction(
+  def buildGroupTx(
+      lvlTxos: Seq[Txo],
+      nonlvlTxos: Seq[Txo],
+      predicateFundsToUnlock: Lock.Predicate,
+      amount: Long,
+      fee: Long,
+      someNextIndices: Option[Indices],
+      keyPair: KeyPair,
+      groupPolicy: Event.GroupPolicy,
+      changeLock: Option[Lock]
+  ) = (if (lvlTxos.isEmpty) {
+         Sync[G].raiseError(CreateTxError("No LVL txos found"))
+       } else {
+         changeLock match {
+           case Some(lockPredicateForChange) =>
+             tba
+               .lockAddress(lockPredicateForChange)
+               .flatMap { changeAddress =>
+                 buildGroupTransaction(
+                   lvlTxos ++ nonlvlTxos,
+                   predicateFundsToUnlock,
+                   lockPredicateForChange,
+                   changeAddress,
+                   amount,
+                   fee,
+                   someNextIndices,
+                   keyPair,
+                   groupPolicy
+                 )
+               }
+           case None =>
+             Sync[G].raiseError(
+               CreateTxError("Unable to generate change lock")
+             )
+         }
+       })
+
+  private def buildGroupTransaction(
       txos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
       lockForChange: Lock,
@@ -37,16 +74,16 @@ trait SeriesMintingOps[G[_]] extends CommonTxOps {
       fee: Long,
       someNextIndices: Option[Indices],
       keyPair: KeyPair,
-      seriesPolicy: Event.SeriesPolicy
+      groupPolicy: Event.GroupPolicy
   ): G[IoTransaction] =
     for {
       changeAddress <- tba.lockAddress(
         lockForChange
       )
-      eitherIoTransaction <- tba.buildSeriesMintingTransaction(
+      eitherIoTransaction <- tba.buildGroupMintingTransaction(
         txos,
         predicateFundsToUnlock,
-        seriesPolicy,
+        groupPolicy,
         amount,
         recipientLockAddress,
         changeAddress,
@@ -72,48 +109,10 @@ trait SeriesMintingOps[G[_]] extends CommonTxOps {
             vk.map(x => Encoding.encodeToBase58(x.toByteArray)),
             someNextIndices.get
           )
-        } yield ioTransaction
+        } yield ()
         else {
-          Sync[G].delay(ioTransaction)
+          Sync[G].delay(())
         }
     } yield ioTransaction
 
-  def buildSeriesTx(
-      lvlTxos: Seq[Txo],
-      nonLvlTxos: Seq[Txo],
-      predicateFundsToUnlock: Lock.Predicate,
-      amount: Long,
-      fee: Long,
-      someNextIndices: Option[Indices],
-      keyPair: KeyPair,
-      seriesPolicy: Event.SeriesPolicy,
-      changeLock: Option[Lock]
-  ): G[IoTransaction] = (if (lvlTxos.isEmpty) {
-                           Sync[G].raiseError(
-                             CreateTxError("No LVL txos found")
-                           )
-                         } else {
-                           changeLock match {
-                             case Some(lockPredicateForChange) =>
-                               tba
-                                 .lockAddress(lockPredicateForChange)
-                                 .flatMap { changeAddress =>
-                                   buildSeriesTransaction(
-                                     lvlTxos ++ nonLvlTxos,
-                                     predicateFundsToUnlock,
-                                     lockPredicateForChange,
-                                     changeAddress,
-                                     amount,
-                                     fee,
-                                     someNextIndices,
-                                     keyPair,
-                                     seriesPolicy
-                                   )
-                                 }
-                             case None =>
-                               Sync[G].raiseError(
-                                 CreateTxError("Unable to generate change lock")
-                               )
-                           }
-                         })
 }

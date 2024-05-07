@@ -8,3 +8,9 @@ project/project/
 metals.sbt
 logs/
 static/
+secret.yaml
+topl-btc-bridge/topl-wallet.json
+topl-btc-bridge/topl-wallet.db
+topl-btc-bridge/topl-mnemonic.txt
+topl-btc-bridge/genesisTxProved.pbuf
+topl-btc-bridge/genesisTx.pbuf

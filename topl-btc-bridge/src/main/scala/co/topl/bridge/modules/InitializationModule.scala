@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.modules
 
 import cats.Monad
 import cats.effect.kernel.Async
@@ -19,6 +19,7 @@ import quivr.models.Int128
 import quivr.models.KeyPair
 
 import scala.concurrent.duration._
+import co.topl.bridge.SystemGlobalState
 
 class InitializationModule[F[_]: Async: Logger](
     val tba: TransactionBuilderApi[F],

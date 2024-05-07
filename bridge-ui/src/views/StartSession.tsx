@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { PeginUIState, sessionStarted, mintingBTC } from '../controllers/PeginController';
+import { useState } from 'react';
+import { PeginUIState, sessionStarted } from '../controllers/PeginController';
 
 export interface SessionInformation {
   isSet: boolean;
@@ -70,35 +70,28 @@ function errorValidation(error: string) {
   }
 }
 
+function waitingForDeposit(isWaiting: boolean) {
+  if (isWaiting) {
+    return (
+      <div className="mb-3">
+        <strong role="status">Waiting for funds to arrive...</strong>
+        <div className="d-flex float-end">
+          <div className="spinner-border ms-auto" aria-hidden="true"></div>
+        </div>
+      </div>
+    )
+  } else {
+    return (
+      <div></div>
+    )
+  }
+}
+
 function StartSession(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>) {
 
   const [hash, setHash] = useState<string>("")
   const [error, setError] = useState<string>("")
 
-  useEffect(() => {
-    const sessionPoll = setInterval(async () => { 
-      if((session.currentState == PeginUIState.SessionStarted)){
-        const response = await fetch('/api/topl-minting-status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({sessionID: session.sessionID})
-        })
-        if (response.status == 200) {
-          const data = await response.json();
-          const mintStatus = (data?.mintingStatus || "") as string
-          if(mintStatus !== "MintingBTCStateReady") {
-            mintingBTC(setSession, session)
-            clearInterval(sessionPoll)
-          }
-        } else {
-          console.error(response)
-        }
-      }
-    }, 1000)
-    return () => clearInterval(sessionPoll);
-  })
 
   async function handleSubmitSha(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,10 +134,6 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
           </form>
           <div className='row g-3'>
             <div className="row">
-            <div className="mb-3">
-                <label htmlFor="sessionId" className="form-label">Session</label>
-                <input type="text" value={session.sessionID} className="form-control" id="sessionId" disabled />
-              </div>
               <div className="mb-3">
                 <label htmlFor="escrowAddress" className="form-label">Escrow Address</label>
                 <input type="text" value={session.escrowAddress} className="form-control" id="escrowAddress" disabled />
@@ -152,6 +141,7 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
             </div>
           </div>
         </div>
+        {waitingForDeposit(session.isSet)}
         {alertInstructions(session.isSet)}
       </div>
     </>

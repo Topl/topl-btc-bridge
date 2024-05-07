@@ -28,6 +28,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
+import cats.effect.std.Queue
+import co.topl.bridge.managers.SessionEvent
 
 class ConfirmRedemptionControllerSpec
     extends CatsEffectSuite
@@ -86,8 +88,9 @@ class ConfirmRedemptionControllerSpec
           testPassword
         )
         wallet <- BTCWalletImpl.make[IO](km1)
-        currentPubKey <- peginWallet.getCurrentPubKey()
+        queue <- Queue.unbounded[IO, SessionEvent]
         sessionManager = SessionManagerImpl.make[IO](
+          queue,
           new ConcurrentHashMap[String, SessionInfo]()
         )
         keypair <- walletManagementUtils.loadKeys(
@@ -148,8 +151,9 @@ class ConfirmRedemptionControllerSpec
           testPassword
         )
         wallet <- BTCWalletImpl.make[IO](km1)
-        currentPubKey <- peginWallet.getCurrentPubKey()
+        queue <- Queue.unbounded[IO, SessionEvent]
         sessionManager = SessionManagerImpl.make[IO](
+          queue,
           new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- ConfirmRedemptionController.confirmRedemption(
