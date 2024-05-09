@@ -24,5 +24,6 @@ case class ToplBTCBridgeParamConfig(
     toplNetwork: ToplNetworkIdentifiers = ToplPrivatenet,
     toplHost: String = "localhost",
     toplPort: Int = 9084,
+    mintingFee: Long = 10,
     toplSecureConnection: Boolean = false
 )

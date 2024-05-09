@@ -8,6 +8,7 @@ import co.topl.bridge.PeginSessionState
 import cats.effect.std.Queue
 
 import cats.implicits._
+import co.topl.bridge.utils.MiscUtils
 
 sealed trait SessionEvent
 
@@ -64,7 +65,7 @@ trait SessionManagerAlgebra[F[_]] {
 
   def updateSession(
       sessionId: String,
-      sessionInfo: SessionInfo
+      sessionInfoTransformer: PeginSessionInfo => SessionInfo
   ): F[Unit]
 }
 
@@ -96,10 +97,21 @@ object SessionManagerImpl {
 
     def updateSession(
         sessionId: String,
-        sessionInfo: SessionInfo
+        sessionInfoTransformer: PeginSessionInfo => SessionInfo
     ): F[Unit] = {
-      Sync[F].delay(map.put(sessionId, sessionInfo)) >>
-        queue.offer(SessionUpdated(sessionId, sessionInfo))
+      for {
+        sessionInfo <- Sync[F].delay(map.get(sessionId))
+        someNewSessionInfo = MiscUtils.sessionInfoPeginPrism
+          .getOption(sessionInfo)
+          .map(sessionInfoTransformer)
+        _ <- someNewSessionInfo
+          .map(x =>
+            Sync[F].delay(map.replace(sessionId, x)) >> queue.offer(
+              SessionUpdated(sessionId, x)
+            )
+          )
+          .getOrElse(Sync[F].unit)
+      } yield ()
     }
 
   }

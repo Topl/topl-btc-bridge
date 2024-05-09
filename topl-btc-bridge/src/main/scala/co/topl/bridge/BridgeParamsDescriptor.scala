@@ -119,7 +119,10 @@ trait BridgeParamsDescriptor {
         ),
       opt[Boolean]("topl-secure")
         .action((x, c) => c.copy(toplSecureConnection = x))
-        .text("Enables the secure connection to the node. (optional)")
+        .text("Enables the secure connection to the node. (optional)"),
+      opt[Long]("minting-fee")
+        .action((x, c) => c.copy(mintingFee = x))
+        .text("The fee for minting. (optional)")
     )
   }
 

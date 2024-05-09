@@ -17,6 +17,8 @@ import org.http4s.ember.server.EmberServerBuilder
 import scopt.OParser
 import cats.effect.std.Queue
 import co.topl.bridge.managers.SessionEvent
+import co.topl.brambl.monitoring.BifrostMonitor
+import co.topl.brambl.dataApi.BifrostQueryAlgebra
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -47,7 +49,8 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
           Option(System.getenv("ZMQ_PORT")).map(_.toInt).getOrElse(28332),
         btcUrl = Option(System.getenv("BTC_URL")).getOrElse("http://localhost"),
         btcUser = Option(System.getenv("BTC_USER")).getOrElse("bitcoin"),
-        btcPassword = Option(System.getenv("BTC_PASSWORD")).getOrElse("password"),
+        btcPassword =
+          Option(System.getenv("BTC_PASSWORD")).getOrElse("password")
       )
     ) match {
       case Some(config) =>
@@ -87,25 +90,26 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         org.typelevel.log4cats.slf4j.Slf4jLogger
           .getLoggerFromName[IO]("btc-bridge")
       // For each parameter, log its value to info
-      _ <- info"Command line arguments"(logger)
-      _ <- info"block-to-tecover      : ${params.blockToRecover}"(logger)
-      _ <- info"peg-in-seed-file      : ${params.pegInSeedFile}"(logger)
-      _ <- info"peg-in-password       : ******"(logger)
-      _ <- info"wallet-seed-file      : ${params.walletSeedFile}"(logger)
-      _ <- info"wallet-password       : ******"(logger)
-      _ <- info"topl-wallet-seed-file : ${params.toplWalletSeedFile}"(logger)
-      _ <- info"topl-wallet-password  : ******"(logger)
-      _ <- info"topl-wallet-db        : ${params.toplWalletDb}"(logger)
-      _ <- info"btc-url               : ${params.btcUrl}"(logger)
-      _ <- info"btc-user              : ${params.btcUser}"(logger)
-      _ <- info"zmq-host              : ${params.zmqHost}"(logger)
-      _ <- info"zmq-port              : ${params.zmqPort}"(logger)
-      _ <- info"btc-password          : ******"(logger)
-      _ <- info"btc-network           : ${params.btcNetwork}"(logger)
-      _ <- info"topl-network          : ${params.toplNetwork}"(logger)
-      _ <- info"topl-host             : ${params.toplHost}"(logger)
-      _ <- info"topl-port             : ${params.toplPort}"(logger)
-      _ <- info"topl-secure-connection: ${params.toplSecureConnection}"(logger)
+      _ <- info"Command line arguments" (logger)
+      _ <- info"block-to-tecover      : ${params.blockToRecover}" (logger)
+      _ <- info"peg-in-seed-file      : ${params.pegInSeedFile}" (logger)
+      _ <- info"peg-in-password       : ******" (logger)
+      _ <- info"wallet-seed-file      : ${params.walletSeedFile}" (logger)
+      _ <- info"wallet-password       : ******" (logger)
+      _ <- info"topl-wallet-seed-file : ${params.toplWalletSeedFile}" (logger)
+      _ <- info"topl-wallet-password  : ******" (logger)
+      _ <- info"topl-wallet-db        : ${params.toplWalletDb}" (logger)
+      _ <- info"btc-url               : ${params.btcUrl}" (logger)
+      _ <- info"btc-user              : ${params.btcUser}" (logger)
+      _ <- info"zmq-host              : ${params.zmqHost}" (logger)
+      _ <- info"zmq-port              : ${params.zmqPort}" (logger)
+      _ <- info"btc-password          : ******" (logger)
+      _ <- info"btc-network           : ${params.btcNetwork}" (logger)
+      _ <- info"topl-network          : ${params.toplNetwork}" (logger)
+      _ <- info"topl-host             : ${params.toplHost}" (logger)
+      _ <- info"topl-port             : ${params.toplPort}" (logger)
+      _ <- info"topl-secure-connection: ${params.toplSecureConnection}" (logger)
+      _ <- info"minting-fee           : ${params.mintingFee}" (logger)
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
@@ -135,6 +139,16 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         zmqHost = params.zmqHost,
         zmqPort = params.zmqPort
       )
+      bifrostQueryAlgebra = BifrostQueryAlgebra.make[IO](
+        channelResource(
+          params.toplHost,
+          params.toplPort,
+          params.toplSecureConnection
+        )
+      )
+      bifrostMonitor <- BifrostMonitor(
+        bifrostQueryAlgebra
+      )
       _ <- IO.asyncForIO
         .background(
           fs2.Stream
@@ -148,7 +162,16 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .background(
           monitor
             .monitorBlocks()
-            .evalMap(x => peginStateMachine.handleNewBlock(x.block))
+            .either(bifrostMonitor.monitorBlocks())
+            .flatMap(x =>
+              // this creates  a sequence of events
+              peginStateMachine.blockProcessor(x)
+            )
+            .flatMap(
+              // this handles each event in the context of the state machine
+              peginStateMachine.handleBlockchainEventInContext
+            )
+            .evalMap(identity)
             .compile
             .drain
         )

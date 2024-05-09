@@ -96,20 +96,21 @@ trait AppModule
       walletKeyApi
     )
     val waitingBTCForBlock = new WaitingBTCForBlock(
-      sessionManager,
       walletStateAlgebra,
       transactionBuilderApi
-    )(IO.asyncForIO, logger)
+    )(IO.asyncForIO)
     for {
       keyPair <- walletManagementUtils.loadKeys(
         params.toplWalletSeedFile,
         params.toplWalletPassword
       )
       peginStateMachine = new PeginStateMachine(
+        sessionManager,
         waitingBTCForBlock,
         keyPair,
         fromFellowship,
         fromTemplate,
+        params.mintingFee,
         toplWalletImpl,
         transactionAlgebra,
         genusQueryAlgebra,

@@ -273,6 +273,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
+        _ <- IO.println("Generating blocks..")
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
           .spawn[IO]
@@ -297,7 +298,9 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                   MintingStatusRequest(startSessionResponse.sessionID)
                 )
               )
-              .flatMap(x => IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)))
+              .flatMap(x =>
+                IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)
+              ))
               .iterateUntil(
                 _.mintingStatus == "PeginSessionWaitingForRedemption"
               )
