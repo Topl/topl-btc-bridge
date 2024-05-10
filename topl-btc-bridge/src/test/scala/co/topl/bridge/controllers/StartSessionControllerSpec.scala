@@ -117,7 +117,7 @@ class StartSessionControllerSpec
             RegTest
           )
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-        } yield (sessionInfo
+        } yield (sessionInfo.get
           .asInstanceOf[PeginSessionInfo]
           .btcPeginCurrentWalletIdx == 0)
       )
@@ -178,7 +178,7 @@ class StartSessionControllerSpec
             1000
           )
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-        } yield (sessionInfo
+        } yield (sessionInfo.get
           .asInstanceOf[PegoutSessionInfo]
           .address == "ptetP7jshHVPgNWRFrYBAMCrnfAwpRn6hSNuAcMfgukVtA1x3wkjCPqqwD7w")
       )
