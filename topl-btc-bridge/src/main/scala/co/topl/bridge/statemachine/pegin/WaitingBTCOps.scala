@@ -1,4 +1,4 @@
-package co.topl.bridge.managers
+package co.topl.bridge.statemachine.pegin
 
 import cats.Monad
 import cats.effect.kernel.Async
@@ -16,7 +16,7 @@ import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
 
-class WaitingBTCForBlock[F[_]: Async](
+class WaitingBTCOps[F[_]: Async](
     walletStateApi: WalletStateAlgebra[F],
     transactionBuilderApi: TransactionBuilderApi[F]
 ) extends WalletApiHelpers[F] {

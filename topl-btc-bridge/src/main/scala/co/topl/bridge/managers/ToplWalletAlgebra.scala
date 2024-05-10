@@ -108,18 +108,9 @@ object ToplWalletImpl {
             )
             .sequence
         )
-        lockTemplateAsJson <- OptionT(Sync[F].delay(s"""{
-                "threshold":1,
-                "innerTemplates":[
-                  {
-                    "left": {"routine":"ExtendedEd25519","entityIdx":0,"type":"signature"},
-                    "right": {"routine":"Sha256","digest": "${Encoding
-            .encodeToBase58(decodedHex)}","type":"digest"},
-                    "type": "or"
-                  }
-                ],
-                "type":"predicate"}
-              """.some))
+        lockTemplateAsJson <- OptionT(
+          Sync[F].delay(templateFromSha(decodedHex).some)
+        )
       } yield lockTemplateAsJson
     }
 

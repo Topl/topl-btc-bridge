@@ -122,7 +122,14 @@ trait BridgeParamsDescriptor {
         .text("Enables the secure connection to the node. (optional)"),
       opt[Long]("minting-fee")
         .action((x, c) => c.copy(mintingFee = x))
-        .text("The fee for minting. (optional)")
+        .text("The fee for minting. (optional)"),
+      opt[Long]("fee-per-byte")
+        .action((x, c) => c.copy(feePerByte = x))
+        .validate(x =>
+          if (x > 0) success
+          else failure("Fee per byte must be stricly greater than 0")
+        )
+        .text("The fee per byte. (optional)")
     )
   }
 

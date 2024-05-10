@@ -30,8 +30,7 @@ sealed trait PeginSessionState
 
 case object PeginSessionState {
   case object PeginSessionStateWaitingForBTC extends PeginSessionState
-  case class PeginSessionStateMintingTBTC(amount: Long)
-      extends PeginSessionState
+  case object PeginSessionStateMintingTBTC extends PeginSessionState
   case object PeginSessionWaitingForRedemption extends PeginSessionState
 }
 
@@ -110,12 +109,23 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       _ <- info"topl-port             : ${params.toplPort}" (logger)
       _ <- info"topl-secure-connection: ${params.toplSecureConnection}" (logger)
       _ <- info"minting-fee           : ${params.mintingFee}" (logger)
+      _ <- info"fee-per-byte          : ${params.feePerByte}" (logger)
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
       queue <- Queue.unbounded[IO, SessionEvent]
+      credentials = BitcoindAuthCredentials.PasswordBased(
+        params.btcUser,
+        params.btcPassword
+      )
+      bitcoindInstance = BitcoinMonitor.Bitcoind.remoteConnection(
+        params.btcNetwork.btcNetwork,
+        params.btcUrl,
+        credentials
+      )
       appAndInitAndStateMachine <- createApp(
         params,
+        bitcoindInstance,
         "self",
         "default",
         queue,
@@ -124,16 +134,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         logger,
         globalState
       )
-      credentials = BitcoindAuthCredentials.PasswordBased(
-        params.btcUser,
-        params.btcPassword
-      )
       (app, init, peginStateMachine) = appAndInitAndStateMachine
-      bitcoindInstance = BitcoinMonitor.Bitcoind.remoteConnection(
-        params.btcNetwork.btcNetwork,
-        params.btcUrl,
-        credentials
-      )
       monitor <- BitcoinMonitor(
         bitcoindInstance,
         zmqHost = params.zmqHost,

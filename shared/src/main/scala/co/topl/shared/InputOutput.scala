@@ -45,18 +45,6 @@ case class StartPegoutSessionResponse(
     escrowAddress: String
 )
 
-case class ConfirmRedemptionRequest(
-    sessionID: String,
-    inputTxId: String,
-    inputIndex: Int,
-    feePerByte: Int,
-    amount: Long,
-    secret: String
-)
-case class ConfirmRedemptionResponse(
-    tx: String
-)
-
 sealed trait BridgeError extends Throwable {
   val error: String
 }

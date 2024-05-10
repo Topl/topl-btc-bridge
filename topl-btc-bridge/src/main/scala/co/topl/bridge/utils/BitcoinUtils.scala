@@ -139,7 +139,7 @@ object BitcoinUtils {
 
   def createRedeemingTx(
       inputTxId: String,
-      inputTxVout: Int,
+      inputTxVout: Long,
       inputAmount: Long,
       feePerByte: Long,
       destinationPubKey: ECPublicKey

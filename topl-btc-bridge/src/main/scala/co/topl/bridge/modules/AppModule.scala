@@ -17,12 +17,12 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.SystemGlobalState
 import co.topl.bridge.ToplBTCBridgeParamConfig
 import co.topl.bridge.managers.BTCWalletAlgebra
-import co.topl.bridge.managers.PeginStateMachine
+import co.topl.bridge.statemachine.pegin.PeginStateMachine
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.bridge.managers.ToplWalletImpl
 import co.topl.bridge.managers.TransactionAlgebra
-import co.topl.bridge.managers.WaitingBTCForBlock
+import co.topl.bridge.statemachine.pegin.WaitingBTCOps
 import co.topl.bridge.managers.WalletManagementUtils
 import org.http4s.HttpRoutes
 import org.http4s._
@@ -32,6 +32,8 @@ import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.statemachine.pegin.WaitingForRedemptionOps
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
 
 trait AppModule
     extends WalletStateResource
@@ -46,6 +48,7 @@ trait AppModule
 
   def createApp(
       params: ToplBTCBridgeParamConfig,
+      bitcoindInstance: BitcoindRpcClient,
       fromFellowship: String,
       fromTemplate: String,
       queue: Queue[IO, SessionEvent],
@@ -95,9 +98,14 @@ trait AppModule
       walletApi,
       walletKeyApi
     )
-    val waitingBTCForBlock = new WaitingBTCForBlock(
+    val waitingBTCForBlock = new WaitingBTCOps(
       walletStateAlgebra,
       transactionBuilderApi
+    )(IO.asyncForIO)
+    val waitingForRedemptionOps = new WaitingForRedemptionOps(
+      bitcoindInstance,
+      pegInWalletManager,
+      walletManager
     )(IO.asyncForIO)
     for {
       keyPair <- walletManagementUtils.loadKeys(
@@ -107,6 +115,7 @@ trait AppModule
       peginStateMachine = new PeginStateMachine(
         sessionManager,
         waitingBTCForBlock,
+        waitingForRedemptionOps,
         keyPair,
         fromFellowship,
         fromTemplate,
@@ -114,6 +123,7 @@ trait AppModule
         toplWalletImpl,
         transactionAlgebra,
         genusQueryAlgebra,
+        params.feePerByte,
         new ConcurrentHashMap()
       )(IO.asyncForIO, logger)
       notFoundResponse <- NotFound(
@@ -136,7 +146,6 @@ trait AppModule
           keyPair,
           sessionManager,
           pegInWalletManager,
-          walletManager,
           toplWalletImpl,
           params.blockToRecover,
           params.btcNetwork,
