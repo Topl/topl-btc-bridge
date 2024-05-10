@@ -23,7 +23,7 @@ import scala.io.Source
 
 package object bridge {
 
-  val CS_CMD = "cs"
+  val CS_CMD = "./cs"
 
   val csParams = Seq(
     "launch",
@@ -144,7 +144,7 @@ package object bridge {
   // brambl-cli wallet import-vks --walletdb user-wallet.db --input-vks key.txt --fellowship-name bridge --template-name redeemBridge -w password -k user-wallet.json
   val importVks = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       csParams ++ Seq(
         "wallet",
         "import-vks",
@@ -167,7 +167,7 @@ package object bridge {
   // brambl-cli wallet current-address --walletdb user-wallet.db
   val currentAddress = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       csParams ++ Seq(
         "wallet",
         "current-address",
@@ -180,7 +180,7 @@ package object bridge {
   // brambl-cli simple-transaction create --from-fellowship nofellowship --from-template genesis --from-interaction 1 -t ptetP7jshHTzLLp81RbPkeHKWFJWeE3ijH94TAmiBRPTUTj2htC31NyEWU8p -w password -o genesisTx.pbuf -n private -a 10 -h  localhost --port 9084  --keyfile user-keyfile.json --walletdb user-wallet.db --fee 10 --transfer-token lvl
   def fundRedeemAddressTx(redeemAddress: String) = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       csParams ++ Seq(
         "simple-transaction",
         "create",
@@ -229,7 +229,7 @@ package object bridge {
     groupId: String,
     seriesId: String) = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       csParams ++ Seq(
         "simple-transaction",
         "create",
@@ -270,7 +270,7 @@ package object bridge {
   // brambl-cli tx prove -i fundRedeemTx.pbuf --walletdb user-wallet.db --keyfile user-keyfile.json -w password -o fundRedeemTxProved.pbuf
   def proveFundRedeemAddressTx(fileToProve: String, provedFile: String) = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       csParams ++ Seq(
         "tx",
         "prove",
@@ -291,7 +291,7 @@ package object bridge {
   // brambl-cli tx broadcast -i fundRedeemTxProved.pbuf -h localhost --port 9084
   def broadcastFundRedeemAddressTx(txFile: String) = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       csParams ++ Seq(
         "tx",
         "broadcast",

@@ -389,6 +389,41 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           )
           .iterateUntil(_.contains("Asset"))
         _ <- IO.println("utxos: " + utxo)
+        _ <- IO.sleep(5.second)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
+        mintingStatusResponse <- EmberClientBuilder
+          .default[IO]
+          .build
+          .use({ client =>
+            (IO.println("Requesting..") >> client
+              .status(
+                Request[IO](
+                  method = Method.POST,
+                  Uri
+                    .fromString(
+                      "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+                    )
+                    .toOption
+                    .get
+                ).withContentType(
+                  `Content-Type`.apply(MediaType.application.json)
+                ).withEntity(
+                  MintingStatusRequest(startSessionResponse.sessionID)
+                )
+              ))
+              .flatMap(x =>
+                IO.println(x.code) >> IO.sleep(5.second) >> IO.pure(x)
+              )
+              .iterateUntil(
+                _.code == 404
+              )
+          })
+        _ <- IO.println(
+          s"Session ${startSessionResponse.sessionID} was successfully removed"
+        )
       } yield (),
       ()
     )

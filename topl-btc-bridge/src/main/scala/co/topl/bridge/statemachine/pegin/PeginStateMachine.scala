@@ -39,12 +39,14 @@ case class WaitingForBTC(
     currentWalletIdx: Int,
     scriptAsm: String,
     escrowAddress: String,
-    redeemAddress: String
+    redeemAddress: String,
+    claimAddress: String
 ) extends PeginStateMachineState
 case class MintingTBTC(
     currentWalletIdx: Int,
     scriptAsm: String,
     redeemAddress: String,
+    claimAddress: String,
     btcTxId: String,
     btcVout: Long,
     amount: Long
@@ -53,12 +55,13 @@ case class WaitingForRedemption(
     currentWalletIdx: Int,
     scriptAsm: String,
     redeemAddress: String,
+    claimAddress: String,
     btcTxId: String,
     btcVout: Long,
     utxoTxId: String,
     utxoIndex: Int
 ) extends PeginStateMachineState
-case object WaitingForClaim extends PeginStateMachineState
+case class WaitingForClaim(claimAddress: String) extends PeginStateMachineState
 
 sealed trait BifrostCurrencyUnit {
   val amount: Int128
@@ -92,11 +95,17 @@ case class BifrostFundsWithdrawn(
     amount: BifrostCurrencyUnit
 ) extends BlockchainEvent
 
+sealed trait FSMTransition
+
 case class FSMTransitionTo[F[_]](
     prevState: PeginStateMachineState,
     nextState: PeginStateMachineState,
     effect: F[Unit]
-)
+) extends FSMTransition
+
+case class EndTrasition[F[_]](
+    effect: F[Unit]
+) extends FSMTransition
 
 class PeginStateMachine[F[_]: Async: Logger](
     sessionManager: SessionManagerAlgebra[F],
@@ -214,10 +223,26 @@ class PeginStateMachine[F[_]: Async: Logger](
       currentState = entry.getValue
     } yield handleBlockchainEvent(currentState, blockchainEvent, feePerByte)
       .map(x =>
-        info"Transitioning session $sessionId from ${currentState
-            .getClass()
-            .getSimpleName()} to ${x.nextState.getClass().getSimpleName()}" >>
-          processTransition(sessionId, x)
+        x match {
+          case EndTrasition(effect) =>
+            info"Session $sessionId ended successfully" >>
+              Sync[F].delay(map.remove(sessionId)) >>
+              sessionManager
+                .removeSession(sessionId)
+                .flatMap(_ => effect.asInstanceOf[F[Unit]])
+          case FSMTransitionTo(prevState, nextState, effect) =>
+            info"Transitioning session $sessionId from ${currentState
+                .getClass()
+                .getSimpleName()} to ${nextState.getClass().getSimpleName()}" >>
+              processTransition(
+                sessionId,
+                FSMTransitionTo[F](
+                  prevState,
+                  nextState,
+                  effect.asInstanceOf[F[Unit]]
+                )
+              )
+        }
       )).collect({ case Some(value) =>
       info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
     })
@@ -228,13 +253,14 @@ class PeginStateMachine[F[_]: Async: Logger](
       currentState: PeginStateMachineState,
       blockchainEvent: BlockchainEvent,
       feePerByte: Long
-  ): Option[FSMTransitionTo[F]] =
+  ): Option[FSMTransition] =
     (currentState, blockchainEvent) match {
       case (
             WaitingForRedemption(
               currentWalletIdx,
               scriptAsm,
               _,
+              claimAddress,
               btcTxId,
               btcVout,
               utxoTxId,
@@ -249,6 +275,7 @@ class PeginStateMachine[F[_]: Async: Logger](
               .start(
                 waitingForRedemptionOps.startClaimingProcess(
                   secret,
+                  claimAddress,
                   currentWalletIdx,
                   btcTxId,
                   btcVout,
@@ -261,21 +288,31 @@ class PeginStateMachine[F[_]: Async: Logger](
           Some(
             FSMTransitionTo(
               currentState,
-              WaitingForClaim,
+              WaitingForClaim(claimAddress),
               claimingCommand
             )
           )
         } else None
       case (
-            WaitingForClaim,
-            BTCFundsWithdrawn(_, _)
+            WaitingForClaim(claimAddress),
+            BTCFundsDeposited(scriptPubKey, _, _, _)
           ) =>
-        None // FIXME: complete this
+        val bech32Address = Bech32Address.fromString(claimAddress)
+
+
+        if (scriptPubKey == bech32Address.scriptPubKey) {
+          Some(
+            EndTrasition[F](
+              Async[F].unit
+            )
+          )
+        } else None
       case (
             MintingTBTC(
               currentWalletIdx,
               scriptAsm,
               redeemAddress,
+              claimAddress,
               btcTxId,
               btcVout,
               _
@@ -290,6 +327,7 @@ class PeginStateMachine[F[_]: Async: Logger](
                 currentWalletIdx,
                 scriptAsm,
                 redeemAddress,
+                claimAddress,
                 btcTxId,
                 btcVout,
                 utxoTxId,
@@ -304,7 +342,8 @@ class PeginStateMachine[F[_]: Async: Logger](
               currentWalletIdx,
               scriptAsm,
               escrowAddress,
-              redeemAddress
+              redeemAddress,
+              claimAddress
             ),
             BTCFundsDeposited(scriptPubKey, txId, vout, amount)
           ) =>
@@ -332,6 +371,7 @@ class PeginStateMachine[F[_]: Async: Logger](
                 currentWalletIdx,
                 scriptAsm,
                 redeemAddress,
+                claimAddress,
                 txId,
                 vout,
                 amount.satoshis.toLong
@@ -347,7 +387,7 @@ class PeginStateMachine[F[_]: Async: Logger](
           ) =>
         None // No transition
       case (
-            WaitingForClaim,
+            _: WaitingForClaim,
             _
           ) =>
         None // No transition
@@ -366,7 +406,7 @@ class PeginStateMachine[F[_]: Async: Logger](
     case _: MintingTBTC          => PeginSessionStateMintingTBTC
     case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
     case _: WaitingForRedemption => PeginSessionWaitingForRedemption
-    case WaitingForClaim         => PeginSessionStateWaitingForBTC
+    case _: WaitingForClaim      => PeginSessionStateWaitingForBTC
   }
 
   def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =
@@ -386,10 +426,11 @@ class PeginStateMachine[F[_]: Async: Logger](
             map.put(
               sessionId,
               WaitingForBTC(
-                psi.currentWalletIdx,
+                psi.btcPeginCurrentWalletIdx,
                 psi.scriptAsm,
                 psi.escrowAddress,
-                psi.redeemAddress
+                psi.redeemAddress,
+                psi.claimAddress
               )
             )
           )

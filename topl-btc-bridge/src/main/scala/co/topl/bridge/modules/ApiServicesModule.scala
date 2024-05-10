@@ -128,6 +128,7 @@ trait ApiServicesModule {
       toplKeypair: KeyPair,
       sessionManager: SessionManagerAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
+      bridgeWalletManager: BTCWalletAlgebra[IO],
       toplWalletAlgebra: ToplWalletAlgebra[IO],
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
@@ -182,6 +183,7 @@ trait ApiServicesModule {
           res <- startPeginSession(
             x,
             pegInWalletManager,
+            bridgeWalletManager,
             sessionManager,
             blockToRecover,
             toplKeypair,
@@ -217,25 +219,30 @@ trait ApiServicesModule {
           BadRequest("Error starting pegout session")
         }
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
-
         implicit val mintingRequestDecoder
             : EntityDecoder[IO, MintingStatusRequest] =
           jsonOf[IO, MintingStatusRequest]
         for {
           x <- req.as[MintingStatusRequest]
           session <- sessionManager.getSession(x.sessionID)
-          pegin <- session match {
-            case p: PeginSessionInfo => IO.pure(p)
+          somePegin <- session match {
+            case Some(p: PeginSessionInfo) => IO.pure(Option(p))
+            case None => IO.pure(None)
             case _ => IO.raiseError(new Exception("Invalid session type"))
           }
-          resp <- Ok(
-            MintingStatusResponse(
-              pegin.mintingBTCState.toString(),
-              pegin.redeemAddress,
-              pegin.toplBridgePKey,
-              s"threshold(1, sign(0) or sha256(${pegin.sha256}))",
-            ).asJson
-          )
+          resp <- somePegin match {
+            case Some(pegin) =>
+              Ok(
+                MintingStatusResponse(
+                  pegin.mintingBTCState.toString(),
+                  pegin.redeemAddress,
+                  pegin.toplBridgePKey,
+                  s"threshold(1, sign(0) or sha256(${pegin.sha256}))"
+                ).asJson
+              )
+            case None =>
+              NotFound("Session not found")
+          }
         } yield resp
     }
   }

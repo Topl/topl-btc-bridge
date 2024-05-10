@@ -21,8 +21,10 @@ sealed trait SessionInfo
 
 /** This class is used to store the session information for a pegin.
   *
-  * @param currentWalletIdx
-  *   The index of the wallet that is currently being used.
+  * @param btcPeginCurrentWalletIdx
+  *   The index of the pegin wallet that is currently being used.
+  * @param btcBridgeCurrentWalletIdx
+  *   The index of the bridge wallet that is currently being used.
   * @param mintTemplateName
   *   The name under which the mint template is stored.
   * @param redeemAddress
@@ -39,13 +41,15 @@ sealed trait SessionInfo
   *   The state of the minting process for this session.
   */
 case class PeginSessionInfo(
-    currentWalletIdx: Int,
+    btcPeginCurrentWalletIdx: Int,
+    btcBridgeCurrentWalletIdx: Int,
     mintTemplateName: String,
     redeemAddress: String,
     escrowAddress: String,
     scriptAsm: String,
     toplBridgePKey: String,
     sha256: String,
+    claimAddress: String,
     mintingBTCState: PeginSessionState
 ) extends SessionInfo
 
@@ -61,11 +65,15 @@ trait SessionManagerAlgebra[F[_]] {
 
   def getSession(
       sessionId: String
-  ): F[SessionInfo]
+  ): F[Option[SessionInfo]]
 
   def updateSession(
       sessionId: String,
       sessionInfoTransformer: PeginSessionInfo => SessionInfo
+  ): F[Unit]
+
+  def removeSession(
+      sessionId: String
   ): F[Unit]
 }
 
@@ -86,12 +94,9 @@ object SessionManagerImpl {
 
     def getSession(
         sessionId: String
-    ): F[SessionInfo] = {
-      Sync[F].fromOption(
-        {
-          Option(map.get(sessionId))
-        },
-        new IllegalArgumentException("Invalid session ID")
+    ): F[Option[SessionInfo]] = {
+      Sync[F].delay(
+        Option(map.get(sessionId))
       )
     }
 
@@ -113,6 +118,9 @@ object SessionManagerImpl {
           .getOrElse(Sync[F].unit)
       } yield ()
     }
+
+    def removeSession(sessionId: String): F[Unit] =
+      Sync[F].delay(map.remove(sessionId))
 
   }
 }

@@ -16,12 +16,12 @@ import org.bitcoins.rpc.client.common.BitcoindRpcClient
 
 class WaitingForRedemptionOps[F[_]: Async](
     bitcoindInstance: BitcoindRpcClient,
-    pegInWalletManager: BTCWalletAlgebra[F],
-    walletManager: BTCWalletAlgebra[F]
+    pegInWalletManager: BTCWalletAlgebra[F]
 ) {
 
   def startClaimingProcess(
       secret: String,
+      claimAddress: String,
       currentWalletIdx: Int,
       inputTxId: String,
       vout: Long,
@@ -32,23 +32,22 @@ class WaitingForRedemptionOps[F[_]: Async](
 
     import cats.implicits._
 
-    for {
-      nextPubKey <- walletManager.getCurrentPubKey()
-      tx = BitcoinUtils.createRedeemingTx(
-        inputTxId,
-        vout,
-        amountInSatoshis,
-        feePerByte,
-        nextPubKey
+    val tx = BitcoinUtils.createRedeemingTx(
+      inputTxId,
+      vout,
+      amountInSatoshis,
+      feePerByte,
+      claimAddress
+    )
+    val srp = RawScriptPubKey.fromAsmHex(scriptAsm)
+    val serializedTxForSignature =
+      BitcoinUtils.serializeForSignature(
+        tx,
+        amountInSatoshis.satoshis,
+        srp.asm
       )
-      srp = RawScriptPubKey.fromAsmHex(scriptAsm)
-      serializedTxForSignature =
-        BitcoinUtils.serializeForSignature(
-          tx,
-          amountInSatoshis.satoshis,
-          srp.asm
-        )
-      signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
+    val signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
+    for {
       signature <- pegInWalletManager.signForIdx(
         currentWalletIdx,
         signableBytes.bytes

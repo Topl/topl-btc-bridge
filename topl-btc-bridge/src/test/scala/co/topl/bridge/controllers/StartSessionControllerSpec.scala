@@ -109,6 +109,7 @@ class StartSessionControllerSpec
               testHash
             ),
             peginWallet,
+            peginWallet,
             sessionManager,
             testBlockToRecover,
             keyPair,
@@ -118,7 +119,7 @@ class StartSessionControllerSpec
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
         } yield (sessionInfo
           .asInstanceOf[PeginSessionInfo]
-          .currentWalletIdx == 0)
+          .btcPeginCurrentWalletIdx == 0)
       )
   }
 
@@ -297,6 +298,7 @@ class StartSessionControllerSpec
             testHash
           ),
           peginWallet,
+          peginWallet,
           sessionManager,
           testBlockToRecover,
           keypair,
@@ -360,6 +362,7 @@ class StartSessionControllerSpec
             testKey,
             "invalidHash"
           ),
+          peginWallet,
           peginWallet,
           sessionManager,
           testBlockToRecover,

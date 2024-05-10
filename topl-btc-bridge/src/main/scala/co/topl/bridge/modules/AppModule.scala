@@ -104,8 +104,7 @@ trait AppModule
     )(IO.asyncForIO)
     val waitingForRedemptionOps = new WaitingForRedemptionOps(
       bitcoindInstance,
-      pegInWalletManager,
-      walletManager
+      pegInWalletManager
     )(IO.asyncForIO)
     for {
       keyPair <- walletManagementUtils.loadKeys(
@@ -146,6 +145,7 @@ trait AppModule
           keyPair,
           sessionManager,
           pegInWalletManager,
+          walletManager,
           toplWalletImpl,
           params.blockToRecover,
           params.btcNetwork,

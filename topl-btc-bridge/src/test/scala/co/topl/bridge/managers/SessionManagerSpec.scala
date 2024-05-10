@@ -11,12 +11,14 @@ class SessionManagerSpec extends CatsEffectSuite {
 
   val sessionInfo = PeginSessionInfo(
     0,
+    0,
     "mintTemplateName",
     "redeemAddress",
     "escrowAddress",
     "scriptAsm",
     "toplBridgePKey",
     "sha256",
+    "claimAddress",
     PeginSessionState.PeginSessionStateWaitingForBTC
   )
 

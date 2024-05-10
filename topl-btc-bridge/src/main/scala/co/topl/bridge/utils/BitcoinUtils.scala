@@ -36,6 +36,7 @@ import org.bitcoins.core.wallet.utxo.SegwitV0NativeInputInfo
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
+import org.bitcoins.core.protocol.Bech32Address
 
 object BitcoinUtils {
 
@@ -142,7 +143,7 @@ object BitcoinUtils {
       inputTxVout: Long,
       inputAmount: Long,
       feePerByte: Long,
-      destinationPubKey: ECPublicKey
+      claimAddress: String
   ) = {
     import org.bitcoins.core.currency.SatoshisLong
     val inputAmountSatoshis = inputAmount.satoshis
@@ -153,10 +154,11 @@ object BitcoinUtils {
     val inputs = Vector(
       TransactionInput.apply(outpoint, ScriptSignature.empty, UInt32.zero)
     )
+    val bech32Address = Bech32Address.fromString(claimAddress)
     val outputs = Vector(
       TransactionOutput(
         inputAmountSatoshis,
-        P2WPKHWitnessSPKV0.apply(destinationPubKey)
+        bech32Address.scriptPubKey
       )
     )
     val builderResult = Transaction.newBuilder
@@ -173,7 +175,7 @@ object BitcoinUtils {
     val finalizer = SubtractFeeFromOutputsFinalizer(
       Vector(inputInfo),
       feeRate,
-      Vector(ScriptPubKey.apply(P2WPKHWitnessSPKV0(pubKey = destinationPubKey).asm))
+      Vector(ScriptPubKey.apply(bech32Address.scriptPubKey.asm))
     )
     finalizer.buildTx(builderResult)
   }
