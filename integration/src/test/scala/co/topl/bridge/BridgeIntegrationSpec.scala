@@ -136,7 +136,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
   // brambl-cli fellowships add --walletdb user-wallet.db --fellowship-name bridge
   val addFellowship = process
     .ProcessBuilder(
-      "cs",
+      CS_CMD,
       Seq(
         "launch",
         "-r",
