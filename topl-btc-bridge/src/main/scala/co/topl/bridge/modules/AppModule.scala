@@ -140,7 +140,7 @@ trait AppModule
       implicit val kp = keyPair
       implicit val defaultFeePerByte = params.feePerByte
       implicit val iPeginWalletManager = pegInWalletManager
-      val peginStateMachine = new PeginStateMachine(
+      val peginStateMachine = PeginStateMachine.make[IO](
         new ConcurrentHashMap()
       )
       (

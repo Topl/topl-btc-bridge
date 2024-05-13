@@ -30,106 +30,124 @@ import co.topl.brambl.dataApi.WalletStateAlgebra
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import co.topl.bridge.managers.BTCWalletAlgebra
 
-class PeginStateMachine[F[_]: Async: Logger](
-    map: ConcurrentHashMap[String, PeginStateMachineState]
-)(implicit
-    sessionManager: SessionManagerAlgebra[F],
-    bitcoindInstance: BitcoindRpcClient,
-    pegInWalletManager: BTCWalletAlgebra[F],
-    toplKeypair: KeyPair,
-    walletStateApi: WalletStateAlgebra[F],
-    toplWalletAlgebra: ToplWalletAlgebra[F],
-    transactionAlgebra: TransactionAlgebra[F],
-    transactionBuilderApi: TransactionBuilderApi[F],
-    utxoAlgebra: GenusQueryAlgebra[F],
-    defaultFromFellowship: Fellowship,
-    defaultFromTemplate: Template,
-    defaultFeePerByte: BitcoinCurrencyUnit,
-    defaultMintingFee: Lvl
-) {
-  import org.typelevel.log4cats.syntax._
-  import PeginTransitionRelation._
+trait PeginStateMachineAlgebra[F[_]] {
 
-  def handleBlockchainEventInContext(blockchainEvent: BlockchainEvent) = {
-    import scala.jdk.CollectionConverters._
-    (for {
-      entry <- fs2.Stream[F, Entry[String, PeginStateMachineState]](
-        map.entrySet().asScala.toList: _*
-      )
-      sessionId = entry.getKey
-      currentState = entry.getValue
-    } yield handleBlockchainEvent[F](
-      currentState,
-      blockchainEvent
-    )(transitionToEffect[F])
-      .map(x =>
-        x match {
-          case EndTrasition(effect) =>
-            info"Session $sessionId ended successfully" >>
-              Sync[F].delay(map.remove(sessionId)) >>
-              sessionManager
-                .removeSession(sessionId)
-                .flatMap(_ => effect.asInstanceOf[F[Unit]])
-          case FSMTransitionTo(prevState, nextState, effect) =>
-            info"Transitioning session $sessionId from ${currentState
-                .getClass()
-                .getSimpleName()} to ${nextState.getClass().getSimpleName()}" >>
-              processTransition(
-                sessionId,
-                FSMTransitionTo[F](
-                  prevState,
-                  nextState,
-                  effect.asInstanceOf[F[Unit]]
-                )
-              )
-        }
-      )).collect({ case Some(value) =>
-      info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
-    })
-
-  }
-
-  private def fsmStateToSessionState(
-      peginStateMachineState: PeginStateMachineState
-  ): PeginSessionState = peginStateMachineState match {
-    case _: MintingTBTC          => PeginSessionStateMintingTBTC
-    case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
-    case _: WaitingForRedemption => PeginSessionWaitingForRedemption
-    case _: WaitingForClaim      => PeginSessionStateWaitingForBTC
-  }
-
-  def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =
-    Sync[F].delay(map.replace(sessionId, transition.nextState)) >>
-      sessionManager.updateSession(
-        sessionId,
-        _.copy(mintingBTCState = fsmStateToSessionState(transition.nextState))
-      ) >> transition.effect
+  def handleBlockchainEventInContext(
+      blockchainEvent: BlockchainEvent
+  ): fs2.Stream[F, F[Unit]]
 
   def innerStateConfigurer(
       sessionEvent: SessionEvent
-  ): F[Unit] = {
-    sessionEvent match {
-      case SessionCreated(sessionId, psi: PeginSessionInfo) =>
-        info"New session created, waiting for funds at ${psi.escrowAddress}" >>
-          Sync[F].delay(
-            map.put(
-              sessionId,
-              WaitingForBTC(
-                psi.btcPeginCurrentWalletIdx,
-                psi.scriptAsm,
-                psi.escrowAddress,
-                psi.redeemAddress,
-                psi.claimAddress
+  ): F[Unit]
+
+}
+
+object PeginStateMachine {
+
+  def make[F[_]: Async: Logger](
+      map: ConcurrentHashMap[String, PeginStateMachineState]
+  )(implicit
+      sessionManager: SessionManagerAlgebra[F],
+      bitcoindInstance: BitcoindRpcClient,
+      pegInWalletManager: BTCWalletAlgebra[F],
+      toplKeypair: KeyPair,
+      walletStateApi: WalletStateAlgebra[F],
+      toplWalletAlgebra: ToplWalletAlgebra[F],
+      transactionAlgebra: TransactionAlgebra[F],
+      transactionBuilderApi: TransactionBuilderApi[F],
+      utxoAlgebra: GenusQueryAlgebra[F],
+      defaultFromFellowship: Fellowship,
+      defaultFromTemplate: Template,
+      defaultFeePerByte: BitcoinCurrencyUnit,
+      defaultMintingFee: Lvl
+  ) = new PeginStateMachineAlgebra[F] {
+
+    import org.typelevel.log4cats.syntax._
+    import PeginTransitionRelation._
+
+    def handleBlockchainEventInContext(
+        blockchainEvent: BlockchainEvent
+    ): fs2.Stream[F, F[Unit]] = {
+      import scala.jdk.CollectionConverters._
+      (for {
+        entry <- fs2.Stream[F, Entry[String, PeginStateMachineState]](
+          map.entrySet().asScala.toList: _*
+        )
+        sessionId = entry.getKey
+        currentState = entry.getValue
+      } yield handleBlockchainEvent[F](
+        currentState,
+        blockchainEvent
+      )(transitionToEffect[F])
+        .map(x =>
+          x match {
+            case EndTrasition(effect) =>
+              info"Session $sessionId ended successfully" >>
+                Sync[F].delay(map.remove(sessionId)) >>
+                sessionManager
+                  .removeSession(sessionId)
+                  .flatMap(_ => effect.asInstanceOf[F[Unit]])
+            case FSMTransitionTo(prevState, nextState, effect) =>
+              info"Transitioning session $sessionId from ${currentState
+                  .getClass()
+                  .getSimpleName()} to ${nextState.getClass().getSimpleName()}" >>
+                processTransition(
+                  sessionId,
+                  FSMTransitionTo[F](
+                    prevState,
+                    nextState,
+                    effect.asInstanceOf[F[Unit]]
+                  )
+                )
+          }
+        )).collect({ case Some(value) =>
+        info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
+      })
+
+    }
+
+    private def fsmStateToSessionState(
+        peginStateMachineState: PeginStateMachineState
+    ): PeginSessionState = peginStateMachineState match {
+      case _: MintingTBTC          => PeginSessionStateMintingTBTC
+      case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
+      case _: WaitingForRedemption => PeginSessionWaitingForRedemption
+      case _: WaitingForClaim      => PeginSessionStateWaitingForBTC
+    }
+
+    def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =
+      Sync[F].delay(map.replace(sessionId, transition.nextState)) >>
+        sessionManager.updateSession(
+          sessionId,
+          _.copy(mintingBTCState = fsmStateToSessionState(transition.nextState))
+        ) >> transition.effect
+
+    def innerStateConfigurer(
+        sessionEvent: SessionEvent
+    ): F[Unit] = {
+      sessionEvent match {
+        case SessionCreated(sessionId, psi: PeginSessionInfo) =>
+          info"New session created, waiting for funds at ${psi.escrowAddress}" >>
+            Sync[F].delay(
+              map.put(
+                sessionId,
+                WaitingForBTC(
+                  psi.btcPeginCurrentWalletIdx,
+                  psi.scriptAsm,
+                  psi.escrowAddress,
+                  psi.redeemAddress,
+                  psi.claimAddress
+                )
               )
             )
-          )
-      case SessionUpdated(_, _: PeginSessionInfo) =>
-        Sync[F].unit
-      case SessionCreated(_, _: PegoutSessionInfo) =>
-        Sync[F].unit // TODO: complete for pegout
-      case SessionUpdated(_, _: PegoutSessionInfo) =>
-        Sync[F].unit // TODO: complete for pegout
+        case SessionUpdated(_, _: PeginSessionInfo) =>
+          Sync[F].unit
+        case SessionCreated(_, _: PegoutSessionInfo) =>
+          Sync[F].unit // TODO: complete for pegout
+        case SessionUpdated(_, _: PegoutSessionInfo) =>
+          Sync[F].unit // TODO: complete for pegout
+      }
     }
-  }
 
+  }
 }

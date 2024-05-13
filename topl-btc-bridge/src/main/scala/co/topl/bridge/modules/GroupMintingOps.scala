@@ -16,7 +16,8 @@ import quivr.models.KeyPair
 import TransactionBuilderApi.implicits._
 import co.topl.brambl.models.transaction.IoTransaction
 
-trait GroupMintingOps[G[_]] extends CommonTxOps {
+trait GroupMintingOps[G[_]]  {
+
 
   import cats.implicits._
 
