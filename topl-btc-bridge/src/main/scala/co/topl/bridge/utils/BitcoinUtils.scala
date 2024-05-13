@@ -3,9 +3,9 @@ package co.topl.bridge.utils
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.number.Int32
 import org.bitcoins.core.number.UInt32
+import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.protocol.script.EmptyScriptPubKey
-import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.P2WSHWitnessV0
 import org.bitcoins.core.protocol.script.ScriptPubKey
 import org.bitcoins.core.protocol.script.ScriptSignature
@@ -36,7 +36,6 @@ import org.bitcoins.core.wallet.utxo.SegwitV0NativeInputInfo
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
-import org.bitcoins.core.protocol.Bech32Address
 
 object BitcoinUtils {
 
@@ -142,7 +141,7 @@ object BitcoinUtils {
       inputTxId: String,
       inputTxVout: Long,
       inputAmount: Long,
-      feePerByte: Long,
+      feePerByte: CurrencyUnit,
       claimAddress: String
   ) = {
     import org.bitcoins.core.currency.SatoshisLong

@@ -6,6 +6,8 @@ import co.topl.brambl.models.Indices
 import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Template
 
 trait WalletApiHelpers[F[_]] {
 
@@ -18,18 +20,18 @@ trait WalletApiHelpers[F[_]] {
   implicit val m: Monad[F]
 
   def getCurrentIndices(
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int]
   ) = wsa.getCurrentIndicesForFunds(
-    fromFellowship,
-    fromTemplate,
+    fromFellowship.underlying,
+    fromTemplate.underlying,
     someFromInteraction
   )
 
   def getCurrentAddress(
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int]
   ): F[LockAddress] = for {
     someCurrentIndices <- getCurrentIndices(
@@ -50,26 +52,28 @@ trait WalletApiHelpers[F[_]] {
       .map(_.flatten.map(Lock().withPredicate(_)))
 
   def getNextIndices(
-      fromFellowship: String,
-      fromTemplate: String
+      fromFellowship: Fellowship,
+      fromTemplate: Template
   ) =
     wsa.getNextIndicesForFunds(
-      if (fromFellowship == "nofellowship") "self" else fromFellowship,
-      if (fromFellowship == "nofellowship") "default"
-      else fromTemplate
+      if (fromFellowship.underlying == "nofellowship") "self"
+      else fromFellowship.underlying,
+      if (fromFellowship.underlying == "nofellowship") "default"
+      else fromTemplate.underlying
     )
 
   def getChangeLockPredicate(
       someNextIndices: Option[Indices],
-      fromFellowship: String,
-      fromTemplate: String
+      fromFellowship: Fellowship,
+      fromTemplate: Template
   ) =
     someNextIndices
       .map(idx =>
         wsa.getLock(
-          if (fromFellowship == "nofellowship") "self" else fromFellowship,
-          if (fromFellowship == "nofellowship") "default"
-          else fromTemplate,
+          if (fromFellowship.underlying == "nofellowship") "self"
+          else fromFellowship.underlying,
+          if (fromFellowship.underlying == "nofellowship") "default"
+          else fromTemplate.underlying,
           idx.z
         )
       )

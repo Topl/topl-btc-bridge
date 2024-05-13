@@ -15,6 +15,9 @@ import co.topl.genus.services.Txo
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Template
+import co.topl.bridge.Lvl
 
 class WaitingBTCOps[F[_]: Async](
     walletStateApi: WalletStateAlgebra[F],
@@ -59,13 +62,13 @@ class WaitingBTCOps[F[_]: Async](
 
   private def mintTBTC(
       redeemAddress: String,
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       assetMintingStatement: AssetMintingStatement,
       keyPair: KeyPair,
       toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
-      fee: Long
+      fee: Lvl
   ) = for {
     ioTransaction <- toplWalletAlgebra
       .createSimpleAssetMintingTransactionFromParams(
@@ -92,15 +95,15 @@ class WaitingBTCOps[F[_]: Async](
 
 
   def startMintingProcess(
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       redeemAddress: String,
       keyPair: KeyPair,
       amount: Long,
       toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
       utxoAlgebra: GenusQueryAlgebra[F],
-      fee: Long
+      fee: Lvl
   ): F[Unit] = {
     import cats.implicits._
     for {

@@ -13,6 +13,7 @@ import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
+import org.bitcoins.core.currency.CurrencyUnit
 
 class WaitingForRedemptionOps[F[_]: Async](
     bitcoindInstance: BitcoindRpcClient,
@@ -27,7 +28,7 @@ class WaitingForRedemptionOps[F[_]: Async](
       vout: Long,
       scriptAsm: String,
       amountInSatoshis: Long,
-      feePerByte: Long
+      feePerByte: CurrencyUnit
   ) = {
 
     import cats.implicits._

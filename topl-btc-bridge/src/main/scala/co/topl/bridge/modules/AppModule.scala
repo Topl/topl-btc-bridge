@@ -30,10 +30,13 @@ import org.http4s.dsl.io._
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Template
 
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.statemachine.pegin.WaitingForRedemptionOps
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
+import co.topl.bridge.Lvl
 
 trait AppModule
     extends WalletStateResource
@@ -49,14 +52,12 @@ trait AppModule
   def createApp(
       params: ToplBTCBridgeParamConfig,
       bitcoindInstance: BitcoindRpcClient,
-      fromFellowship: String,
-      fromTemplate: String,
       queue: Queue[IO, SessionEvent],
       pegInWalletManager: BTCWalletAlgebra[IO],
       walletManager: BTCWalletAlgebra[IO],
       logger: SelfAwareStructuredLogger[IO],
       currentState: Ref[IO, SystemGlobalState]
-  ) = {
+  )(implicit fromFellowship: Fellowship, fromTemplate: Template) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val walletKeyApi = WalletKeyApi.make[IO]()
     val walletApi = WalletApi.make[IO](walletKeyApi)
@@ -67,14 +68,14 @@ trait AppModule
       params.toplNetwork.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
-    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
+    implicit val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
       channelResource(
         params.toplHost,
         params.toplPort,
         params.toplSecureConnection
       )
     )
-    val toplWalletImpl = ToplWalletImpl.make[IO](
+    implicit val toplWalletImpl = ToplWalletImpl.make[IO](
       IO.asyncForIO,
       walletApi,
       FellowshipStorageApi.make(walletRes),
@@ -83,7 +84,7 @@ trait AppModule
       transactionBuilderApi,
       genusQueryAlgebra
     )
-    val transactionAlgebra = TransactionAlgebra.make[IO](
+    implicit val transactionAlgebra = TransactionAlgebra.make[IO](
       walletApi,
       walletStateAlgebra,
       channelResource(
@@ -92,39 +93,29 @@ trait AppModule
         params.toplSecureConnection
       )
     )
-    val sessionManager =
+    implicit val sessionManager =
       SessionManagerImpl.make[IO](queue, new ConcurrentHashMap())
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
     )
-    val waitingBTCForBlock = new WaitingBTCOps(
+    implicit val waitingBTCForBlock = new WaitingBTCOps(
       walletStateAlgebra,
       transactionBuilderApi
     )(IO.asyncForIO)
-    val waitingForRedemptionOps = new WaitingForRedemptionOps(
+    implicit val waitingForRedemptionOps = new WaitingForRedemptionOps(
       bitcoindInstance,
       pegInWalletManager
     )(IO.asyncForIO)
+    import co.topl.brambl.syntax._
+    implicit val defaultMintingFee = Lvl(params.mintingFee)
+    implicit val asyncForIO = IO.asyncForIO
+    implicit val l = logger
     for {
       keyPair <- walletManagementUtils.loadKeys(
         params.toplWalletSeedFile,
         params.toplWalletPassword
       )
-      peginStateMachine = new PeginStateMachine(
-        sessionManager,
-        waitingBTCForBlock,
-        waitingForRedemptionOps,
-        keyPair,
-        fromFellowship,
-        fromTemplate,
-        params.mintingFee,
-        toplWalletImpl,
-        transactionAlgebra,
-        genusQueryAlgebra,
-        params.feePerByte,
-        new ConcurrentHashMap()
-      )(IO.asyncForIO, logger)
       notFoundResponse <- NotFound(
         """<!DOCTYPE html>
           |<html>
@@ -154,20 +145,27 @@ trait AppModule
         )
       )(default = staticAssetsService)
 
-    } yield (
-      Kleisli[IO, Request[IO], Response[IO]] { request =>
-        router.run(request).getOrElse(notFoundResponse)
-      },
-      new InitializationModule(
-        transactionBuilderApi,
-        walletStateAlgebra,
-        walletApi,
-        keyPair,
-        genusQueryAlgebra,
-        transactionAlgebra,
-        currentState
-      )(IO.asyncForIO, logger),
-      peginStateMachine
-    )
+    } yield {
+      implicit val kp = keyPair
+      implicit val defaultFeePerByte = params.feePerByte
+      val peginStateMachine = new PeginStateMachine(
+        new ConcurrentHashMap()
+      )
+      (
+        Kleisli[IO, Request[IO], Response[IO]] { request =>
+          router.run(request).getOrElse(notFoundResponse)
+        },
+        new InitializationModule(
+          transactionBuilderApi,
+          walletStateAlgebra,
+          walletApi,
+          keyPair,
+          genusQueryAlgebra,
+          transactionAlgebra,
+          currentState
+        )(IO.asyncForIO, logger),
+        peginStateMachine
+      )
+    }
   }
 }

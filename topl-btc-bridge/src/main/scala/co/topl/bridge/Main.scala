@@ -19,6 +19,7 @@ import cats.effect.std.Queue
 import co.topl.bridge.managers.SessionEvent
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
+import co.topl.bridge.statemachine.pegin.BlockProcessor
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -80,6 +81,8 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
 
   def runWithArgs(params: ToplBTCBridgeParamConfig): IO[ExitCode] = {
     import org.typelevel.log4cats.syntax._
+    implicit val defaultFromFellowship = new Fellowship("self")
+    implicit val defaultFromTemplate = new Template("default")
     (for {
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
@@ -126,8 +129,6 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       appAndInitAndStateMachine <- createApp(
         params,
         bitcoindInstance,
-        "self",
-        "default",
         queue,
         pegInWalletManager,
         walletManager,
@@ -164,10 +165,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
           monitor
             .monitorBlocks()
             .either(bifrostMonitor.monitorBlocks())
-            .flatMap(x =>
-              // this creates  a sequence of events
-              peginStateMachine.blockProcessor(x)
-            )
+            .flatMap(BlockProcessor.process)
             .flatMap(
               // this handles each event in the context of the state machine
               peginStateMachine.handleBlockchainEventInContext
@@ -186,7 +184,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .withLogger(logger)
         .build
         .allocated
-        .both(init.setupWallet())
+        .both(init.setupWallet(defaultFromFellowship, defaultFromTemplate))
     } yield {
       Right(
         s"Server started on ${ServerConfig.host}:${ServerConfig.port}"

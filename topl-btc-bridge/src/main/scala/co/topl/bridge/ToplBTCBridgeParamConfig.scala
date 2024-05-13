@@ -4,6 +4,8 @@ import co.topl.shared.RegTest
 import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.ToplNetworkIdentifiers
 import co.topl.shared.ToplPrivatenet
+import org.bitcoins.core.currency.CurrencyUnit
+import org.bitcoins.core.currency.SatoshisLong
 
 case class ToplBTCBridgeParamConfig(
     blockToRecover: Int =
@@ -25,6 +27,6 @@ case class ToplBTCBridgeParamConfig(
     toplHost: String = "localhost",
     toplPort: Int = 9084,
     mintingFee: Long = 10,
-    feePerByte: Long = 2,
+    feePerByte: CurrencyUnit = 2.satoshis,
     toplSecureConnection: Boolean = false
 )

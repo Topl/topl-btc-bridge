@@ -27,15 +27,18 @@ import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Template
+import co.topl.bridge.Lvl
 
 trait ToplWalletAlgebra[+F[_]] {
 
   def createSimpleAssetMintingTransactionFromParams(
       keyPair: KeyPair,
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int],
-      fee: Long,
+      fee: Lvl,
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
       assetMintingStatement: AssetMintingStatement,
@@ -380,8 +383,8 @@ object ToplWalletImpl {
       } yield currentAddress).value
     }
     private def sharedOps(
-        fromFellowship: String,
-        fromTemplate: String,
+        fromFellowship: Fellowship,
+        fromTemplate: Template,
         someFromInteraction: Option[Int]
     ) = for {
       someCurrentIndices <- getCurrentIndices(
@@ -405,10 +408,10 @@ object ToplWalletImpl {
 
     def createSimpleAssetMintingTransactionFromParams(
         keyPair: KeyPair,
-        fromFellowship: String,
-        fromTemplate: String,
+        fromFellowship: Fellowship,
+        fromTemplate: Template,
         someFromInteraction: Option[Int],
-        fee: Long,
+        fee: Lvl,
         ephemeralMetadata: Option[Json],
         commitment: Option[ByteString],
         assetMintingStatement: AssetMintingStatement,

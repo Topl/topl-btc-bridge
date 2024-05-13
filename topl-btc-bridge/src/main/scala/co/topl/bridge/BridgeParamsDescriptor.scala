@@ -3,6 +3,8 @@ package co.topl.bridge
 import co.topl.shared.BitcoinNetworkIdentifiers
 import scopt.OParser
 import co.topl.shared.ToplNetworkIdentifiers
+import org.bitcoins.core.currency.CurrencyUnit
+import org.bitcoins.core.currency.SatoshisLong
 
 trait BridgeParamsDescriptor {
 
@@ -123,13 +125,13 @@ trait BridgeParamsDescriptor {
       opt[Long]("minting-fee")
         .action((x, c) => c.copy(mintingFee = x))
         .text("The fee for minting. (optional)"),
-      opt[Long]("fee-per-byte")
+      opt[CurrencyUnit]("fee-per-byte")
         .action((x, c) => c.copy(feePerByte = x))
         .validate(x =>
-          if (x > 0) success
+          if (x > 0.satoshis) success
           else failure("Fee per byte must be stricly greater than 0")
         )
-        .text("The fee per byte. (optional)")
+        .text("The fee per byte in satoshis. (optional)")
     )
   }
 
