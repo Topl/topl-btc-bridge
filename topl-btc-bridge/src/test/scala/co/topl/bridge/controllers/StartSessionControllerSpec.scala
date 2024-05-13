@@ -95,10 +95,8 @@ class StartSessionControllerSpec
             walletApi,
             FellowshipStorageApi.make(walletResource(toplWalletDb)),
             TemplateStorageApi.make(walletResource(toplWalletDb)),
-            walletStateAlgebra,
-            transactionBuilderApi,
             genusQueryAlgebra
-          )
+          )(walletStateAlgebra, transactionBuilderApi)
           keyPair <- walletManagementUtils.loadKeys(
             toplWalletFile,
             testToplPassword
@@ -161,10 +159,8 @@ class StartSessionControllerSpec
             walletApi,
             FellowshipStorageApi.make(walletResource(toplWalletDb)),
             TemplateStorageApi.make(walletResource(toplWalletDb)),
-            walletStateAlgebra,
-            transactionBuilderApi,
             genusQueryAlgebra
-          )
+          )(walletStateAlgebra, transactionBuilderApi)
           res <- StartSessionController.startPegoutSession[IO](
             StartPegoutSessionRequest(
               pegoutTestKey,
@@ -222,10 +218,8 @@ class StartSessionControllerSpec
           walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
-        )
+        )(walletStateAlgebra, transactionBuilderApi)
         res <- StartSessionController.startPegoutSession[IO](
           StartPegoutSessionRequest(
             "invalidKey",
@@ -277,10 +271,8 @@ class StartSessionControllerSpec
           walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
-        )
+        )(walletStateAlgebra, transactionBuilderApi)
         km0 <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
           peginWalletFile,
@@ -342,10 +334,8 @@ class StartSessionControllerSpec
           walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
-        )
+        )(walletStateAlgebra, transactionBuilderApi)
         queue <- Queue.unbounded[IO, SessionEvent]
         sessionManager = SessionManagerImpl.make[IO](
           queue,
@@ -414,10 +404,8 @@ class StartSessionControllerSpec
           walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
-        )
+        )(walletStateAlgebra, transactionBuilderApi)
         res <- StartSessionController.startPegoutSession[IO](
           StartPegoutSessionRequest(
             testKey,
@@ -445,9 +433,9 @@ class StartSessionControllerSpec
       walletApi,
       walletKeyApi
     )
-    val walletStateAlgebra = WalletStateApi
+    implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
@@ -475,8 +463,6 @@ class StartSessionControllerSpec
           walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
         )
         res <- StartSessionController.startPegoutSession[IO](

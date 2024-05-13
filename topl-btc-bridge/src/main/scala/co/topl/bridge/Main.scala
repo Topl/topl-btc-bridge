@@ -83,6 +83,15 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
     import org.typelevel.log4cats.syntax._
     implicit val defaultFromFellowship = new Fellowship("self")
     implicit val defaultFromTemplate = new Template("default")
+    val credentials = BitcoindAuthCredentials.PasswordBased(
+      params.btcUser,
+      params.btcPassword
+    )
+    implicit val bitcoindInstance = BitcoinMonitor.Bitcoind.remoteConnection(
+      params.btcNetwork.btcNetwork,
+      params.btcUrl,
+      credentials
+    )
     (for {
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
@@ -117,21 +126,12 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
       queue <- Queue.unbounded[IO, SessionEvent]
-      credentials = BitcoindAuthCredentials.PasswordBased(
-        params.btcUser,
-        params.btcPassword
-      )
-      bitcoindInstance = BitcoinMonitor.Bitcoind.remoteConnection(
-        params.btcNetwork.btcNetwork,
-        params.btcUrl,
-        credentials
-      )
+
       appAndInitAndStateMachine <- createApp(
         params,
-        bitcoindInstance,
         queue,
-        pegInWalletManager,
         walletManager,
+        pegInWalletManager,
         logger,
         globalState
       )

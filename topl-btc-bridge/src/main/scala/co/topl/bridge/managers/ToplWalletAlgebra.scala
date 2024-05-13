@@ -1,6 +1,5 @@
 package co.topl.bridge.managers
 
-import cats.Monad
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
@@ -18,6 +17,9 @@ import co.topl.brambl.models.box.AssetMintingStatement
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Lvl
+import co.topl.bridge.Template
 import co.topl.genus.services.Txo
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
@@ -27,9 +29,6 @@ import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
-import co.topl.bridge.Fellowship
-import co.topl.bridge.Template
-import co.topl.bridge.Lvl
 
 trait ToplWalletAlgebra[+F[_]] {
 
@@ -73,16 +72,15 @@ object ToplWalletImpl {
       walletApi: WalletApi[F],
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
-      walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F]
-  ): ToplWalletAlgebra[F] = new ToplWalletAlgebra[F]
-    with WalletApiHelpers[F]
-    with AssetMintingOps[F] {
+  )(implicit
+      walletStateApi: WalletStateAlgebra[F],
+      transactionBuilderApi: TransactionBuilderApi[F]
+  ): ToplWalletAlgebra[F] = new ToplWalletAlgebra[F] with AssetMintingOps[F] {
+
+    import WalletApiHelpers._
 
     override implicit val sync: cats.effect.kernel.Sync[F] = psync
-
-    implicit val m: Monad[F] = sync
 
     val wsa: WalletStateAlgebra[F] = walletStateApi
 
@@ -392,9 +390,9 @@ object ToplWalletImpl {
         fromTemplate,
         someFromInteraction
       )
-      predicateFundsToUnlock <- getPredicateFundsToUnlock(someCurrentIndices)
+      predicateFundsToUnlock <- getPredicateFundsToUnlock[F](someCurrentIndices)
       someNextIndices <- getNextIndices(fromFellowship, fromTemplate)
-      changeLock <- getChangeLockPredicate(
+      changeLock <- getChangeLockPredicate[F](
         someNextIndices,
         fromFellowship,
         fromTemplate

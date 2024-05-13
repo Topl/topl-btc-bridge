@@ -25,16 +25,22 @@ import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
+import co.topl.bridge.managers.BTCWalletAlgebra
 
 class PeginStateMachine[F[_]: Async: Logger](
     map: ConcurrentHashMap[String, PeginStateMachineState]
 )(implicit
     sessionManager: SessionManagerAlgebra[F],
+    bitcoindInstance: BitcoindRpcClient,
+    pegInWalletManager: BTCWalletAlgebra[F],
     toplKeypair: KeyPair,
+    walletStateApi: WalletStateAlgebra[F],
     toplWalletAlgebra: ToplWalletAlgebra[F],
     transactionAlgebra: TransactionAlgebra[F],
-    waitingBTCForBlock: WaitingBTCOps[F],
-    waitingForRedemptionOps: WaitingForRedemptionOps[F],
+    transactionBuilderApi: TransactionBuilderApi[F],
     utxoAlgebra: GenusQueryAlgebra[F],
     defaultFromFellowship: Fellowship,
     defaultFromTemplate: Template,

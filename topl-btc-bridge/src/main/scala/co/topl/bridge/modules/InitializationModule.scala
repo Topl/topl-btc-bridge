@@ -11,6 +11,9 @@ import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.syntax._
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.Fellowship
+import co.topl.bridge.SystemGlobalState
+import co.topl.bridge.Template
 import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletApiHelpers
 import co.topl.genus.services.Txo
@@ -19,21 +22,18 @@ import quivr.models.Int128
 import quivr.models.KeyPair
 
 import scala.concurrent.duration._
-import co.topl.bridge.SystemGlobalState
-import co.topl.bridge.Fellowship
-import co.topl.bridge.Template
 
 class InitializationModule[F[_]: Async: Logger](
-    val tba: TransactionBuilderApi[F],
-    val wsa: WalletStateAlgebra[F],
     val wa: WalletApi[F],
     val keyPair: KeyPair,
     genusQueryAlgebra: GenusQueryAlgebra[F],
     transactionAlgebra: TransactionAlgebra[F],
     currentState: Ref[F, SystemGlobalState]
-) extends GroupMintingOps[F]
-    with SeriesMintingOps[F]
-    with WalletApiHelpers[F] {
+)(implicit val tba: TransactionBuilderApi[F], val wsa: WalletStateAlgebra[F])
+    extends GroupMintingOps[F]
+    with SeriesMintingOps[F] {
+
+  import WalletApiHelpers._
 
   import org.typelevel.log4cats.syntax._
 
@@ -47,7 +47,7 @@ class InitializationModule[F[_]: Async: Logger](
       fromFellowship: Fellowship,
       fromTemplate: Template
   ): F[Seq[Txo]] = for {
-    currentAddress <- getCurrentAddress(
+    currentAddress <- getCurrentAddress[F](
       fromFellowship,
       fromTemplate,
       None
@@ -195,7 +195,7 @@ class InitializationModule[F[_]: Async: Logger](
       someChangeIdx.isDefined,
       "Change lock not found while minting group token"
     )
-    someChangeLock <- getChangeLockPredicate(
+    someChangeLock <- getChangeLockPredicate[F](
       someChangeIdx,
       fromFellowship,
       fromTemplate
@@ -272,7 +272,7 @@ class InitializationModule[F[_]: Async: Logger](
       someChangeIdx.isDefined,
       "Change lock not found while minting series token"
     )
-    someChangeLock <- getChangeLockPredicate(
+    someChangeLock <- getChangeLockPredicate[F](
       someChangeIdx,
       fromFellowship,
       fromTemplate

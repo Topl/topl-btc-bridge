@@ -15,12 +15,9 @@ import scodec.bits.ByteVector
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.bitcoins.core.currency.CurrencyUnit
 
-class WaitingForRedemptionOps[F[_]: Async](
-    bitcoindInstance: BitcoindRpcClient,
-    pegInWalletManager: BTCWalletAlgebra[F]
-) {
+object WaitingForRedemptionOps {
 
-  def startClaimingProcess(
+  def startClaimingProcess[F[_]: Async](
       secret: String,
       claimAddress: String,
       currentWalletIdx: Int,
@@ -29,6 +26,9 @@ class WaitingForRedemptionOps[F[_]: Async](
       scriptAsm: String,
       amountInSatoshis: Long,
       feePerByte: CurrencyUnit
+  )(implicit
+      bitcoindInstance: BitcoindRpcClient,
+      pegInWalletManager: BTCWalletAlgebra[F]
   ) = {
 
     import cats.implicits._

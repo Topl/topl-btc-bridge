@@ -12,17 +12,27 @@ import co.topl.bridge.managers.TransactionAlgebra
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
 import quivr.models.KeyPair
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.builders.TransactionBuilderApi
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
+import co.topl.bridge.managers.BTCWalletAlgebra
 
 object PeginTransitionRelation {
+
+  import WaitingBTCOps._
+  import WaitingForRedemptionOps._
+
   def handleBlockchainEvent[F[_]: Async](
       currentState: PeginStateMachineState,
       blockchainEvent: BlockchainEvent
   )(implicit
       toplKeypair: KeyPair,
+      bitcoindInstance: BitcoindRpcClient,
+      pegInWalletManager: BTCWalletAlgebra[F],
+      walletStateApi: WalletStateAlgebra[F],
+      transactionBuilderApi: TransactionBuilderApi[F],
       defaultFromFellowship: Fellowship,
       defaultFromTemplate: Template,
-      waitingBTCForBlock: WaitingBTCOps[F],
-      waitingForRedemptionOps: WaitingForRedemptionOps[F],
       toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
       utxoAlgebra: GenusQueryAlgebra[F],
@@ -48,7 +58,7 @@ object PeginTransitionRelation {
           val claimingCommand =
             Async[F]
               .start(
-                waitingForRedemptionOps.startClaimingProcess(
+                startClaimingProcess(
                   secret,
                   claimAddress,
                   currentWalletIdx,
@@ -125,7 +135,7 @@ object PeginTransitionRelation {
         if (scriptPubKey == bech32Address.scriptPubKey) {
           val mintingCommand = Async[F]
             .start(
-              waitingBTCForBlock.startMintingProcess(
+              startMintingProcess[F](
                 defaultFromFellowship,
                 defaultFromTemplate,
                 redeemAddress,

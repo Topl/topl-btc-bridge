@@ -1,6 +1,5 @@
 package co.topl.bridge.statemachine.pegin
 
-import cats.Monad
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.brambl.builders.TransactionBuilderApi
@@ -8,6 +7,9 @@ import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.AssetMintingStatement
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Lvl
+import co.topl.bridge.Template
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletApiHelpers
@@ -15,20 +17,10 @@ import co.topl.genus.services.Txo
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
-import co.topl.bridge.Fellowship
-import co.topl.bridge.Template
-import co.topl.bridge.Lvl
 
-class WaitingBTCOps[F[_]: Async](
-    walletStateApi: WalletStateAlgebra[F],
-    transactionBuilderApi: TransactionBuilderApi[F]
-) extends WalletApiHelpers[F] {
+object WaitingBTCOps {
 
-  val m: Monad[F] = implicitly[Monad[F]]
-
-  val wsa: WalletStateAlgebra[F] = walletStateApi
-
-  val tba: TransactionBuilderApi[F] = transactionBuilderApi
+  import WalletApiHelpers._
 
   private def getGroupTokeUtxo(txos: Seq[Txo]) = {
     txos
@@ -44,7 +36,7 @@ class WaitingBTCOps[F[_]: Async](
       .outputAddress
   }
 
-  private def computeAssetMintingStatement(
+  private def computeAssetMintingStatement[F[_]: Async](
       amount: Long,
       currentAddress: LockAddress,
       utxoAlgebra: GenusQueryAlgebra[F]
@@ -60,7 +52,7 @@ class WaitingBTCOps[F[_]: Async](
     )
   )
 
-  private def mintTBTC(
+  private def mintTBTC[F[_]: Async](
       redeemAddress: String,
       fromFellowship: Fellowship,
       fromTemplate: Template,
@@ -93,8 +85,7 @@ class WaitingBTCOps[F[_]: Async](
       .flatMap(Async[F].fromEither(_))
   } yield txId
 
-
-  def startMintingProcess(
+  def startMintingProcess[F[_]: Async](
       fromFellowship: Fellowship,
       fromTemplate: Template,
       redeemAddress: String,
@@ -104,10 +95,13 @@ class WaitingBTCOps[F[_]: Async](
       transactionAlgebra: TransactionAlgebra[F],
       utxoAlgebra: GenusQueryAlgebra[F],
       fee: Lvl
+  )(implicit
+      walletStateApi: WalletStateAlgebra[F],
+      transactionBuilderApi: TransactionBuilderApi[F]
   ): F[Unit] = {
     import cats.implicits._
     for {
-      currentAddress <- getCurrentAddress(
+      currentAddress <- getCurrentAddress[F](
         fromFellowship,
         fromTemplate,
         None
