@@ -16,20 +16,11 @@ import quivr.models.KeyPair
 import TransactionBuilderApi.implicits._
 import co.topl.brambl.models.transaction.IoTransaction
 
-trait GroupMintingOps[G[_]]  {
-
+object GroupMintingOps {
 
   import cats.implicits._
 
-  implicit val sync: Sync[G]
-
-  val tba: TransactionBuilderApi[G]
-
-  val wsa: WalletStateAlgebra[G]
-
-  val wa: WalletApi[G]
-
-  def buildGroupTx(
+  def buildGroupTx[G[_]: Sync](
       lvlTxos: Seq[Txo],
       nonlvlTxos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
@@ -39,6 +30,10 @@ trait GroupMintingOps[G[_]]  {
       keyPair: KeyPair,
       groupPolicy: Event.GroupPolicy,
       changeLock: Option[Lock]
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ) = (if (lvlTxos.isEmpty) {
          Sync[G].raiseError(CreateTxError("No LVL txos found"))
        } else {
@@ -66,7 +61,7 @@ trait GroupMintingOps[G[_]]  {
          }
        })
 
-  private def buildGroupTransaction(
+  private def buildGroupTransaction[G[_]: Sync](
       txos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
       lockForChange: Lock,
@@ -76,6 +71,10 @@ trait GroupMintingOps[G[_]]  {
       someNextIndices: Option[Indices],
       keyPair: KeyPair,
       groupPolicy: Event.GroupPolicy
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ): G[IoTransaction] =
     for {
       changeAddress <- tba.lockAddress(

@@ -16,19 +16,11 @@ import quivr.models.KeyPair
 import TransactionBuilderApi.implicits._
 import co.topl.brambl.models.transaction.IoTransaction
 
-trait SeriesMintingOps[G[_]] {
+object SeriesMintingOps {
 
   import cats.implicits._
 
-  implicit val sync: Sync[G]
-
-  val tba: TransactionBuilderApi[G]
-
-  val wsa: WalletStateAlgebra[G]
-
-  val wa: WalletApi[G]
-
-  private def buildSeriesTransaction(
+  private def buildSeriesTransaction[G[_]: Sync](
       txos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
       lockForChange: Lock,
@@ -38,6 +30,10 @@ trait SeriesMintingOps[G[_]] {
       someNextIndices: Option[Indices],
       keyPair: KeyPair,
       seriesPolicy: Event.SeriesPolicy
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ): G[IoTransaction] =
     for {
       changeAddress <- tba.lockAddress(
@@ -78,7 +74,7 @@ trait SeriesMintingOps[G[_]] {
         }
     } yield ioTransaction
 
-  def buildSeriesTx(
+  def buildSeriesTx[G[_]: Sync](
       lvlTxos: Seq[Txo],
       nonLvlTxos: Seq[Txo],
       predicateFundsToUnlock: Lock.Predicate,
@@ -88,6 +84,10 @@ trait SeriesMintingOps[G[_]] {
       keyPair: KeyPair,
       seriesPolicy: Event.SeriesPolicy,
       changeLock: Option[Lock]
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ): G[IoTransaction] = (if (lvlTxos.isEmpty) {
                            Sync[G].raiseError(
                              CreateTxError("No LVL txos found")

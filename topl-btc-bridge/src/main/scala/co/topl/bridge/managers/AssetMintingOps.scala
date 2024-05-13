@@ -19,19 +19,11 @@ import quivr.models.KeyPair
 import TransactionBuilderApi.implicits._
 import co.topl.bridge.Lvl
 
-trait AssetMintingOps[G[_]] extends CommonTxOps {
+object AssetMintingOps extends CommonTxOps {
 
   import cats.implicits._
 
-  implicit val sync: Sync[G]
-
-  val tba: TransactionBuilderApi[G]
-
-  val wsa: WalletStateAlgebra[G]
-
-  val wa: WalletApi[G]
-
-  def buildAssetTxAux(
+  def buildAssetTxAux[G[_]: Sync](
       keyPair: KeyPair,
       lvlTxos: Seq[Txo],
       nonLvlTxos: Seq[Txo],
@@ -46,6 +38,10 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
       commitment: Option[ByteString],
       changeLock: Option[Lock],
       recipientLockAddress: LockAddress
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ) = (if (lvlTxos.isEmpty) {
          Sync[G].raiseError(CreateTxError("No LVL txos found"))
        } else {
@@ -74,7 +70,7 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
          }
        })
 
-  private def buildAssetTransaction(
+  private def buildAssetTransaction[G[_]: Sync](
       keyPair: KeyPair,
       txos: Seq[Txo],
       lockPredicateFrom: Map[LockAddress, Lock.Predicate],
@@ -85,6 +81,10 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
       ephemeralMetadata: Option[Struct],
       commitment: Option[ByteString],
       someNextIndices: Option[Indices]
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ): G[IoTransaction] = {
     import co.topl.brambl.syntax._
     for {

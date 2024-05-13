@@ -61,7 +61,7 @@ trait AppModule
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val walletKeyApi = WalletKeyApi.make[IO]()
-    val walletApi = WalletApi.make[IO](walletKeyApi)
+    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletRes = walletResource(params.toplWalletDb)
     implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletRes, walletApi)
@@ -77,8 +77,6 @@ trait AppModule
       )
     )
     implicit val toplWalletImpl = ToplWalletImpl.make[IO](
-      IO.asyncForIO,
-      walletApi,
       FellowshipStorageApi.make(walletRes),
       TemplateStorageApi.make(walletRes),
       genusQueryAlgebra
@@ -147,13 +145,7 @@ trait AppModule
         Kleisli[IO, Request[IO], Response[IO]] { request =>
           router.run(request).getOrElse(notFoundResponse)
         },
-        new InitializationModule(
-          walletApi,
-          keyPair,
-          genusQueryAlgebra,
-          transactionAlgebra,
-          currentState
-        ),
+        InitializationModule.make[IO](currentState),
         peginStateMachine
       )
     }

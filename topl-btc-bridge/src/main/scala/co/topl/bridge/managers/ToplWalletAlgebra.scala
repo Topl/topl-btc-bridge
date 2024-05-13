@@ -67,26 +67,18 @@ trait ToplWalletAlgebra[+F[_]] {
 object ToplWalletImpl {
   import cats.implicits._
 
-  def make[F[_]](
-      psync: Sync[F],
-      walletApi: WalletApi[F],
+  def make[F[_]: Sync](
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
       utxoAlgebra: GenusQueryAlgebra[F]
   )(implicit
-      walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F]
-  ): ToplWalletAlgebra[F] = new ToplWalletAlgebra[F] with AssetMintingOps[F] {
+      tba: TransactionBuilderApi[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F]
+  ): ToplWalletAlgebra[F] = new ToplWalletAlgebra[F] {
 
     import WalletApiHelpers._
-
-    override implicit val sync: cats.effect.kernel.Sync[F] = psync
-
-    val wsa: WalletStateAlgebra[F] = walletStateApi
-
-    val tba = transactionBuilderApi
-
-    val wa = walletApi
+    import AssetMintingOps._
 
     private def computeSerializedTemplateMintLock(
         sha256: String
@@ -150,14 +142,14 @@ object ToplWalletImpl {
             mintTemplateName
           )
           .liftT
-        bk <- wa
+        bk <- walletApi
           .deriveChildKeysPartial(
             keypair,
             indices.x,
             indices.y
           )
           .optionT
-        bridgeVk <- wa
+        bridgeVk <- walletApi
           .deriveChildVerificationKey(
             bk.vk,
             1
@@ -304,7 +296,7 @@ object ToplWalletImpl {
             WalletTemplate(0, templateName, lockTemplateAsJson)
           )
           .optionT
-        indices <- walletStateApi
+        indices <- wsa
           .getCurrentIndicesForFunds(
             fellowshipName,
             templateName,
@@ -329,7 +321,7 @@ object ToplWalletImpl {
             1
           )
           .optionT
-        lockTempl <- walletStateApi
+        lockTempl <- wsa
           .getLockTemplate(templateName)
           .liftT
         deriveChildKeyUserString = Encoding.encodeToBase58(
@@ -353,7 +345,7 @@ object ToplWalletImpl {
           NetworkConstants.MAIN_LEDGER_ID,
           LockId(lock.sizedEvidence.digest.value)
         )
-        _ <- walletStateApi
+        _ <- wsa
           .updateWalletState(
             Encoding.encodeToBase58Check(
               lock.getPredicate.toByteArray
@@ -364,14 +356,14 @@ object ToplWalletImpl {
             indices
           )
           .optionT
-        _ <- walletStateApi
+        _ <- wsa
           .addEntityVks(
             fellowshipName,
             templateName,
             deriveChildKeyUserString :: deriveChildKeyBridgeString :: Nil
           )
           .optionT
-        currentAddress <- walletStateApi
+        currentAddress <- wsa
           .getAddress(
             fellowshipName,
             templateName,
@@ -426,7 +418,7 @@ object ToplWalletImpl {
         someNextIndices,
         changeLock
       ) = tuple
-      fromAddress <- transactionBuilderApi.lockAddress(
+      fromAddress <- tba.lockAddress(
         predicateFundsToUnlock
       )
       response <- utxoAlgebra
