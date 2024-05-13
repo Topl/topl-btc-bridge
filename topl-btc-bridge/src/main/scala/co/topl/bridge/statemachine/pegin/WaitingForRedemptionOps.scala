@@ -25,10 +25,10 @@ object WaitingForRedemptionOps {
       vout: Long,
       scriptAsm: String,
       amountInSatoshis: Long,
-      feePerByte: CurrencyUnit
-  )(implicit
+      )(implicit
       bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F]
+      pegInWalletManager: BTCWalletAlgebra[F],
+      feePerByte: CurrencyUnit
   ) = {
 
     import cats.implicits._

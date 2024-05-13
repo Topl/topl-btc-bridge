@@ -22,7 +22,7 @@ object PeginTransitionRelation {
   import WaitingBTCOps._
   import WaitingForRedemptionOps._
 
-  def handleBlockchainEvent[F[_]: Async](
+  def transitionToEffect[F[_]: Async](
       currentState: PeginStateMachineState,
       blockchainEvent: BlockchainEvent
   )(implicit
@@ -38,43 +38,66 @@ object PeginTransitionRelation {
       utxoAlgebra: GenusQueryAlgebra[F],
       defaultFeePerByte: BitcoinCurrencyUnit,
       defaultMintingFee: Lvl
+  ) =
+    (currentState, blockchainEvent) match {
+      case (
+            cs: WaitingForRedemption,
+            BifrostFundsWithdrawn(_, _, secret, amount)
+          ) =>
+        import co.topl.brambl.syntax._
+        Async[F]
+          .start(
+            startClaimingProcess(
+              secret,
+              cs.claimAddress,
+              cs.currentWalletIdx,
+              cs.btcTxId,
+              cs.btcVout,
+              cs.scriptAsm, // scriptAsm,
+              amount.amount.toLong // amount,
+            )
+          )
+          .void
+      case (
+            WaitingForBTC(
+              _,
+              _,
+              _,
+              redeemAddress,
+              _
+            ),
+            BTCFundsDeposited(_, _, _, amount)
+          ) =>
+        Async[F]
+          .start(
+            startMintingProcess[F](
+              defaultFromFellowship,
+              defaultFromTemplate,
+              redeemAddress,
+              amount.satoshis.toLong
+            )
+          )
+          .void
+      case (_, _) => Async[F].unit
+    }
+
+  def handleBlockchainEvent[F[_]: Async](
+      currentState: PeginStateMachineState,
+      blockchainEvent: BlockchainEvent
+  )(
+      t2E: (PeginStateMachineState, BlockchainEvent) => F[Unit]
   ): Option[FSMTransition] =
     (currentState, blockchainEvent) match {
       case (
-            WaitingForRedemption(
-              currentWalletIdx,
-              scriptAsm,
-              _,
-              claimAddress,
-              btcTxId,
-              btcVout,
-              utxoTxId,
-              utxoIndex
-            ),
-            BifrostFundsWithdrawn(txId, txIndex, secret, amount)
+            cs: WaitingForRedemption,
+            be: BifrostFundsWithdrawn
           ) =>
-        if (utxoTxId == txId && utxoIndex == txIndex) {
-          import co.topl.brambl.syntax._
-          val claimingCommand =
-            Async[F]
-              .start(
-                startClaimingProcess(
-                  secret,
-                  claimAddress,
-                  currentWalletIdx,
-                  btcTxId,
-                  btcVout,
-                  scriptAsm, // scriptAsm,
-                  amount.amount.toLong, // amount,
-                  defaultFeePerByte
-                )
-              )
-              .void
+        if (cs.utxoTxId == be.txId && cs.utxoIndex == be.txIndex) {
           Some(
             FSMTransitionTo(
               currentState,
-              WaitingForClaim(claimAddress),
-              claimingCommand
+              WaitingForClaim(cs.claimAddress),
+              t2E(currentState, blockchainEvent)
             )
           )
         } else None
@@ -83,7 +106,6 @@ object PeginTransitionRelation {
             BTCFundsDeposited(scriptPubKey, _, _, _)
           ) =>
         val bech32Address = Bech32Address.fromString(claimAddress)
-
         if (scriptPubKey == bech32Address.scriptPubKey) {
           Some(
             EndTrasition[F](
@@ -92,30 +114,22 @@ object PeginTransitionRelation {
           )
         } else None
       case (
-            MintingTBTC(
-              currentWalletIdx,
-              scriptAsm,
-              redeemAddress,
-              claimAddress,
-              btcTxId,
-              btcVout,
-              _
-            ),
-            BifrostFundsDeposited(address, utxoTxId, utxoIndex, _)
+            cs: MintingTBTC,
+            be: BifrostFundsDeposited
           ) =>
-        if (redeemAddress == address) {
+        if (cs.redeemAddress == be.address) {
           Some(
             FSMTransitionTo(
               currentState,
               WaitingForRedemption(
-                currentWalletIdx,
-                scriptAsm,
-                redeemAddress,
-                claimAddress,
-                btcTxId,
-                btcVout,
-                utxoTxId,
-                utxoIndex
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.redeemAddress,
+                cs.claimAddress,
+                cs.btcTxId,
+                cs.btcVout,
+                be.utxoTxId,
+                be.utxoIndex
               ),
               Sync[F].unit
             )
@@ -133,21 +147,6 @@ object PeginTransitionRelation {
           ) =>
         val bech32Address = Bech32Address.fromString(escrowAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {
-          val mintingCommand = Async[F]
-            .start(
-              startMintingProcess[F](
-                defaultFromFellowship,
-                defaultFromTemplate,
-                redeemAddress,
-                toplKeypair,
-                amount.satoshis.toLong,
-                toplWalletAlgebra,
-                transactionAlgebra,
-                utxoAlgebra,
-                defaultMintingFee
-              )
-            )
-            .void
           Some(
             FSMTransitionTo(
               currentState,
@@ -160,7 +159,7 @@ object PeginTransitionRelation {
                 vout,
                 amount.satoshis.toLong
               ),
-              mintingCommand
+              t2E(currentState, blockchainEvent)
             )
           )
         } else

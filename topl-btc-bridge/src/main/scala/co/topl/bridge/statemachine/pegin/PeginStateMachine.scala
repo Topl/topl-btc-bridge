@@ -58,10 +58,10 @@ class PeginStateMachine[F[_]: Async: Logger](
       )
       sessionId = entry.getKey
       currentState = entry.getValue
-    } yield handleBlockchainEvent(
+    } yield handleBlockchainEvent[F](
       currentState,
       blockchainEvent
-    )
+    )(transitionToEffect[F])
       .map(x =>
         x match {
           case EndTrasition(effect) =>

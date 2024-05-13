@@ -1,5 +1,31 @@
 package co.topl.bridge.statemachine.pegin
+import _root_.co.topl.bridge.BifrostCurrencyUnit
+import org.bitcoins.core.currency.CurrencyUnit
+import org.bitcoins.core.protocol.script.ScriptPubKey
 
+sealed trait BlockchainEvent
+
+case class BTCFundsWithdrawn(txId: String, vout: Long) extends BlockchainEvent
+
+case class BTCFundsDeposited(
+    scriptPubKey: ScriptPubKey,
+    txId: String,
+    vout: Long,
+    amount: CurrencyUnit
+) extends BlockchainEvent
+case class BifrostFundsDeposited(
+    address: String,
+    utxoTxId: String,
+    utxoIndex: Int,
+    amount: BifrostCurrencyUnit
+) extends BlockchainEvent
+
+case class BifrostFundsWithdrawn(
+    txId: String,
+    txIndex: Int,
+    secret: String,
+    amount: BifrostCurrencyUnit
+) extends BlockchainEvent
 
 sealed trait PeginStateMachineState
 

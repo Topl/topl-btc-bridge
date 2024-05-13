@@ -89,15 +89,15 @@ object WaitingBTCOps {
       fromFellowship: Fellowship,
       fromTemplate: Template,
       redeemAddress: String,
+      amount: Long
+  )(implicit
       keyPair: KeyPair,
-      amount: Long,
       toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
-      utxoAlgebra: GenusQueryAlgebra[F],
-      fee: Lvl
-  )(implicit
       walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F]
+      transactionBuilderApi: TransactionBuilderApi[F],
+      utxoAlgebra: GenusQueryAlgebra[F],
+      defaultMintingFee: Lvl
   ): F[Unit] = {
     import cats.implicits._
     for {
@@ -119,7 +119,7 @@ object WaitingBTCOps {
         keyPair,
         toplWalletAlgebra,
         transactionAlgebra,
-        fee
+        defaultMintingFee
       )
     } yield ()
   }
