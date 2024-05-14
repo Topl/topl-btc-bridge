@@ -10,6 +10,7 @@ import co.topl.bridge.PeginSessionState
 import co.topl.bridge.PeginSessionState.PeginSessionStateMintingTBTC
 import co.topl.bridge.PeginSessionState.PeginSessionStateWaitingForBTC
 import co.topl.bridge.PeginSessionState.PeginSessionWaitingForRedemption
+import co.topl.bridge.PeginSessionState.PeginSessionWaitingForClaim
 import co.topl.bridge.Template
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
@@ -112,7 +113,7 @@ object PeginStateMachine {
       case _: MintingTBTC          => PeginSessionStateMintingTBTC
       case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
       case _: WaitingForRedemption => PeginSessionWaitingForRedemption
-      case _: WaitingForClaim      => PeginSessionStateWaitingForBTC
+      case _: WaitingForClaim      => PeginSessionWaitingForClaim
     }
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `brambl-cli` version (for IT) is now 2.0.0-beta3.
 - Updated BramblSc to 2.0.0-beta4.
 - Integration tests to use our own Bitcoin regtest node Docker image.
+- Front-end to use the new minting status.
 
 ### Removed
 
