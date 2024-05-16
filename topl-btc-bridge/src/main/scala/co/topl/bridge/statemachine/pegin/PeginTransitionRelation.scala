@@ -3,19 +3,19 @@ package co.topl.bridge.statemachine.pegin
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
+import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.Fellowship
 import co.topl.bridge.Lvl
 import co.topl.bridge.Template
-import co.topl.bridge.managers.ToplWalletAlgebra
+import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.TransactionAlgebra
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
-import quivr.models.KeyPair
-import co.topl.brambl.dataApi.WalletStateAlgebra
-import co.topl.brambl.builders.TransactionBuilderApi
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
-import co.topl.bridge.managers.BTCWalletAlgebra
+import quivr.models.KeyPair
 
 object PeginTransitionRelation {
 
@@ -27,13 +27,13 @@ object PeginTransitionRelation {
       blockchainEvent: BlockchainEvent
   )(implicit
       toplKeypair: KeyPair,
+      walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       defaultFromFellowship: Fellowship,
       defaultFromTemplate: Template,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
       utxoAlgebra: GenusQueryAlgebra[F],
       defaultFeePerByte: BitcoinCurrencyUnit,
@@ -66,7 +66,7 @@ object PeginTransitionRelation {
               redeemAddress,
               _
             ),
-            BTCFundsDeposited(_, _, _, amount)
+            BTCFundsDeposited(_, _, _, _, amount)
           ) =>
         Async[F]
           .start(
@@ -103,7 +103,7 @@ object PeginTransitionRelation {
         } else None
       case (
             WaitingForClaim(claimAddress),
-            BTCFundsDeposited(scriptPubKey, _, _, _)
+            BTCFundsDeposited(_, scriptPubKey, _, _, _)
           ) =>
         val bech32Address = Bech32Address.fromString(claimAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {
@@ -143,7 +143,7 @@ object PeginTransitionRelation {
               redeemAddress,
               claimAddress
             ),
-            BTCFundsDeposited(scriptPubKey, txId, vout, amount)
+            BTCFundsDeposited(_, scriptPubKey, txId, vout, amount)
           ) =>
         val bech32Address = Bech32Address.fromString(escrowAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {

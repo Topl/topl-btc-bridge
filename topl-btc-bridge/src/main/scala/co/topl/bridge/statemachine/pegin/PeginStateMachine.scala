@@ -18,7 +18,6 @@ import co.topl.bridge.managers.SessionCreated
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.SessionUpdated
-import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.managers.TransactionAlgebra
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.typelevel.log4cats.Logger
@@ -30,6 +29,7 @@ import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import co.topl.bridge.managers.BTCWalletAlgebra
+import co.topl.brambl.wallet.WalletApi
 
 trait PeginStateMachineAlgebra[F[_]] {
 
@@ -49,11 +49,11 @@ object PeginStateMachine {
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
       sessionManager: SessionManagerAlgebra[F],
+      walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
       toplKeypair: KeyPair,
       walletStateApi: WalletStateAlgebra[F],
-      toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F],

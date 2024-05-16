@@ -27,6 +27,7 @@ object BlockProcessor {
         b.block.transactions.flatMap(transaction =>
           transaction.inputs.map(input =>
             BTCFundsWithdrawn(
+              ???,
               input.previousOutput.txIdBE.hex,
               input.previousOutput.vout.toLong
             )
@@ -35,6 +36,7 @@ object BlockProcessor {
           transaction.outputs.zipWithIndex.map { outputAndVout =>
             val (output, vout) = outputAndVout
             BTCFundsDeposited(
+              ???,
               output.scriptPubKey,
               transaction.txIdBE.hex,
               vout.toLong,

@@ -17,10 +17,12 @@ import co.topl.genus.services.Txo
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
+import co.topl.brambl.wallet.WalletApi
 
 object WaitingBTCOps {
 
   import WalletApiHelpers._
+  import ToplWalletAlgebra._
 
   private def getGroupTokeUtxo(txos: Seq[Txo]) = {
     txos
@@ -58,22 +60,25 @@ object WaitingBTCOps {
       fromTemplate: Template,
       assetMintingStatement: AssetMintingStatement,
       keyPair: KeyPair,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
       fee: Lvl
+  )(implicit
+      tba: TransactionBuilderApi[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F],
+      utxoAlgebra: GenusQueryAlgebra[F]
   ) = for {
-    ioTransaction <- toplWalletAlgebra
-      .createSimpleAssetMintingTransactionFromParams(
-        keyPair,
-        fromFellowship,
-        fromTemplate,
-        None,
-        fee,
-        None,
-        None,
-        assetMintingStatement,
-        redeemAddress
-      )
+    ioTransaction <- createSimpleAssetMintingTransactionFromParams(
+      keyPair,
+      fromFellowship,
+      fromTemplate,
+      None,
+      fee,
+      None,
+      None,
+      assetMintingStatement,
+      redeemAddress
+    )
     provedIoTx <- transactionAlgebra
       .proveSimpleTransactionFromParams(
         ioTransaction,
@@ -92,8 +97,8 @@ object WaitingBTCOps {
       amount: Long
   )(implicit
       keyPair: KeyPair,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
       transactionAlgebra: TransactionAlgebra[F],
+      walletApi: WalletApi[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F],
@@ -117,7 +122,6 @@ object WaitingBTCOps {
         fromTemplate,
         assetMintingStatement,
         keyPair,
-        toplWalletAlgebra,
         transactionAlgebra,
         defaultMintingFee
       )

@@ -42,7 +42,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForBTC(1, "", escrowAddress, redeemAddress, claimAddress),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
@@ -58,7 +58,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForBTC(1, "", escrowAddressOther, redeemAddress, claimAddress),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty
     )
@@ -191,7 +191,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
             "bifrostTxId",
             0
           ),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty &&
         PeginTransitionRelation
@@ -206,7 +206,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
               "bifrostTxId",
               0
             ),
-            BTCFundsWithdrawn("txId", 0)
+            BTCFundsWithdrawn(1, "txId", 0)
           )(transitionToEffect[IO](_, _))
           .isEmpty
     )
@@ -219,7 +219,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForClaim(claimAddress),
-          BTCFundsDeposited(claimAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(1, claimAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
         .isInstanceOf[EndTrasition[IO]]: @nowarn
@@ -233,7 +233,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForClaim(claimAddress),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty
     )
@@ -346,7 +346,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
             0,
             100
           ),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty &&
         PeginTransitionRelation
@@ -360,7 +360,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
               0,
               100
             ),
-            BTCFundsWithdrawn("txId", 0)
+            BTCFundsWithdrawn(1, "txId", 0)
           )(transitionToEffect[IO](_, _))
           .isEmpty
     )

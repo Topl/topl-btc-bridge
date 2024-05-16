@@ -22,7 +22,6 @@ import co.topl.bridge.ToplBTCBridgeParamConfig
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerImpl
-import co.topl.bridge.managers.ToplWalletImpl
 import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletManagementUtils
 import co.topl.bridge.statemachine.pegin.PeginStateMachine
@@ -76,11 +75,8 @@ trait AppModule
         params.toplSecureConnection
       )
     )
-    implicit val toplWalletImpl = ToplWalletImpl.make[IO](
-      FellowshipStorageApi.make(walletRes),
-      TemplateStorageApi.make(walletRes),
-      genusQueryAlgebra
-    )
+    implicit val fellowshipStorageApi = FellowshipStorageApi.make(walletRes)
+    implicit val templateStorageApi = TemplateStorageApi.make(walletRes)
     implicit val transactionAlgebra = TransactionAlgebra.make[IO](
       walletApi,
       walletStateAlgebra,
@@ -119,14 +115,11 @@ trait AppModule
       router = Router.define(
         "/" -> webUI(),
         "/api" -> apiServices(
-          walletApi,
           walletStateAlgebra,
-          genusQueryAlgebra,
           keyPair,
           sessionManager,
           pegInWalletManager,
           walletManager,
-          toplWalletImpl,
           params.blockToRecover,
           params.btcNetwork,
           params.toplNetwork,

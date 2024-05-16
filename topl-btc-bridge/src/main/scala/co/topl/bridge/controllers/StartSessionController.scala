@@ -32,6 +32,12 @@ import quivr.models.KeyPair
 import co.topl.shared.WalletSetupError
 import co.topl.bridge.PeginSessionState
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
+import co.topl.brambl.dataApi.FellowshipStorageAlgebra
+import co.topl.brambl.dataApi.TemplateStorageAlgebra
+import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.wallet.WalletApi
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.dataApi.GenusQueryAlgebra
 
 object StartSessionController {
 
@@ -82,10 +88,12 @@ object StartSessionController {
           btcNetwork.btcNetwork
         )
         .value
-      claimAddress = Bech32Address.apply(
-        P2WPKHWitnessSPKV0(btcBridgePKey),
-        btcNetwork.btcNetwork
-      ).value
+      claimAddress = Bech32Address
+        .apply(
+          P2WPKHWitnessSPKV0(btcBridgePKey),
+          btcNetwork.btcNetwork
+        )
+        .value
 
     } yield (
       address,
@@ -111,10 +119,16 @@ object StartSessionController {
       sessionManager: SessionManagerAlgebra[F],
       blockToRecover: Int,
       keyPair: KeyPair,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
       btcNetwork: BitcoinNetworkIdentifiers
+  )(implicit
+      fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
+      templateStorageAlgebra: TemplateStorageAlgebra[F],
+      tba: TransactionBuilderApi[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F]
   ): F[Either[BridgeError, StartPeginSessionResponse]] = {
     import cats.implicits._
+    import ToplWalletAlgebra._
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (btcPeginCurrentWalletIdx, btcPeginBridgePKey) = idxAndnewKey
@@ -122,7 +136,7 @@ object StartSessionController {
       (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
-      someRedeemAdressAndKey <- toplWalletAlgebra.setupBridgeWalletForMinting(
+      someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,
         mintTemplateName,
         keyPair,
@@ -164,24 +178,28 @@ object StartSessionController {
       req: StartPegoutSessionRequest,
       toplNetwork: ToplNetworkIdentifiers,
       keyPair: KeyPair,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       waitTime: Int
+  )(implicit
+      fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
+      templateStorageAlgebra: TemplateStorageAlgebra[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F]
   ): F[Either[BridgeError, StartPegoutSessionResponse]] = {
     import cats.implicits._
+    import ToplWalletAlgebra._
     (for {
       fellowshipId <- Sync[F].delay(UUID.randomUUID().toString)
-      newAddress <- toplWalletAlgebra
-        .setupBridgeWallet(
-          toplNetwork,
-          keyPair,
-          req.userBaseKey,
-          fellowshipId,
-          fellowshipId,
-          req.sha256,
-          waitTime,
-          req.currentHeight
-        )
+      newAddress <- setupBridgeWallet(
+        toplNetwork,
+        keyPair,
+        req.userBaseKey,
+        fellowshipId,
+        fellowshipId,
+        req.sha256,
+        waitTime,
+        req.currentHeight
+      )
         .map(_.getOrElse(throw new WalletSetupError("Failed to create wallet")))
       sessionInfo = PegoutSessionInfo(
         fellowshipId,
