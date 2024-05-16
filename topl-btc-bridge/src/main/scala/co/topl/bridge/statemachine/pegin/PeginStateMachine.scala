@@ -31,6 +31,8 @@ import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.brambl.wallet.WalletApi
 import cats.effect.kernel.Resource
 import io.grpc.ManagedChannel
+import cats.effect.kernel.Ref
+import co.topl.bridge.BTCWaitExpirationTime
 
 trait PeginStateMachineAlgebra[F[_]] {
 
@@ -47,6 +49,7 @@ trait PeginStateMachineAlgebra[F[_]] {
 object PeginStateMachine {
 
   def make[F[_]: Async: Logger](
+      currentBitcoinNetworkHeight: Ref[F, Int],
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
       sessionManager: SessionManagerAlgebra[F],
@@ -61,6 +64,7 @@ object PeginStateMachine {
       defaultFromTemplate: Template,
       defaultFeePerByte: BitcoinCurrencyUnit,
       defaultMintingFee: Lvl,
+      btcWaitExpirationTime: BTCWaitExpirationTime,
       channelResource: Resource[F, ManagedChannel]
   ) = new PeginStateMachineAlgebra[F] {
 
@@ -130,15 +134,18 @@ object PeginStateMachine {
       sessionEvent match {
         case SessionCreated(sessionId, psi: PeginSessionInfo) =>
           info"New session created, waiting for funds at ${psi.escrowAddress}" >>
-            Sync[F].delay(
-              map.put(
-                sessionId,
-                WaitingForBTC(
-                  psi.btcPeginCurrentWalletIdx,
-                  psi.scriptAsm,
-                  psi.escrowAddress,
-                  psi.redeemAddress,
-                  psi.claimAddress
+            currentBitcoinNetworkHeight.get.flatMap(cHeight =>
+              Sync[F].delay(
+                map.put(
+                  sessionId,
+                  WaitingForBTC(
+                    cHeight,
+                    psi.btcPeginCurrentWalletIdx,
+                    psi.scriptAsm,
+                    psi.escrowAddress,
+                    psi.redeemAddress,
+                    psi.claimAddress
+                  )
                 )
               )
             )

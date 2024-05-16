@@ -29,7 +29,7 @@ trait BridgeParamsDescriptor {
           "Network name: Possible values: mainnet, testnet, private. (mandatory)"
         ),
       opt[Int]("blocks-to-recover")
-        .action((x, c) => c.copy(blockToRecover = x))
+        .action((x, c) => c.copy(btcWaitExpirationTime = x))
         .text(
           "The number of blocks that the user needs to wait before they can reclaim their funds. (default: 100)"
         ),

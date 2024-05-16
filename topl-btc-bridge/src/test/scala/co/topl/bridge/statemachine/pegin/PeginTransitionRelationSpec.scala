@@ -6,8 +6,9 @@ import co.topl.bridge.AssetToken
 import munit.CatsEffectSuite
 import org.bitcoins.core.protocol.Bech32Address
 import scala.annotation.nowarn
+import co.topl.bridge.controllers.SharedData
 
-class PeginTransitionRelationSpec extends CatsEffectSuite {
+class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
 
   val escrowAddress =
     "bcrt1qsc9qvqvlswpzlvf4t80g05l2la2cykazmdcur45st5g339vw6aps47j7sw"
@@ -41,8 +42,16 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForBTC(1, "", escrowAddress, redeemAddress, claimAddress),
+          WaitingForBTC(1L, 1, "", escrowAddress, redeemAddress, claimAddress),
           BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .asInstanceOf[FSMTransitionTo[IO]]
+        .nextState
+        .isInstanceOf[MintingTBTC] && PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
+          BTCFundsDeposited(100, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
@@ -57,10 +66,32 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForBTC(1, "", escrowAddressOther, redeemAddress, claimAddress),
+          WaitingForBTC(
+            1,
+            1,
+            "",
+            escrowAddressOther,
+            redeemAddress,
+            claimAddress
+          ),
           BTCFundsDeposited(1, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty
+    )
+  }
+
+  // WaitingForBTC -> EndTransition when height difference bigger than expiration time
+  test(
+    "PeginTransitionRelation should transition from WaitingForBTC to EndTransition when the height difference is bigger than expiration time"
+  ) {
+    assert(
+      (PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
+          BTCFundsDeposited(101, escrowAddressPubkey, "txId", 0, 100.satoshis)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .isInstanceOf[EndTrasition[IO]]: @nowarn)
     )
   }
 
@@ -72,7 +103,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForBTC(1, "", escrowAddress, redeemAddress, claimAddress),
+          WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
           BifrostFundsDeposited(
             redeemAddress,
             "utxoTxId",
@@ -83,7 +114,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite {
         .isEmpty &&
         PeginTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForBTC(1, "", escrowAddress, redeemAddress, claimAddress),
+            WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
             BifrostFundsWithdrawn(
               "bifrostTxId",
               0,

@@ -32,6 +32,7 @@ case class BifrostFundsWithdrawn(
 sealed trait PeginStateMachineState
 
 case class WaitingForBTC(
+    currentBTCBlockHeight: Long,
     currentWalletIdx: Int,
     scriptAsm: String,
     escrowAddress: String,

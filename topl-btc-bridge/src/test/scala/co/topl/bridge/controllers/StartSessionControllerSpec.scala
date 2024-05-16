@@ -1,6 +1,7 @@
 package co.topl.bridge.controllers
 
 import cats.effect.IO
+import cats.effect.std.Queue
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.RpcChannelResource
@@ -13,6 +14,7 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.managers.BTCWalletImpl
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
+import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionInfo
 import co.topl.bridge.managers.SessionManagerImpl
 import co.topl.bridge.managers.WalletManagementUtils
@@ -30,8 +32,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
-import cats.effect.std.Queue
-import co.topl.bridge.managers.SessionEvent
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -98,7 +98,6 @@ class StartSessionControllerSpec
             peginWallet,
             peginWallet,
             sessionManager,
-            testBlockToRecover,
             keyPair,
             RegTest
           )
@@ -241,7 +240,6 @@ class StartSessionControllerSpec
           peginWallet,
           peginWallet,
           sessionManager,
-          testBlockToRecover,
           keypair,
           RegTest
         )
@@ -294,7 +292,6 @@ class StartSessionControllerSpec
           peginWallet,
           peginWallet,
           sessionManager,
-          testBlockToRecover,
           keypair,
           RegTest
         )

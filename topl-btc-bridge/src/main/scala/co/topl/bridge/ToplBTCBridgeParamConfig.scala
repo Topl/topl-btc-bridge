@@ -8,7 +8,7 @@ import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
 
 case class ToplBTCBridgeParamConfig(
-    blockToRecover: Int =
+    btcWaitExpirationTime: Int =
       100, // the number of blocks to wait before the user can reclaim their funds
     pegInSeedFile: String = "pegin-wallet.json",
     pegInPassword: String = "password",

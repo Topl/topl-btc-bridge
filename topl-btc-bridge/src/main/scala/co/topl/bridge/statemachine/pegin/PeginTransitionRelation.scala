@@ -1,22 +1,23 @@
 package co.topl.bridge.statemachine.pegin
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.Fellowship
 import co.topl.bridge.Lvl
 import co.topl.bridge.Template
 import co.topl.bridge.managers.BTCWalletAlgebra
+import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import quivr.models.KeyPair
-import cats.effect.kernel.Resource
-import io.grpc.ManagedChannel
 
 object PeginTransitionRelation {
 
@@ -64,6 +65,7 @@ object PeginTransitionRelation {
               _,
               _,
               _,
+              _,
               redeemAddress,
               _
             ),
@@ -87,6 +89,8 @@ object PeginTransitionRelation {
       blockchainEvent: BlockchainEvent
   )(
       t2E: (PeginStateMachineState, BlockchainEvent) => F[Unit]
+  )(implicit
+      btcWaitExpirationTime: BTCWaitExpirationTime
   ): Option[FSMTransition] =
     (currentState, blockchainEvent) match {
       case (
@@ -138,33 +142,50 @@ object PeginTransitionRelation {
         } else None
       case (
             WaitingForBTC(
+              startBlockHeight,
               currentWalletIdx,
               scriptAsm,
               escrowAddress,
               redeemAddress,
               claimAddress
             ),
-            BTCFundsDeposited(_, scriptPubKey, txId, vout, amount)
+            BTCFundsDeposited(
+              currentBTCBlockHeight,
+              scriptPubKey,
+              txId,
+              vout,
+              amount
+            )
           ) =>
-        val bech32Address = Bech32Address.fromString(escrowAddress)
-        if (scriptPubKey == bech32Address.scriptPubKey) {
+        if (
+          currentBTCBlockHeight - startBlockHeight > btcWaitExpirationTime.underlying
+        )
           Some(
-            FSMTransitionTo(
-              currentState,
-              MintingTBTC(
-                currentWalletIdx,
-                scriptAsm,
-                redeemAddress,
-                claimAddress,
-                txId,
-                vout,
-                amount.satoshis.toLong
-              ),
-              t2E(currentState, blockchainEvent)
+            EndTrasition[F](
+              Async[F].unit
             )
           )
-        } else
-          None
+        else {
+          val bech32Address = Bech32Address.fromString(escrowAddress)
+          if (scriptPubKey == bech32Address.scriptPubKey) {
+            Some(
+              FSMTransitionTo(
+                currentState,
+                MintingTBTC(
+                  currentWalletIdx,
+                  scriptAsm,
+                  redeemAddress,
+                  claimAddress,
+                  txId,
+                  vout,
+                  amount.satoshis.toLong
+                ),
+                t2E(currentState, blockchainEvent)
+              )
+            )
+          } else
+            None
+        }
       case (
             _: WaitingForRedemption,
             _

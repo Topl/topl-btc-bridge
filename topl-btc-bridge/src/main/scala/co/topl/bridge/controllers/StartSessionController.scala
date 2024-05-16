@@ -37,6 +37,7 @@ import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
+import co.topl.bridge.BTCWaitExpirationTime
 
 object StartSessionController {
 
@@ -48,7 +49,7 @@ object StartSessionController {
       pUserPKey: String,
       btcPeginBridgePKey: String,
       btcBridgePKey: ECPublicKey,
-      blockToRecover: Int,
+      btcWaitExpirationTime: BTCWaitExpirationTime,
       btcNetwork: BitcoinNetworkIdentifiers,
       toplBridgePKey: String,
       redeemAddress: String
@@ -71,7 +72,7 @@ object StartSessionController {
           userPKey,
           ECPublicKey.fromHex(btcPeginBridgePKey),
           hash,
-          blockToRecover
+          btcWaitExpirationTime.underlying
         )
       scriptAsm = BytesUtil.toByteVector(asm)
       scriptHash = CryptoUtil.sha256(scriptAsm)
@@ -116,12 +117,12 @@ object StartSessionController {
       pegInWalletManager: BTCWalletAlgebra[F],
       bridgeWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
-      blockToRecover: Int,
       keyPair: KeyPair,
       btcNetwork: BitcoinNetworkIdentifiers
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
+      btcWaitExpirationTime: BTCWaitExpirationTime,
       tba: TransactionBuilderApi[F],
       walletApi: WalletApi[F],
       wsa: WalletStateAlgebra[F]
@@ -155,7 +156,7 @@ object StartSessionController {
         req.pkey,
         btcPeginBridgePKey.hex,
         btcBridgePKey,
-        blockToRecover,
+        btcWaitExpirationTime,
         btcNetwork,
         bridgeBifrostKey,
         someRedeemAdress.get

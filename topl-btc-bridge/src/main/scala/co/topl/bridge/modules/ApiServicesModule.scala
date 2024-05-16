@@ -39,6 +39,7 @@ import org.http4s.circe._
 import org.http4s.dsl.io._
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
+import co.topl.bridge.BTCWaitExpirationTime
 
 trait ApiServicesModule {
 
@@ -128,7 +129,6 @@ trait ApiServicesModule {
       sessionManager: SessionManagerAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       bridgeWalletManager: BTCWalletAlgebra[IO],
-      blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
       toplNetwork: ToplNetworkIdentifiers,
       currentState: Ref[IO, SystemGlobalState]
@@ -138,6 +138,7 @@ trait ApiServicesModule {
       tba: TransactionBuilderApi[IO],
       walletApi: WalletApi[IO],
       wsa: WalletStateAlgebra[IO],
+      btcWaitExpirationTime: BTCWaitExpirationTime,
       genusQueryAlgebra: GenusQueryAlgebra[IO]
   ) = {
     import io.circe.syntax._
@@ -190,7 +191,6 @@ trait ApiServicesModule {
             pegInWalletManager,
             bridgeWalletManager,
             sessionManager,
-            blockToRecover,
             toplKeypair,
             btcNetwork
           )

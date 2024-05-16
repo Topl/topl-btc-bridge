@@ -23,6 +23,7 @@ import quivr.models.KeyPair
 import scala.concurrent.duration._
 import cats.effect.kernel.Resource
 import io.grpc.ManagedChannel
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
 
 trait InitializationModuleAlgebra[F[_]] {
 
@@ -36,8 +37,10 @@ trait InitializationModuleAlgebra[F[_]] {
 object InitializationModule {
 
   def make[F[_]: Async: Logger](
+      currentBitcoinNetworkHeight: Ref[F, Int],
       currentState: Ref[F, SystemGlobalState]
   )(implicit
+      bitcoind: BitcoindRpcClient,
       keyPair: KeyPair,
       tba: TransactionBuilderApi[F],
       wsa: WalletStateAlgebra[F],
@@ -372,6 +375,12 @@ object InitializationModule {
       } yield hasGroupToken
     )
 
+    private def setBlochainHeight() = for {
+      tipHeight <- Async[F].fromFuture(Async[F].delay(bitcoind.getBlockCount))
+      _ <- info"Setting blockchain height to $tipHeight"
+      _ <- currentBitcoinNetworkHeight.set(tipHeight)
+    } yield ()
+
     private def checkForSeriesToken(
         fromFellowship: Fellowship,
         fromTemplate: Template
@@ -418,6 +427,7 @@ object InitializationModule {
         _ <-
           if (!hasSeriesToken) mintSeriesToken(fromFellowship, fromTemplate)
           else Async[F].unit
+        _ <- setBlochainHeight()
       } yield ()).handleErrorWith { e =>
         e.printStackTrace
         error"Error setting up wallet: $e" >>
