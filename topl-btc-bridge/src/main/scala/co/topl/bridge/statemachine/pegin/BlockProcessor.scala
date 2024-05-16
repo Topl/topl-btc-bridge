@@ -46,15 +46,17 @@ object BlockProcessor {
     case Right(b) =>
       fs2.Stream(
         b.block.transactions.flatMap(transaction =>
-          transaction.inputs.map { input =>
-            BifrostFundsWithdrawn(
-              Encoding.encodeToBase58(input.address.id.value.toByteArray()),
-              input.address.index,
-              Try(extractFromToplTx(input.attestation))
-                .getOrElse(""), // TODO: Make this safer
-              toCurrencyUnit(input.value.value)
-            )
-          }
+          transaction.inputs
+            .filter(x => isLvlSeriesGroupOrAsset(x.value.value))
+            .map { input =>
+              BifrostFundsWithdrawn(
+                Encoding.encodeToBase58(input.address.id.value.toByteArray()),
+                input.address.index,
+                Try(extractFromToplTx(input.attestation))
+                  .getOrElse(""), // TODO: Make this safer
+                toCurrencyUnit(input.value.value)
+              )
+            }
         ) ++ b.block.transactions.flatMap(transaction =>
           transaction.outputs.zipWithIndex.map { outputAndIdx =>
             val (output, idx) = outputAndIdx
