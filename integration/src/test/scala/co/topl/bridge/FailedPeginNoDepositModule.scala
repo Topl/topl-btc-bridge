@@ -3,11 +3,9 @@ package co.topl.bridge
 import cats.effect.IO
 import co.topl.shared.BridgeContants
 import co.topl.shared.MintingStatusRequest
-import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
 import fs2.io.process
-import io.circe.parser._
 import org.http4s.Method
 import org.http4s.Request
 import org.http4s.Uri
@@ -15,11 +13,7 @@ import org.http4s._
 import org.http4s.ember.client._
 import org.http4s.headers.`Content-Type`
 
-import java.io.ByteArrayInputStream
-import java.nio.file.Paths
 import scala.concurrent.duration._
-import scala.io.Source
-import fs2.io.file.Files
 
 trait FailedPeginNoDepositModule {
 
@@ -30,6 +24,11 @@ trait FailedPeginNoDepositModule {
 
     assertIO(
       for {
+        createWalletOut <- process
+          .ProcessBuilder(DOCKER_CMD, createWallet: _*)
+          .spawn[IO]
+          .use { getText }
+        _ <- IO.println("createWalletOut: " + createWalletOut)
         newAddress <- process // we get the new address
           .ProcessBuilder(DOCKER_CMD, getNewaddress: _*)
           .spawn[IO]
@@ -61,7 +60,7 @@ trait FailedPeginNoDepositModule {
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         _ <- IO.println("Generating blocks..")
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(101, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(102, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder
