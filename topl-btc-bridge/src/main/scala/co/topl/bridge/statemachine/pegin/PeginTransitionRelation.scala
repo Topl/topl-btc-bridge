@@ -11,11 +11,12 @@ import co.topl.bridge.Fellowship
 import co.topl.bridge.Lvl
 import co.topl.bridge.Template
 import co.topl.bridge.managers.BTCWalletAlgebra
-import co.topl.bridge.managers.TransactionAlgebra
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import quivr.models.KeyPair
+import cats.effect.kernel.Resource
+import io.grpc.ManagedChannel
 
 object PeginTransitionRelation {
 
@@ -32,9 +33,9 @@ object PeginTransitionRelation {
       pegInWalletManager: BTCWalletAlgebra[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
+      channelResource: Resource[F, ManagedChannel],
       defaultFromFellowship: Fellowship,
       defaultFromTemplate: Template,
-      transactionAlgebra: TransactionAlgebra[F],
       utxoAlgebra: GenusQueryAlgebra[F],
       defaultFeePerByte: BitcoinCurrencyUnit,
       defaultMintingFee: Lvl

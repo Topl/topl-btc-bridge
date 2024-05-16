@@ -18,11 +18,14 @@ import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
 import co.topl.brambl.wallet.WalletApi
+import cats.effect.kernel.Resource
+import io.grpc.ManagedChannel
 
 object WaitingBTCOps {
 
   import WalletApiHelpers._
   import ToplWalletAlgebra._
+  import TransactionAlgebra._
 
   private def getGroupTokeUtxo(txos: Seq[Txo]) = {
     txos
@@ -60,13 +63,13 @@ object WaitingBTCOps {
       fromTemplate: Template,
       assetMintingStatement: AssetMintingStatement,
       keyPair: KeyPair,
-      transactionAlgebra: TransactionAlgebra[F],
       fee: Lvl
   )(implicit
       tba: TransactionBuilderApi[F],
       walletApi: WalletApi[F],
       wsa: WalletStateAlgebra[F],
-      utxoAlgebra: GenusQueryAlgebra[F]
+      utxoAlgebra: GenusQueryAlgebra[F],
+      channelResource: Resource[F, ManagedChannel]
   ) = for {
     ioTransaction <- createSimpleAssetMintingTransactionFromParams(
       keyPair,
@@ -79,14 +82,12 @@ object WaitingBTCOps {
       assetMintingStatement,
       redeemAddress
     )
-    provedIoTx <- transactionAlgebra
-      .proveSimpleTransactionFromParams(
-        ioTransaction,
-        keyPair
-      )
+    provedIoTx <- proveSimpleTransactionFromParams(
+      ioTransaction,
+      keyPair
+    )
       .flatMap(Async[F].fromEither(_))
-    txId <- transactionAlgebra
-      .broadcastSimpleTransactionFromParams(provedIoTx)
+    txId <- broadcastSimpleTransactionFromParams(provedIoTx)
       .flatMap(Async[F].fromEither(_))
   } yield txId
 
@@ -97,11 +98,11 @@ object WaitingBTCOps {
       amount: Long
   )(implicit
       keyPair: KeyPair,
-      transactionAlgebra: TransactionAlgebra[F],
       walletApi: WalletApi[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F],
+      channelResource: Resource[F, ManagedChannel],
       defaultMintingFee: Lvl
   ): F[Unit] = {
     import cats.implicits._
@@ -122,7 +123,6 @@ object WaitingBTCOps {
         fromTemplate,
         assetMintingStatement,
         keyPair,
-        transactionAlgebra,
         defaultMintingFee
       )
     } yield ()

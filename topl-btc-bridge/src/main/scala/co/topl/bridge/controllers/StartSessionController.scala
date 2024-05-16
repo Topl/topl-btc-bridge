@@ -2,6 +2,12 @@ package co.topl.bridge.controllers
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
+import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.brambl.dataApi.FellowshipStorageAlgebra
+import co.topl.brambl.dataApi.TemplateStorageAlgebra
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.PeginSessionState
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
@@ -13,10 +19,13 @@ import co.topl.shared.BridgeError
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidKey
 import co.topl.shared.StartPeginSessionRequest
-import co.topl.shared.StartPegoutSessionRequest
 import co.topl.shared.StartPeginSessionResponse
+import co.topl.shared.StartPegoutSessionRequest
+import co.topl.shared.StartPegoutSessionResponse
 import co.topl.shared.ToplNetworkIdentifiers
+import co.topl.shared.WalletSetupError
 import org.bitcoins.core.protocol.Bech32Address
+import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
 import org.bitcoins.core.script.constant.OP_0
 import org.bitcoins.core.script.constant.ScriptConstant
@@ -24,20 +33,10 @@ import org.bitcoins.core.util.BitcoinScriptUtil
 import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
+import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
-import co.topl.shared.StartPegoutSessionResponse
-import quivr.models.KeyPair
-import co.topl.shared.WalletSetupError
-import co.topl.bridge.PeginSessionState
-import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
-import co.topl.brambl.dataApi.FellowshipStorageAlgebra
-import co.topl.brambl.dataApi.TemplateStorageAlgebra
-import co.topl.brambl.builders.TransactionBuilderApi
-import co.topl.brambl.wallet.WalletApi
-import co.topl.brambl.dataApi.WalletStateAlgebra
-import co.topl.brambl.dataApi.GenusQueryAlgebra
 
 object StartSessionController {
 

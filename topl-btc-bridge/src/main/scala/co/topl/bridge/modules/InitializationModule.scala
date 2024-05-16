@@ -21,6 +21,8 @@ import quivr.models.Int128
 import quivr.models.KeyPair
 
 import scala.concurrent.duration._
+import cats.effect.kernel.Resource
+import io.grpc.ManagedChannel
 
 trait InitializationModuleAlgebra[F[_]] {
 
@@ -41,12 +43,13 @@ object InitializationModule {
       wsa: WalletStateAlgebra[F],
       wa: WalletApi[F],
       genusQueryAlgebra: GenusQueryAlgebra[F],
-      transactionAlgebra: TransactionAlgebra[F]
+      channelResource: Resource[F, ManagedChannel]
   ) = new InitializationModuleAlgebra[F] {
 
     import WalletApiHelpers._
     import SeriesMintingOps._
     import GroupMintingOps._
+    import TransactionAlgebra._
 
     import org.typelevel.log4cats.syntax._
 
@@ -234,7 +237,7 @@ object InitializationModule {
         ),
         someChangeLock
       )
-      provedTx <- transactionAlgebra.proveSimpleTransactionFromParams(
+      provedTx <- proveSimpleTransactionFromParams(
         ioTx,
         keyPair
       )
@@ -242,7 +245,7 @@ object InitializationModule {
         provedTx.isRight,
         "Error proving transaction while minting group token"
       )
-      eitherSentTx <- transactionAlgebra.broadcastSimpleTransactionFromParams(
+      eitherSentTx <- broadcastSimpleTransactionFromParams(
         provedTx.toOption.get
       )
       _ <- Async[F].fromEither(eitherSentTx) // if this fails we should retry
@@ -311,7 +314,7 @@ object InitializationModule {
         ),
         someChangeLock
       )
-      provedTx <- transactionAlgebra.proveSimpleTransactionFromParams(
+      provedTx <- proveSimpleTransactionFromParams(
         ioTx,
         keyPair
       )
@@ -319,7 +322,7 @@ object InitializationModule {
         provedTx.isRight,
         "Error proving transaction while minting series token"
       )
-      eitherSentTx <- transactionAlgebra.broadcastSimpleTransactionFromParams(
+      eitherSentTx <- broadcastSimpleTransactionFromParams(
         provedTx.toOption.get
       )
       _ <- Async[F].fromEither(eitherSentTx) // if this fails we should retry

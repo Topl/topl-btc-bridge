@@ -22,7 +22,6 @@ import co.topl.bridge.ToplBTCBridgeParamConfig
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerImpl
-import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletManagementUtils
 import co.topl.bridge.statemachine.pegin.PeginStateMachine
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
@@ -77,15 +76,6 @@ trait AppModule
     )
     implicit val fellowshipStorageApi = FellowshipStorageApi.make(walletRes)
     implicit val templateStorageApi = TemplateStorageApi.make(walletRes)
-    implicit val transactionAlgebra = TransactionAlgebra.make[IO](
-      walletApi,
-      walletStateAlgebra,
-      channelResource(
-        params.toplHost,
-        params.toplPort,
-        params.toplSecureConnection
-      )
-    )
     implicit val sessionManager =
       SessionManagerImpl.make[IO](queue, new ConcurrentHashMap())
     val walletManagementUtils = new WalletManagementUtils(
@@ -131,6 +121,11 @@ trait AppModule
       implicit val kp = keyPair
       implicit val defaultFeePerByte = params.feePerByte
       implicit val iPeginWalletManager = pegInWalletManager
+      implicit val toplChannelResource = channelResource(
+        params.toplHost,
+        params.toplPort,
+        params.toplSecureConnection
+      )
       val peginStateMachine = PeginStateMachine.make[IO](
         new ConcurrentHashMap()
       )
