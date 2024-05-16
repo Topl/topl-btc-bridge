@@ -34,7 +34,7 @@ package object bridge {
 
   }
 
-  val CS_CMD = "./cs"
+  val CS_CMD = "/home/runner/work/topl-btc-bridge/cs"
 
   val csParams = Seq(
     "launch",
