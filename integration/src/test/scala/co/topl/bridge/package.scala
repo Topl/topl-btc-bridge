@@ -34,7 +34,7 @@ package object bridge {
 
   }
 
-  val CS_CMD = "cs"
+  val CS_CMD = "./cs"
 
   val csParams = Seq(
     "launch",

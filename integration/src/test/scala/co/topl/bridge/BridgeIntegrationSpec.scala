@@ -35,6 +35,7 @@ class BridgeIntegrationSpec
     }
   )
 
+
   cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
     successfulPegin()
   }
