@@ -150,7 +150,7 @@ buildClient := {
 
   // Build the frontend with vite
   val buildExitCode =
-    Process("npm run build", cwd = (root / baseDirectory).value / "bridge-ui").!
+    Process("npm run package", cwd = (root / baseDirectory).value / "bridge-ui").!
   if (buildExitCode > 0) {
     throw new IllegalStateException(
       s"Building frontend failed. See above for reason"

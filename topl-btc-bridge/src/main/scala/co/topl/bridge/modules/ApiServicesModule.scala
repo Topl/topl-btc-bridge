@@ -1,6 +1,7 @@
 package co.topl.bridge.modules
 
 import cats.effect.IO
+import cats.effect.kernel.Ref
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.constants.NetworkConstants
@@ -11,9 +12,10 @@ import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.LockId
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.controllers.ConfirmRedemptionController
+import co.topl.bridge.SystemGlobalState
 import co.topl.bridge.controllers.StartSessionController
 import co.topl.bridge.managers.BTCWalletAlgebra
+import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.genus.services.Txo
@@ -21,8 +23,8 @@ import co.topl.genus.services.TxoState
 import co.topl.shared.BitcoinNetworkIdentifiers
 import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
-import co.topl.shared.ConfirmRedemptionRequest
-import co.topl.shared.SessionNotFoundError
+import co.topl.shared.MintingStatusRequest
+import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPegoutSessionRequest
 import co.topl.shared.SyncWalletRequest
@@ -36,11 +38,6 @@ import org.http4s.circe._
 import org.http4s.dsl.io._
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
-import cats.effect.kernel.Ref
-import co.topl.shared.MintingStatusRequest
-import co.topl.shared.MintingStatusResponse
-import co.topl.bridge.managers.PeginSessionInfo
-import co.topl.bridge.SystemGlobalState
 
 trait ApiServicesModule {
 
@@ -131,7 +128,7 @@ trait ApiServicesModule {
       toplKeypair: KeyPair,
       sessionManager: SessionManagerAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
-      walletManager: BTCWalletAlgebra[IO],
+      bridgeWalletManager: BTCWalletAlgebra[IO],
       toplWalletAlgebra: ToplWalletAlgebra[IO],
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
@@ -186,6 +183,7 @@ trait ApiServicesModule {
           res <- startPeginSession(
             x,
             pegInWalletManager,
+            bridgeWalletManager,
             sessionManager,
             blockToRecover,
             toplKeypair,
@@ -221,43 +219,29 @@ trait ApiServicesModule {
           BadRequest("Error starting pegout session")
         }
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
-
         implicit val mintingRequestDecoder
             : EntityDecoder[IO, MintingStatusRequest] =
           jsonOf[IO, MintingStatusRequest]
         for {
           x <- req.as[MintingStatusRequest]
           session <- sessionManager.getSession(x.sessionID)
-          pegin <- session match {
-            case p: PeginSessionInfo => IO.pure(p)
+          somePegin <- session match {
+            case Some(p: PeginSessionInfo) => IO.pure(Option(p))
+            case None => IO.pure(None)
             case _ => IO.raiseError(new Exception("Invalid session type"))
           }
-          resp <- Ok(
-            MintingStatusResponse(
-              pegin.mintingBTCState.toString(),
-              pegin.redeemAddress,
-              pegin.toplBridgePKey,
-              s"threshold(1, sign(0) or sha256(${pegin.sha256}))",
-            ).asJson
-          )
-        } yield resp
-      case req @ POST -> Root / "confirm-redemption" =>
-        import ConfirmRedemptionController._
-        implicit val confirmRedemptionRequestDecoder
-            : EntityDecoder[IO, ConfirmRedemptionRequest] =
-          jsonOf[IO, ConfirmRedemptionRequest]
-        for {
-          x <- req.as[ConfirmRedemptionRequest]
-          res <- confirmRedemption(
-            x,
-            pegInWalletManager,
-            walletManager,
-            sessionManager
-          )
-          resp <- res match {
-            case Left(e: SessionNotFoundError) => NotFound(e.asJson)
-            case Left(e: BridgeError)          => BadRequest(e.asJson)
-            case Right(value)                  => Ok(value.asJson)
+          resp <- somePegin match {
+            case Some(pegin) =>
+              Ok(
+                MintingStatusResponse(
+                  pegin.mintingBTCState.toString(),
+                  pegin.redeemAddress,
+                  pegin.toplBridgePKey,
+                  s"threshold(1, sign(0) or sha256(${pegin.sha256}))"
+                ).asJson
+              )
+            case None =>
+              NotFound("Session not found")
           }
         } yield resp
     }

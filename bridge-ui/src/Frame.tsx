@@ -1,12 +1,61 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { PeginUIState, mintedBTC, mintingBTC, setupSession } from './controllers/PeginController';
+import { PeginUIState, mintedBTC, mintingBTC, setupSession, claimedTBTC } from './controllers/PeginController';
 import { deleteCookie } from './cookie-typescript-utils';
 import { SessionInformation } from './views/StartSession';
 
 export type SessionCtx = {
   session: SessionInformation;
   setSession: React.Dispatch<React.SetStateAction<SessionInformation>>;
+}
+
+async function getMintingStatus(sessionID: string) {
+  return fetch('/api/topl-minting-status', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ sessionID: sessionID })
+  })
+}
+
+async function checkAndTransitionFromSessionStarted(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>) {
+  const response = await getMintingStatus(session.sessionID)
+  if (response.status == 200) {
+    const data = await response.json();
+    const mintStatus = (data?.mintingStatus || "") as string
+    if (mintStatus !== "PeginSessionStateWaitingForBTC") {
+      mintingBTC(setSession, session)
+    }
+  }
+}
+
+async function checkAndTransitionFromMintingTBTC(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, sessionPoll: NodeJS.Timeout) {
+  const response = await getMintingStatus(session.sessionID)
+  if (response.status == 200) {
+    const data = await response.json();
+    const mintStatus = (data?.mintingStatus || "") as string
+    if (mintStatus === "PeginSessionWaitingForRedemption") {
+      mintedBTC(setSession, session, data.address, data.bridgePKey, data.redeemScript);
+      clearInterval(sessionPoll)
+    }
+  }
+}
+
+async function checkAndTransitionFromWaitingForRedemption(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, sessionPoll: NodeJS.Timeout) {
+  const response = await getMintingStatus(session.sessionID)
+  if (response.status == 200) {
+    const data = await response.json();
+    const mintStatus = (data?.mintingStatus || "") as string
+    if (mintStatus === "PeginSessionWaitingForClaim") {
+      claimedTBTC(setSession, session);
+      clearInterval(sessionPoll)
+    }
+  } else if (response.status == 404) {
+    // this is because the minting status is not found, so we can assume that the minting is complete
+    clearInterval(sessionPoll)
+
+  }
 }
 
 function Frame() {
@@ -16,43 +65,12 @@ function Frame() {
   useEffect(() => {
     const sessionPoll = setInterval(async () => {
       if ((session.currentState == PeginUIState.SessionStarted)) {
-        const response = await fetch('/api/topl-minting-status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ sessionID: session.sessionID })
-        })
-        if (response.status == 200) {
-          const data = await response.json();
-          const mintStatus = (data?.mintingStatus || "") as string
-          if (mintStatus !== "PeginSessionStateWaitingForBTC") {
-            mintingBTC(setSession, session)
-          }
-          console.log("mintStatus: " + mintStatus)
-        } else {
-          console.log(response)
-        }
+        checkAndTransitionFromSessionStarted(session, setSession)
       } else if (session.currentState == PeginUIState.MintingTBTC) {
-        const response = await fetch('/api/topl-minting-status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ sessionID: session.sessionID })
-        })
-        if (response.status == 200) {
-          const data = await response.json();
-          const mintStatus = (data?.mintingStatus || "") as string
-          if (mintStatus === "PeginSessionWaitingForRedemption") {
-            mintedBTC(setSession, session, data.address, data.bridgePKey, data.redeemScript);
-            clearInterval(sessionPoll)
-          }
-        }
-        else {
-          console.log(response)
-        }
-      } else if (session.currentState == PeginUIState.MintedTBTC) {
+        checkAndTransitionFromMintingTBTC(session, setSession, sessionPoll)
+      } else if (session.currentState == PeginUIState.WaitingForRedemption) {
+        checkAndTransitionFromWaitingForRedemption(session, setSession, sessionPoll)
+      } else if (session.currentState == PeginUIState.WaitingForClaim) {
         clearInterval(sessionPoll)
       }
     }, 5000)

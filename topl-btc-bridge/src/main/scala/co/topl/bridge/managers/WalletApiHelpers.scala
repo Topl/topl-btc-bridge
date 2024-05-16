@@ -6,74 +6,83 @@ import co.topl.brambl.models.Indices
 import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.builders.TransactionBuilderApi
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Template
 
-trait WalletApiHelpers[F[_]] {
+object WalletApiHelpers {
 
-  import cats.implicits._
 
-  val wsa: WalletStateAlgebra[F]
-
-  val tba: TransactionBuilderApi[F]
-
-  implicit val m: Monad[F]
-
-  def getCurrentIndices(
-      fromFellowship: String,
-      fromTemplate: String,
+  def getCurrentIndices[F[_]](
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int]
-  ) = wsa.getCurrentIndicesForFunds(
-    fromFellowship,
-    fromTemplate,
+  )(implicit wsa: WalletStateAlgebra[F]) = wsa.getCurrentIndicesForFunds(
+    fromFellowship.underlying,
+    fromTemplate.underlying,
     someFromInteraction
   )
 
-  def getCurrentAddress(
-      fromFellowship: String,
-      fromTemplate: String,
+  def getCurrentAddress[F[_]: Monad](
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int]
-  ): F[LockAddress] = for {
-    someCurrentIndices <- getCurrentIndices(
-      fromFellowship,
-      fromTemplate,
-      someFromInteraction
-    )
-    predicateFundsToUnlock <- getPredicateFundsToUnlock(someCurrentIndices)
-    fromAddress <- tba.lockAddress(
-      predicateFundsToUnlock.get
-    )
-  } yield fromAddress
+  )(implicit
+      wsa: WalletStateAlgebra[F],
+      tba: TransactionBuilderApi[F]
+  ): F[LockAddress] = {
+    import cats.implicits._
+    for {
+      someCurrentIndices <- getCurrentIndices(
+        fromFellowship,
+        fromTemplate,
+        someFromInteraction
+      )
+      predicateFundsToUnlock <- getPredicateFundsToUnlock[F](someCurrentIndices)
+      fromAddress <- tba.lockAddress(
+        predicateFundsToUnlock.get
+      )
+    } yield fromAddress
+  }
 
-  def getPredicateFundsToUnlock(someIndices: Option[Indices]) =
+  def getPredicateFundsToUnlock[F[_]: Monad](
+      someIndices: Option[Indices]
+  )(implicit wsa: WalletStateAlgebra[F]) = {
+    import cats.implicits._
     someIndices
       .map(currentIndices => wsa.getLockByIndex(currentIndices))
       .sequence
       .map(_.flatten.map(Lock().withPredicate(_)))
+  }
 
-  def getNextIndices(
-      fromFellowship: String,
-      fromTemplate: String
-  ) =
+  def getNextIndices[F[_]](
+      fromFellowship: Fellowship,
+      fromTemplate: Template
+  )(implicit wsa: WalletStateAlgebra[F]) =
     wsa.getNextIndicesForFunds(
-      if (fromFellowship == "nofellowship") "self" else fromFellowship,
-      if (fromFellowship == "nofellowship") "default"
-      else fromTemplate
+      if (fromFellowship.underlying == "nofellowship") "self"
+      else fromFellowship.underlying,
+      if (fromFellowship.underlying == "nofellowship") "default"
+      else fromTemplate.underlying
     )
 
-  def getChangeLockPredicate(
+  def getChangeLockPredicate[F[_]: Monad](
       someNextIndices: Option[Indices],
-      fromFellowship: String,
-      fromTemplate: String
-  ) =
+      fromFellowship: Fellowship,
+      fromTemplate: Template
+  )(implicit wsa: WalletStateAlgebra[F]) = {
+    import cats.implicits._
     someNextIndices
       .map(idx =>
         wsa.getLock(
-          if (fromFellowship == "nofellowship") "self" else fromFellowship,
-          if (fromFellowship == "nofellowship") "default"
-          else fromTemplate,
+          if (fromFellowship.underlying == "nofellowship") "self"
+          else fromFellowship.underlying,
+          if (fromFellowship.underlying == "nofellowship") "default"
+          else fromTemplate.underlying,
           idx.z
         )
       )
       .sequence
       .map(_.flatten)
+  }
 
 }

@@ -31,15 +31,18 @@ import co.topl.shared.StartPegoutSessionResponse
 import quivr.models.KeyPair
 import co.topl.shared.WalletSetupError
 import co.topl.bridge.PeginSessionState
+import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 
 object StartSessionController {
 
   private def createPeginSessionInfo[F[_]: Sync](
-      currentWalletIdx: Int,
+      btcPeginCurrentWalletIdx: Int,
+      btcBridgeCurrentWalletIdx: Int,
       mintTemplateName: String,
       sha256: String,
       pUserPKey: String,
-      bridgePKey: String,
+      btcPeginBridgePKey: String,
+      btcBridgePKey: ECPublicKey,
       blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
       toplBridgePKey: String,
@@ -61,7 +64,7 @@ object StartSessionController {
       asm =
         BitcoinUtils.buildScriptAsm(
           userPKey,
-          ECPublicKey.fromHex(bridgePKey),
+          ECPublicKey.fromHex(btcPeginBridgePKey),
           hash,
           blockToRecover
         )
@@ -79,16 +82,23 @@ object StartSessionController {
           btcNetwork.btcNetwork
         )
         .value
+      claimAddress = Bech32Address.apply(
+        P2WPKHWitnessSPKV0(btcBridgePKey),
+        btcNetwork.btcNetwork
+      ).value
+
     } yield (
       address,
       PeginSessionInfo(
-        currentWalletIdx,
+        btcPeginCurrentWalletIdx,
+        btcBridgeCurrentWalletIdx,
         mintTemplateName,
         redeemAddress,
         address,
         scriptAsm.toHex,
         toplBridgePKey,
         sha256,
+        claimAddress,
         PeginSessionState.PeginSessionStateWaitingForBTC
       )
     )
@@ -97,6 +107,7 @@ object StartSessionController {
   def startPeginSession[F[_]: Async](
       req: StartPeginSessionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
+      bridgeWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       blockToRecover: Int,
       keyPair: KeyPair,
@@ -106,7 +117,9 @@ object StartSessionController {
     import cats.implicits._
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
-      (idx, newKey) = idxAndnewKey
+      (btcPeginCurrentWalletIdx, btcPeginBridgePKey) = idxAndnewKey
+      bridgeIdxAndnewKey <- bridgeWalletManager.getCurrentPubKeyAndPrepareNext()
+      (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
       someRedeemAdressAndKey <- toplWalletAlgebra.setupBridgeWalletForMinting(
@@ -120,16 +133,18 @@ object StartSessionController {
         someRedeemAdress.isDefined,
         "Redeem address was not generated correctly"
       )
-      bridgeToplKey = someRedeemAdressAndKey.map(_._2).get
+      bridgeBifrostKey = someRedeemAdressAndKey.map(_._2).get
       addressAndsessionInfo <- createPeginSessionInfo(
-        idx,
+        btcPeginCurrentWalletIdx,
+        btcBridgeCurrentWalletIdx,
         mintTemplateName,
         req.sha256,
         req.pkey,
-        newKey.hex,
+        btcPeginBridgePKey.hex,
+        btcBridgePKey,
         blockToRecover,
         btcNetwork,
-        bridgeToplKey,
+        bridgeBifrostKey,
         someRedeemAdress.get
       )
       (address, sessionInfo) = addressAndsessionInfo
@@ -138,7 +153,8 @@ object StartSessionController {
       sessionId,
       sessionInfo.scriptAsm,
       address,
-      BitcoinUtils.createDescriptor(newKey.hex, req.pkey, req.sha256)
+      BitcoinUtils
+        .createDescriptor(btcPeginBridgePKey.hex, req.pkey, req.sha256)
     ).asRight[BridgeError]).handleError { case e: BridgeError =>
       Left(e)
     }

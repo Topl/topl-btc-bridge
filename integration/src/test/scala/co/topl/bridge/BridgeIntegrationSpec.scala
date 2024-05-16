@@ -2,8 +2,6 @@ package co.topl.bridge
 
 import cats.effect.IO
 import co.topl.shared.BridgeContants
-import co.topl.shared.ConfirmRedemptionRequest
-import co.topl.shared.ConfirmRedemptionResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
 import co.topl.shared.SyncWalletRequest
@@ -21,12 +19,20 @@ import scala.concurrent.duration._
 import org.checkerframework.checker.units.qual.s
 import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
+import scala.io.Source
+import java.nio.file.Path
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.io.InputStream
+import java.io.ByteArrayInputStream
 
 class BridgeIntegrationSpec extends CatsEffectSuite {
 
   val DOCKER_CMD = "docker"
 
   override val munitTimeout = Duration(180, "s")
+
+  override val munitIOTimeout = Duration(180, "s")
 
   val createWallet = Seq(
     "exec",
@@ -60,6 +66,7 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     blocks.toString,
     address
   )
+
   def createTransaction(address: String) = Seq(
     "exec",
     "bitcoin",
@@ -126,55 +133,47 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
       .compile
       .foldMonoid
 
-  val getCurrentUtxos = process
+  // brambl-cli fellowships add --walletdb user-wallet.db --fellowship-name bridge
+  val addFellowship = process
     .ProcessBuilder(
-      "./cs",
+      CS_CMD,
       Seq(
         "launch",
         "-r",
         "https://s01.oss.sonatype.org/content/repositories/releases",
-        "co.topl:brambl-cli_2.13:2.0.0-beta3",
+        "co.topl:brambl-cli_2.13:2.0.0-beta5",
         "--",
-        "genus-query",
-        "utxo-by-address",
-        "--host",
-        "localhost",
-        "--port",
-        "9084",
-        "--secure",
-        "false",
+        "fellowships",
+        "add",
         "--walletdb",
-        "data/topl-wallet.db"
+        "user-wallet.db",
+        "--fellowship-name",
+        "bridge"
       ): _*
     )
     .spawn[IO]
 
-  def getCurrentUtxosFromAddress(address: String) = process
-    .ProcessBuilder(
-      "./cs",
-      Seq(
-        "launch",
-        "-r",
-        "https://s01.oss.sonatype.org/content/repositories/releases",
-        "co.topl:brambl-cli_2.13:2.0.0-beta3",
-        "--",
-        "genus-query",
-        "utxo-by-address",
-        "--host",
-        "localhost",
-        "--port",
-        "9084",
-        "--secure",
-        "false",
-        "--walletdb",
-        "data/topl-wallet.db",
-        "--from-address",
-        address
-      ): _*
-    )
-    .spawn[IO]
+  val cleanupDir = FunFixture[Unit](
+    setup = { _ =>
+      try {
+        Files.delete(Paths.get(userWalletDb))
+        Files.delete(Paths.get(userWalletMnemonic))
+        Files.delete(Paths.get(userWalletJson))
+        Files.delete(Paths.get(vkFile))
+        Files.delete(Paths.get("fundRedeemTx.pbuf"))
+        Files.delete(Paths.get("fundRedeemTxProved.pbuf"))
+        Files.delete(Paths.get("redeemTx.pbuf"))
+        Files.delete(Paths.get("redeemTxProved.pbuf"))
+      } catch {
+        case _: Throwable => ()
+      }
+    },
+    teardown = { _ =>
+      ()
+    }
+  )
 
-  test("Bridge should mint assets on the Topl network") {
+  cleanupDir.test("Bridge should mint assets on the Topl network") { _ =>
     import io.circe._, io.circe.parser._
     import io.circe.generic.auto._
     import io.circe.syntax._
@@ -197,14 +196,16 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
     implicit val MintingStatusResponseDecoder
         : EntityDecoder[IO, MintingStatusResponse] =
       jsonOf[IO, MintingStatusResponse]
-    implicit val confirmRedemptionRequestDecoder
-        : EntityEncoder[IO, ConfirmRedemptionRequest] =
-      jsonEncoderOf[IO, ConfirmRedemptionRequest]
-    implicit val confirmRedemptionResponse
-        : EntityDecoder[IO, ConfirmRedemptionResponse] =
-      jsonOf[IO, ConfirmRedemptionResponse]
     assertIO(
       for {
+        initResult <- initUserWallet.use { getText }
+        _ <- IO.println("initResult: " + initResult)
+        addFellowshipResult <- addFellowship.use { getText }
+        _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
+        addTemplateResult <- addTemplate(sha256ToplSecret).use { getText }
+        _ <- IO.println("addTemplateResult: " + addTemplateResult)
+        addSecretResult <- addSecret.use { getText }
+        _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
@@ -247,13 +248,13 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                 StartPeginSessionRequest(
                   pkey =
                     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
-                  sha256 =
-                    "497a39b618484855ebb5a2cabf6ee52ff092e7c17f8bfe79313529f9774f83a2"
+                  sha256 = sha256ToplSecret
                 )
               )
             )
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
+        _ <- IO(Source.fromString(startSessionResponse.descriptor))
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
@@ -273,11 +274,13 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
+        _ <- IO.println("Generating blocks..")
+        _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-        _ <- EmberClientBuilder
+        mintingStatusResponse <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
@@ -297,12 +300,130 @@ class BridgeIntegrationSpec extends CatsEffectSuite {
                   MintingStatusRequest(startSessionResponse.sessionID)
                 )
               )
-              .flatMap(x => IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)))
+              .flatMap(x =>
+                IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)
+              ))
               .iterateUntil(
                 _.mintingStatus == "PeginSessionWaitingForRedemption"
               )
           })
-
+        _ <- fs2.io
+          .readInputStream[IO](
+            IO(
+              new ByteArrayInputStream(
+                mintingStatusResponse.bridgePKey.getBytes()
+              )
+            ),
+            10
+          )
+          .through(fs2.io.file.writeAll(Paths.get(vkFile)))
+          .compile
+          .drain
+        importVkResult <- importVks.use { getText }
+        _ <- IO.println("importVkResult: " + importVkResult)
+        fundRedeemAddressTx <- fundRedeemAddressTx(
+          mintingStatusResponse.address
+        ).use { getText }
+        _ <- IO.println("fundRedeemAddressTx: " + fundRedeemAddressTx)
+        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+          "fundRedeemTx.pbuf",
+          "fundRedeemTxProved.pbuf"
+        ).use { getText }
+        _ <- IO.println(
+          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
+        )
+        broadcastFundRedeemAddressTxRes <- broadcastFundRedeemAddressTx(
+          "fundRedeemTxProved.pbuf"
+        ).use {
+          getText
+        }
+        _ <- IO.println(
+          "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
+        )
+        utxo <- getCurrentUtxosFromAddress(mintingStatusResponse.address)
+          .use(
+            getText
+          )
+          .iterateUntil(_.contains("LVL"))
+        _ <- IO.println("utxos: " + utxo)
+        groupId = utxo
+          .split("\n")
+          .filter(_.contains("GroupId"))
+          .head
+          .split(":")
+          .last
+          .trim()
+        seriesId = utxo
+          .split("\n")
+          .filter(_.contains("SeriesId"))
+          .head
+          .split(":")
+          .last
+          .trim()
+        _ <- IO.println("groupId: " + groupId)
+        _ <- IO.println("seriesId: " + seriesId)
+        currentAddress <- currentAddress.use { getText }
+        redeemAddressTx <- redeemAddressTx(
+          currentAddress,
+          4999000000L,
+          groupId,
+          seriesId
+        ).use { getText }
+        _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
+        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+          "redeemTx.pbuf",
+          "redeemTxProved.pbuf"
+        )
+          .use {
+            getText
+          }
+        _ <- IO.println(
+          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
+        )
+        _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
+          getText
+        }
+        utxo <- getCurrentUtxosFromAddress(currentAddress)
+          .use(
+            getText
+          )
+          .iterateUntil(_.contains("Asset"))
+        _ <- IO.println("utxos: " + utxo)
+        _ <- IO.sleep(5.second)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
+        mintingStatusResponse <- EmberClientBuilder
+          .default[IO]
+          .build
+          .use({ client =>
+            (IO.println("Requesting..") >> client
+              .status(
+                Request[IO](
+                  method = Method.POST,
+                  Uri
+                    .fromString(
+                      "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+                    )
+                    .toOption
+                    .get
+                ).withContentType(
+                  `Content-Type`.apply(MediaType.application.json)
+                ).withEntity(
+                  MintingStatusRequest(startSessionResponse.sessionID)
+                )
+              ))
+              .flatMap(x =>
+                IO.println(x.code) >> IO.sleep(5.second) >> IO.pure(x)
+              )
+              .iterateUntil(
+                _.code == 404
+              )
+          })
+        _ <- IO.println(
+          s"Session ${startSessionResponse.sessionID} was successfully removed"
+        )
       } yield (),
       ()
     )

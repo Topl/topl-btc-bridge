@@ -1,7 +1,5 @@
 package co.topl.bridge.managers
 
-
-
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.WalletStateAlgebra
@@ -19,20 +17,13 @@ import io.circe.Json
 import quivr.models.KeyPair
 
 import TransactionBuilderApi.implicits._
+import co.topl.bridge.Lvl
 
-trait AssetMintingOps[G[_]] extends CommonTxOps {
+object AssetMintingOps extends CommonTxOps {
 
   import cats.implicits._
 
-  implicit val sync: Sync[G]
-
-  val tba: TransactionBuilderApi[G]
-
-  val wsa: WalletStateAlgebra[G]
-
-  val wa: WalletApi[G]
-
-  def buildAssetTxAux(
+  def buildAssetTxAux[G[_]: Sync](
       keyPair: KeyPair,
       lvlTxos: Seq[Txo],
       nonLvlTxos: Seq[Txo],
@@ -40,13 +31,17 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
       seriesTxo: Txo,
       lockAddrToUnlock: LockAddress,
       lockPredicateFrom: Lock.Predicate,
-      fee: Long,
+      fee: Lvl,
       someNextIndices: Option[Indices],
       assetMintingStatement: AssetMintingStatement,
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
       changeLock: Option[Lock],
       recipientLockAddress: LockAddress
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
   ) = (if (lvlTxos.isEmpty) {
          Sync[G].raiseError(CreateTxError("No LVL txos found"))
        } else {
@@ -75,18 +70,23 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
          }
        })
 
-  private def buildAssetTransaction(
+  private def buildAssetTransaction[G[_]: Sync](
       keyPair: KeyPair,
       txos: Seq[Txo],
       lockPredicateFrom: Map[LockAddress, Lock.Predicate],
       lockForChange: Lock,
       recipientLockAddress: LockAddress,
-      fee: Long,
+      fee: Lvl,
       assetMintingStatement: AssetMintingStatement,
       ephemeralMetadata: Option[Struct],
       commitment: Option[ByteString],
       someNextIndices: Option[Indices]
-  ): G[IoTransaction] =
+  )(implicit
+      tba: TransactionBuilderApi[G],
+      wsa: WalletStateAlgebra[G],
+      wa: WalletApi[G]
+  ): G[IoTransaction] = {
+    import co.topl.brambl.syntax._
     for {
       changeAddress <- tba.lockAddress(
         lockForChange
@@ -95,7 +95,7 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
         assetMintingStatement,
         txos,
         lockPredicateFrom,
-        fee,
+        fee.amount.toLong,
         recipientLockAddress,
         changeAddress,
         ephemeralMetadata,
@@ -126,4 +126,5 @@ trait AssetMintingOps[G[_]] extends CommonTxOps {
           Sync[G].delay(())
         }
     } yield ioTransaction
+  }
 }

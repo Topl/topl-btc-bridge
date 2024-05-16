@@ -11,12 +11,14 @@ class SessionManagerSpec extends CatsEffectSuite {
 
   val sessionInfo = PeginSessionInfo(
     0,
+    0,
     "mintTemplateName",
     "redeemAddress",
     "escrowAddress",
     "scriptAsm",
     "toplBridgePKey",
     "sha256",
+    "claimAddress",
     PeginSessionState.PeginSessionStateWaitingForBTC
   )
 
@@ -33,24 +35,24 @@ class SessionManagerSpec extends CatsEffectSuite {
       } yield {
         retrievedSession
       },
-      sessionInfo
+      Some(sessionInfo)
     )
   }
 
   test("SessionManagerAlgebra should fail to retrieve a non existing session") {
     assertIO(
-      (for {
+      for {
         queue <- Queue.unbounded[IO, SessionEvent]
         sut = SessionManagerImpl.make[IO](
           queue,
           new ConcurrentHashMap[String, SessionInfo]()
         )
         _ <- sut.createNewSession(sessionInfo)
-        _ <- sut.getSession(UUID.randomUUID().toString)
+        res <- sut.getSession(UUID.randomUUID().toString)
       } yield {
-        true
-      }).handleError(_ => false),
-      false
+        res
+      },
+      None
     )
   }
 

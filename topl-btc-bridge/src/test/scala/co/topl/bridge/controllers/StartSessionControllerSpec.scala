@@ -59,14 +59,14 @@ class StartSessionControllerSpec
   tmpDirectory.test("StartSessionController should start a pegin session") {
     _ =>
       val walletKeyApi = WalletKeyApi.make[IO]()
-      val walletApi = WalletApi.make[IO](walletKeyApi)
+      implicit val walletApi = WalletApi.make[IO](walletKeyApi)
       val walletManagementUtils = new WalletManagementUtils(
         walletApi,
         walletKeyApi
       )
-      val walletStateAlgebra = WalletStateApi
+      implicit val walletStateAlgebra = WalletStateApi
         .make[IO](walletResource(toplWalletDb), walletApi)
-      val transactionBuilderApi = TransactionBuilderApi.make[IO](
+      implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
         ToplPrivatenet.networkId,
         NetworkConstants.MAIN_LEDGER_ID
       )
@@ -91,12 +91,8 @@ class StartSessionControllerSpec
             new ConcurrentHashMap[String, SessionInfo]()
           )
           toplWalletImpl = ToplWalletImpl.make[IO](
-            IO.asyncForIO,
-            walletApi,
             FellowshipStorageApi.make(walletResource(toplWalletDb)),
             TemplateStorageApi.make(walletResource(toplWalletDb)),
-            walletStateAlgebra,
-            transactionBuilderApi,
             genusQueryAlgebra
           )
           keyPair <- walletManagementUtils.loadKeys(
@@ -109,6 +105,7 @@ class StartSessionControllerSpec
               testHash
             ),
             peginWallet,
+            peginWallet,
             sessionManager,
             testBlockToRecover,
             keyPair,
@@ -116,23 +113,23 @@ class StartSessionControllerSpec
             RegTest
           )
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-        } yield (sessionInfo
+        } yield (sessionInfo.get
           .asInstanceOf[PeginSessionInfo]
-          .currentWalletIdx == 0)
+          .btcPeginCurrentWalletIdx == 0)
       )
   }
 
   tmpDirectory.test("StartSessionController should start a pegout session") {
     _ =>
       val walletKeyApi = WalletKeyApi.make[IO]()
-      val walletApi = WalletApi.make[IO](walletKeyApi)
+      implicit val walletApi = WalletApi.make[IO](walletKeyApi)
       val walletManagementUtils = new WalletManagementUtils(
         walletApi,
         walletKeyApi
       )
-      val walletStateAlgebra = WalletStateApi
+      implicit val walletStateAlgebra = WalletStateApi
         .make[IO](walletResource(toplWalletDb), walletApi)
-      val transactionBuilderApi = TransactionBuilderApi.make[IO](
+      implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
         ToplPrivatenet.networkId,
         NetworkConstants.MAIN_LEDGER_ID
       )
@@ -156,12 +153,8 @@ class StartSessionControllerSpec
             testToplPassword
           )
           toplWalletImpl = ToplWalletImpl.make[IO](
-            IO.asyncForIO,
-            walletApi,
             FellowshipStorageApi.make(walletResource(toplWalletDb)),
             TemplateStorageApi.make(walletResource(toplWalletDb)),
-            walletStateAlgebra,
-            transactionBuilderApi,
             genusQueryAlgebra
           )
           res <- StartSessionController.startPegoutSession[IO](
@@ -177,7 +170,7 @@ class StartSessionControllerSpec
             1000
           )
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-        } yield (sessionInfo
+        } yield (sessionInfo.get
           .asInstanceOf[PegoutSessionInfo]
           .address == "ptetP7jshHVPgNWRFrYBAMCrnfAwpRn6hSNuAcMfgukVtA1x3wkjCPqqwD7w")
       )
@@ -187,14 +180,14 @@ class StartSessionControllerSpec
     "StartSessionController should fail with invalid key (pegout)"
   ) { _ =>
     val walletKeyApi = WalletKeyApi.make[IO]()
-    val walletApi = WalletApi.make[IO](walletKeyApi)
+    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
     )
-    val walletStateAlgebra = WalletStateApi
+    implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
@@ -217,12 +210,8 @@ class StartSessionControllerSpec
           testToplPassword
         )
         toplWalletImpl = ToplWalletImpl.make[IO](
-          IO.asyncForIO,
-          walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
         )
         res <- StartSessionController.startPegoutSession[IO](
@@ -247,14 +236,14 @@ class StartSessionControllerSpec
     "StartSessionController should fai with invalid key (pegin)"
   ) { _ =>
     val walletKeyApi = WalletKeyApi.make[IO]()
-    val walletApi = WalletApi.make[IO](walletKeyApi)
+    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
     )
-    val walletStateAlgebra = WalletStateApi
+    implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
@@ -272,12 +261,8 @@ class StartSessionControllerSpec
           testToplPassword
         )
         toplWalletImpl = ToplWalletImpl.make[IO](
-          IO.asyncForIO,
-          walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
         )
         km0 <- KeyGenerationUtils.createKeyManager[IO](
@@ -297,6 +282,7 @@ class StartSessionControllerSpec
             testHash
           ),
           peginWallet,
+          peginWallet,
           sessionManager,
           testBlockToRecover,
           keypair,
@@ -311,14 +297,14 @@ class StartSessionControllerSpec
 
   test("StartSessionController should fai with invalid hash") {
     val walletKeyApi = WalletKeyApi.make[IO]()
-    val walletApi = WalletApi.make[IO](walletKeyApi)
+    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
     )
-    val walletStateAlgebra = WalletStateApi
+    implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
@@ -336,12 +322,8 @@ class StartSessionControllerSpec
           testToplPassword
         )
         toplWalletImpl = ToplWalletImpl.make[IO](
-          IO.asyncForIO,
-          walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
         )
         queue <- Queue.unbounded[IO, SessionEvent]
@@ -361,6 +343,7 @@ class StartSessionControllerSpec
             "invalidHash"
           ),
           peginWallet,
+          peginWallet,
           sessionManager,
           testBlockToRecover,
           keypair,
@@ -377,14 +360,14 @@ class StartSessionControllerSpec
     "StartSessionController should fail with invalid hash (pegout)"
   ) { _ =>
     val walletKeyApi = WalletKeyApi.make[IO]()
-    val walletApi = WalletApi.make[IO](walletKeyApi)
+    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
     )
-    val walletStateAlgebra = WalletStateApi
+    implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
@@ -407,12 +390,8 @@ class StartSessionControllerSpec
           testToplPassword
         )
         toplWalletImpl = ToplWalletImpl.make[IO](
-          IO.asyncForIO,
-          walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
         )
         res <- StartSessionController.startPegoutSession[IO](
@@ -437,14 +416,14 @@ class StartSessionControllerSpec
     "StartSessionController should fail with invalid height (pegout)"
   ) { _ =>
     val walletKeyApi = WalletKeyApi.make[IO]()
-    val walletApi = WalletApi.make[IO](walletKeyApi)
+    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
     )
-    val walletStateAlgebra = WalletStateApi
+    implicit implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    val transactionBuilderApi = TransactionBuilderApi.make[IO](
+    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
@@ -468,12 +447,8 @@ class StartSessionControllerSpec
           testToplPassword
         )
         toplWalletImpl = ToplWalletImpl.make[IO](
-          IO.asyncForIO,
-          walletApi,
           FellowshipStorageApi.make(walletResource(toplWalletDb)),
           TemplateStorageApi.make(walletResource(toplWalletDb)),
-          walletStateAlgebra,
-          transactionBuilderApi,
           genusQueryAlgebra
         )
         res <- StartSessionController.startPegoutSession[IO](

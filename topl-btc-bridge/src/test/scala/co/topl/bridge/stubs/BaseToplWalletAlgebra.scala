@@ -7,15 +7,16 @@ import co.topl.shared.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair
+import co.topl.bridge.{Fellowship, Lvl, Template}
 
 class BaseToplWalletAlgebra[F[_]] extends ToplWalletAlgebra[F] {
 
-  override def createSimpleAssetMintingTransactionFromParams(
+  def createSimpleAssetMintingTransactionFromParams(
       keyPair: KeyPair,
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int],
-      fee: Long,
+      fee: Lvl,
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
       assetMintingStatement: AssetMintingStatement,
@@ -28,7 +29,6 @@ class BaseToplWalletAlgebra[F[_]] extends ToplWalletAlgebra[F] {
       keypair: KeyPair,
       sha256: String
   ): F[Option[(String, String)]] = ???
-
 
   override def setupBridgeWallet(
       networkId: ToplNetworkIdentifiers,

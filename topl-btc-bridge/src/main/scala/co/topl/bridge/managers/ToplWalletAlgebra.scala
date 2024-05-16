@@ -1,6 +1,5 @@
 package co.topl.bridge.managers
 
-import cats.Monad
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
@@ -18,6 +17,9 @@ import co.topl.brambl.models.box.AssetMintingStatement
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.Fellowship
+import co.topl.bridge.Lvl
+import co.topl.bridge.Template
 import co.topl.genus.services.Txo
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
@@ -32,10 +34,10 @@ trait ToplWalletAlgebra[+F[_]] {
 
   def createSimpleAssetMintingTransactionFromParams(
       keyPair: KeyPair,
-      fromFellowship: String,
-      fromTemplate: String,
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
       someFromInteraction: Option[Int],
-      fee: Long,
+      fee: Lvl,
       ephemeralMetadata: Option[Json],
       commitment: Option[ByteString],
       assetMintingStatement: AssetMintingStatement,
@@ -65,27 +67,18 @@ trait ToplWalletAlgebra[+F[_]] {
 object ToplWalletImpl {
   import cats.implicits._
 
-  def make[F[_]](
-      psync: Sync[F],
-      walletApi: WalletApi[F],
+  def make[F[_]: Sync](
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
-      walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F]
-  ): ToplWalletAlgebra[F] = new ToplWalletAlgebra[F]
-    with WalletApiHelpers[F]
-    with AssetMintingOps[F] {
+  )(implicit
+      tba: TransactionBuilderApi[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F]
+  ): ToplWalletAlgebra[F] = new ToplWalletAlgebra[F] {
 
-    override implicit val sync: cats.effect.kernel.Sync[F] = psync
-
-    implicit val m: Monad[F] = sync
-
-    val wsa: WalletStateAlgebra[F] = walletStateApi
-
-    val tba = transactionBuilderApi
-
-    val wa = walletApi
+    import WalletApiHelpers._
+    import AssetMintingOps._
 
     private def computeSerializedTemplateMintLock(
         sha256: String
@@ -108,18 +101,9 @@ object ToplWalletImpl {
             )
             .sequence
         )
-        lockTemplateAsJson <- OptionT(Sync[F].delay(s"""{
-                "threshold":1,
-                "innerTemplates":[
-                  {
-                    "left": {"routine":"ExtendedEd25519","entityIdx":0,"type":"signature"},
-                    "right": {"routine":"Sha256","digest": "${Encoding
-            .encodeToBase58(decodedHex)}","type":"digest"},
-                    "type": "or"
-                  }
-                ],
-                "type":"predicate"}
-              """.some))
+        lockTemplateAsJson <- OptionT(
+          Sync[F].delay(templateFromSha(decodedHex).some)
+        )
       } yield lockTemplateAsJson
     }
 
@@ -158,14 +142,14 @@ object ToplWalletImpl {
             mintTemplateName
           )
           .liftT
-        bk <- wa
+        bk <- walletApi
           .deriveChildKeysPartial(
             keypair,
             indices.x,
             indices.y
           )
           .optionT
-        bridgeVk <- wa
+        bridgeVk <- walletApi
           .deriveChildVerificationKey(
             bk.vk,
             1
@@ -312,7 +296,7 @@ object ToplWalletImpl {
             WalletTemplate(0, templateName, lockTemplateAsJson)
           )
           .optionT
-        indices <- walletStateApi
+        indices <- wsa
           .getCurrentIndicesForFunds(
             fellowshipName,
             templateName,
@@ -337,7 +321,7 @@ object ToplWalletImpl {
             1
           )
           .optionT
-        lockTempl <- walletStateApi
+        lockTempl <- wsa
           .getLockTemplate(templateName)
           .liftT
         deriveChildKeyUserString = Encoding.encodeToBase58(
@@ -361,7 +345,7 @@ object ToplWalletImpl {
           NetworkConstants.MAIN_LEDGER_ID,
           LockId(lock.sizedEvidence.digest.value)
         )
-        _ <- walletStateApi
+        _ <- wsa
           .updateWalletState(
             Encoding.encodeToBase58Check(
               lock.getPredicate.toByteArray
@@ -372,14 +356,14 @@ object ToplWalletImpl {
             indices
           )
           .optionT
-        _ <- walletStateApi
+        _ <- wsa
           .addEntityVks(
             fellowshipName,
             templateName,
             deriveChildKeyUserString :: deriveChildKeyBridgeString :: Nil
           )
           .optionT
-        currentAddress <- walletStateApi
+        currentAddress <- wsa
           .getAddress(
             fellowshipName,
             templateName,
@@ -389,8 +373,8 @@ object ToplWalletImpl {
       } yield currentAddress).value
     }
     private def sharedOps(
-        fromFellowship: String,
-        fromTemplate: String,
+        fromFellowship: Fellowship,
+        fromTemplate: Template,
         someFromInteraction: Option[Int]
     ) = for {
       someCurrentIndices <- getCurrentIndices(
@@ -398,9 +382,9 @@ object ToplWalletImpl {
         fromTemplate,
         someFromInteraction
       )
-      predicateFundsToUnlock <- getPredicateFundsToUnlock(someCurrentIndices)
+      predicateFundsToUnlock <- getPredicateFundsToUnlock[F](someCurrentIndices)
       someNextIndices <- getNextIndices(fromFellowship, fromTemplate)
-      changeLock <- getChangeLockPredicate(
+      changeLock <- getChangeLockPredicate[F](
         someNextIndices,
         fromFellowship,
         fromTemplate
@@ -414,10 +398,10 @@ object ToplWalletImpl {
 
     def createSimpleAssetMintingTransactionFromParams(
         keyPair: KeyPair,
-        fromFellowship: String,
-        fromTemplate: String,
+        fromFellowship: Fellowship,
+        fromTemplate: Template,
         someFromInteraction: Option[Int],
-        fee: Long,
+        fee: Lvl,
         ephemeralMetadata: Option[Json],
         commitment: Option[ByteString],
         assetMintingStatement: AssetMintingStatement,
@@ -434,7 +418,7 @@ object ToplWalletImpl {
         someNextIndices,
         changeLock
       ) = tuple
-      fromAddress <- transactionBuilderApi.lockAddress(
+      fromAddress <- tba.lockAddress(
         predicateFundsToUnlock
       )
       response <- utxoAlgebra
