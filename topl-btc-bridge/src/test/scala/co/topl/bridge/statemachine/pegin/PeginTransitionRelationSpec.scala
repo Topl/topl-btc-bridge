@@ -88,7 +88,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       (PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
-          BTCFundsDeposited(101, escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(102, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
         .isInstanceOf[EndTrasition[IO]]: @nowarn)
