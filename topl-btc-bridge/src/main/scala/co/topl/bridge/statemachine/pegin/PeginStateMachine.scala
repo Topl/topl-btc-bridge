@@ -71,11 +71,39 @@ object PeginStateMachine {
     import org.typelevel.log4cats.syntax._
     import PeginTransitionRelation._
 
+    private def updateBTCHeight(
+        blockchainEvent: BlockchainEvent
+    ): fs2.Stream[F, F[Unit]] =
+      blockchainEvent match {
+        case deposit: BTCFundsDeposited =>
+          fs2.Stream(
+            for {
+              x <- currentBitcoinNetworkHeight.get
+              _ <-
+                if (deposit.blockHeight > x) // TODO: handle reorgs
+                  currentBitcoinNetworkHeight.set(deposit.blockHeight)
+                else Sync[F].unit
+            } yield ()
+          )
+        case withdrawal: BTCFundsWithdrawn =>
+          fs2.Stream(
+            for {
+              x <- currentBitcoinNetworkHeight.get
+              _ <-
+                if (withdrawal.blockHeight > x) // TODO: handle reorgs
+                  currentBitcoinNetworkHeight.set(withdrawal.blockHeight)
+                else Sync[F].unit
+            } yield ()
+          )
+
+        case _ => fs2.Stream.empty
+      }
+
     def handleBlockchainEventInContext(
         blockchainEvent: BlockchainEvent
     ): fs2.Stream[F, F[Unit]] = {
       import scala.jdk.CollectionConverters._
-      (for {
+      updateBTCHeight(blockchainEvent) ++ (for {
         entry <- fs2.Stream[F, Entry[String, PeginStateMachineState]](
           map.entrySet().asScala.toList: _*
         )

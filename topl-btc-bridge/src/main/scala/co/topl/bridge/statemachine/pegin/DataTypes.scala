@@ -5,11 +5,11 @@ import org.bitcoins.core.protocol.script.ScriptPubKey
 
 sealed trait BlockchainEvent
 
-case class BTCFundsWithdrawn(blockHeight: Long, txId: String, vout: Long)
+case class BTCFundsWithdrawn(blockHeight: Int, txId: String, vout: Long)
     extends BlockchainEvent
 
 case class BTCFundsDeposited(
-    blockHeight: Long,
+    blockHeight: Int,
     scriptPubKey: ScriptPubKey,
     txId: String,
     vout: Long,
