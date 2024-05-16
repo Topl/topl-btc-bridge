@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export BTC_USER=test
-export BTC_PASSWORD=test
+export BTC_USER=bitcoin
+export BTC_PASSWORD=password
 export ESCROW_ADDRESS="$1"
 
 bitcoin-cli -regtest -rpcuser=$BTC_USER -rpcpassword=$BTC_PASSWORD -named createwallet wallet_name=testwallet

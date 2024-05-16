@@ -6,22 +6,22 @@ export enum PeginUIState {
   InitialState,
   SessionStarted,
   MintingTBTC,
-  WaitingForMint,
-  MintedTBTC
+  WaitingForRedemption,
+  WaitingForClaim
 }
 
 function stringToPeginUIState(state: string): PeginUIState {
   switch (state) {
     case "InitialState":
       return PeginUIState.InitialState;
-    case "SessionStarted":
+    case "PeginSessionStateWaitingForBTC":
       return PeginUIState.SessionStarted;
-    case "MintingTBTC":
+    case "PeginSessionStateMintingTBTC": // MintingTBTC
       return PeginUIState.MintingTBTC;
-    case "WaitingForMint":
-      return PeginUIState.WaitingForMint;
-    case "MintedTBTC":
-      return PeginUIState.MintedTBTC;
+    case "PeginSessionWaitingForRedemption":
+      return PeginUIState.WaitingForRedemption;
+    case "PeginSessionWaitingForClaim":
+      return PeginUIState.WaitingForClaim;
     default:
       return PeginUIState.InitialState;
   }
@@ -46,29 +46,30 @@ export function setupSession(session: SessionInformation, setSession: React.Disp
 export function sessionStarted(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, response: StartSessionResponse) {
   setCookie("sessionID", response.sessionID);
   setCookie("escrowAddress", response.escrowAddress);
-  setCookie("currentState", "SessionStarted");
+  setCookie("currentState", "PeginSessionStateWaitingForBTC");
   setSession({ isSet: true, sessionID: response.sessionID, escrowAddress: response.escrowAddress, currentState: PeginUIState.SessionStarted, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
 }
 
 export function btcArrived(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
-  setCookie("currentState", "MintingTBTC");
+  setCookie("currentState", "PeginSessionStateMintingTBTC");
   setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.MintingTBTC, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
 }
 
 export function mintingBTC(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
-  setCookie("currentState", "MintingTBTC");
+  setCookie("currentState", "PeginSessionStateMintingTBTC");
   setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.MintingTBTC, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
 }
 
-export function waitingForTBTC(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
-  setCookie("currentState", "WaitingForMint");
-  setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.WaitingForMint, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
-}
 
 export function mintedBTC(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation, address: string, toplBridgePKey: string, redeemTemplate: string) {
-  setCookie("currentState", "MintedTBTC");
+  setCookie("currentState", "PeginSessionWaitingForRedemption");
   setCookie("redeemAddress", address);
   setCookie("toplBridgePKey", toplBridgePKey);
   setCookie("redeemTemplate", redeemTemplate);
-  setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.MintedTBTC, redeemAddress: address, toplBridgePKey: toplBridgePKey, redeemTemplate: redeemTemplate });
+  setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.WaitingForRedemption, redeemAddress: address, toplBridgePKey: toplBridgePKey, redeemTemplate: redeemTemplate });
+}
+
+export function claimedTBTC(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
+  setCookie("currentState", "PeginSessionWaitingForClaim");
+  setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.WaitingForClaim, redeemAddress: session.redeemAddress, toplBridgePKey: session.toplBridgePKey, redeemTemplate: session.redeemTemplate });
 }

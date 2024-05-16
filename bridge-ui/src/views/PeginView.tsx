@@ -3,21 +3,21 @@ import { PeginUIState } from "../controllers/PeginController";
 import StartSession, { SessionInformation } from "./StartSession";
 import WaitingForMint from "./WaitingForMint";
 import { SessionCtx } from "../Frame";
+import WaitingForRedemption from "./WaitingForRedemption";
+import WaitingForClaim from "./WaitingForClaim";
 
-const currentView = (session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>) => {
+function currentView(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>): JSX.Element {
   switch (session.currentState) {
     case PeginUIState.InitialState:
       return StartSession(session, setSession)
     case PeginUIState.SessionStarted:
       return StartSession(session, setSession)
-    case PeginUIState.WaitingForMint:
-      return WaitingForMint(session)
     case PeginUIState.MintingTBTC:
-      return WaitingForMint(session)
-    case PeginUIState.MintedTBTC:
-      return WaitingForMint(session)
-    default:
-      return StartSession(session, setSession)
+      return WaitingForMint()
+    case PeginUIState.WaitingForRedemption:
+      return WaitingForRedemption(session)
+    case PeginUIState.WaitingForClaim:
+      return WaitingForClaim()
   }
 }
 

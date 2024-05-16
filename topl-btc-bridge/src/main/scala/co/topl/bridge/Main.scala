@@ -33,6 +33,7 @@ case object PeginSessionState {
   case object PeginSessionStateWaitingForBTC extends PeginSessionState
   case object PeginSessionStateMintingTBTC extends PeginSessionState
   case object PeginSessionWaitingForRedemption extends PeginSessionState
+  case object PeginSessionWaitingForClaim extends PeginSessionState
 }
 
 object Main extends IOApp with BridgeParamsDescriptor with AppModule {
