@@ -29,6 +29,11 @@ trait SuccessfulPeginModule {
 
     assertIO(
       for {
+        cwd <- process
+          .ProcessBuilder("pwd")
+          .spawn[IO]
+          .use { getText }
+          _ <- IO.println("cwd: " + cwd)
         initResult <- initUserWallet.use { getText }
         _ <- IO.println("initResult: " + initResult)
         addFellowshipResult <- addFellowship.use { getText }
