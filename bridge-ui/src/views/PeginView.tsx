@@ -5,6 +5,7 @@ import WaitingForMint from "./WaitingForMint";
 import { SessionCtx } from "../Frame";
 import WaitingForRedemption from "./WaitingForRedemption";
 import WaitingForClaim from "./WaitingForClaim";
+import BTCWasNotSent from "./BTCWasNotSent";
 
 function currentView(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>): JSX.Element {
   switch (session.currentState) {
@@ -14,6 +15,8 @@ function currentView(session: SessionInformation, setSession: React.Dispatch<Rea
       return StartSession(session, setSession)
     case PeginUIState.MintingTBTC:
       return WaitingForMint()
+    case PeginUIState.TimeOutBTCNotSent:
+      return BTCWasNotSent()
     case PeginUIState.WaitingForRedemption:
       return WaitingForRedemption(session)
     case PeginUIState.WaitingForClaim:

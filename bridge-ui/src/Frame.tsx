@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { PeginUIState, mintedBTC, mintingBTC, setupSession, claimedTBTC } from './controllers/PeginController';
+import { PeginUIState, mintedBTC, mintingBTC, setupSession, claimedTBTC, timeOutBTCNotSent } from './controllers/PeginController';
 import { deleteCookie } from './cookie-typescript-utils';
 import { SessionInformation } from './views/StartSession';
 
@@ -27,6 +27,8 @@ async function checkAndTransitionFromSessionStarted(session: SessionInformation,
     if (mintStatus !== "PeginSessionStateWaitingForBTC") {
       mintingBTC(setSession, session)
     }
+  } else if (response.status == 404) {
+    timeOutBTCNotSent(setSession, session)
   }
 }
 
@@ -54,7 +56,6 @@ async function checkAndTransitionFromWaitingForRedemption(session: SessionInform
   } else if (response.status == 404) {
     // this is because the minting status is not found, so we can assume that the minting is complete
     clearInterval(sessionPoll)
-
   }
 }
 
@@ -68,6 +69,8 @@ function Frame() {
         checkAndTransitionFromSessionStarted(session, setSession)
       } else if (session.currentState == PeginUIState.MintingTBTC) {
         checkAndTransitionFromMintingTBTC(session, setSession, sessionPoll)
+      } else if (session.currentState == PeginUIState.TimeOutBTCNotSent) {
+        clearInterval(sessionPoll)
       } else if (session.currentState == PeginUIState.WaitingForRedemption) {
         checkAndTransitionFromWaitingForRedemption(session, setSession, sessionPoll)
       } else if (session.currentState == PeginUIState.WaitingForClaim) {
