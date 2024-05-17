@@ -48,18 +48,18 @@ trait BridgeParamsDescriptor {
         .text(
           "The topl wallet db. (default: topl-wallet.db)"
         ),
-      opt[String]("peg-in-seed-file")
-        .action((x, c) => c.copy(pegInSeedFile = x))
+      opt[String]("btc-peg-in-seed-file")
+        .action((x, c) => c.copy(btcPegInSeedFile = x))
         .text(
           "The path to the peg in seed file. (default: pegin-wallet.json)"
         ),
-      opt[String]("peg-in-password")
-        .action((x, c) => c.copy(pegInPassword = x))
+      opt[String]("btc-peg-in-password")
+        .action((x, c) => c.copy(btcPegInPassword = x))
         .text(
           "The password to the seed file. (default: password)"
         ),
-      opt[String]("seed-file")
-        .action((x, c) => c.copy(walletSeedFile = x))
+      opt[String]("btc-wallet-seed-file")
+        .action((x, c) => c.copy(btcWalletSeedFile = x))
         .text(
           "The path to the seed file. (default: wallet.json)"
         ),

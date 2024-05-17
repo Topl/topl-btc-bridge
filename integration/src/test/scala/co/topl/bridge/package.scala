@@ -34,7 +34,9 @@ package object bridge {
 
   }
 
-  val CS_CMD = "/home/runner/work/topl-btc-bridge/topl-btc-bridge/cs"
+  val CS_CMD = Option(System.getenv("CI"))
+    .map(_ => "/home/runner/work/topl-btc-bridge/topl-btc-bridge/cs")
+    .getOrElse("cs")
 
   val csParams = Seq(
     "launch",
@@ -258,7 +260,7 @@ package object bridge {
         "-n",
         "private",
         "-a",
-        "10",
+        amount.toString(),
         "-h",
         "localhost",
         "--port",
@@ -407,13 +409,13 @@ package object bridge {
 
   def getText(p: fs2.io.process.Process[IO]) =
     p.stdout
-      .through(fs2.text.utf8Decode)
+      .through(fs2.text.utf8.decode)
       .compile
       .foldMonoid
       .map(_.trim)
   def getError(p: fs2.io.process.Process[IO]) =
     p.stderr
-      .through(fs2.text.utf8Decode)
+      .through(fs2.text.utf8.decode)
       .compile
       .foldMonoid
 

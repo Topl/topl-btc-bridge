@@ -5,6 +5,7 @@ import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
+import fs2.io.file.Files
 import fs2.io.process
 import io.circe.parser._
 import org.http4s.Method
@@ -15,7 +16,6 @@ import org.http4s.ember.client._
 import org.http4s.headers.`Content-Type`
 
 import java.io.ByteArrayInputStream
-import java.nio.file.Paths
 import scala.concurrent.duration._
 import scala.io.Source
 
@@ -33,7 +33,7 @@ trait SuccessfulPeginModule {
           .ProcessBuilder("pwd")
           .spawn[IO]
           .use { getText }
-          _ <- IO.println("cwd: " + cwd)
+        _ <- IO.println("cwd: " + cwd)
         initResult <- initUserWallet.use { getText }
         _ <- IO.println("initResult: " + initResult)
         addFellowshipResult <- addFellowship.use { getText }
@@ -152,7 +152,7 @@ trait SuccessfulPeginModule {
             ),
             10
           )
-          .through(fs2.io.file.writeAll(Paths.get(vkFile)))
+          .through(Files[IO].writeAll(fs2.io.file.Path(vkFile)))
           .compile
           .drain
         importVkResult <- importVks.use { getText }
@@ -230,7 +230,7 @@ trait SuccessfulPeginModule {
           .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-        mintingStatusResponse <- EmberClientBuilder
+        _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>

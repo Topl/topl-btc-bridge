@@ -1,10 +1,15 @@
 package co.topl.bridge
 
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.kernel.Fiber
 import munit.CatsEffectSuite
 
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
+import munit.FutureFixture
+import munit.AnyFixture
 
 class BridgeIntegrationSpec
     extends CatsEffectSuite
@@ -14,6 +19,49 @@ class BridgeIntegrationSpec
   val DOCKER_CMD = "docker"
 
   override val munitIOTimeout = Duration(180, "s")
+
+  lazy val toplWalletDb = Option(System.getenv("TOPL_WALLET_DB")).getOrElse("topl-wallet.db")
+  lazy val toplWalletJson = Option(System.getenv("TOPL_WALLET_JSON")).getOrElse("topl-wallet.json")
+
+  val startServer: AnyFixture[Unit] =
+    new FutureFixture[Unit]("server setup") {
+
+      var fiber: Fiber[IO, Throwable, ExitCode] = _
+      def apply() = fiber : Unit
+
+      override def beforeAll() = {
+        IO.asyncForIO
+          .both(
+            IO.asyncForIO
+              .start(
+                Main.run(
+                  List(
+                    "--btc-wallet-seed-file",
+                    "src/test/resources/wallet.json",
+                    "--btc-peg-in-seed-file",
+                    "src/test/resources/pegin-wallet.json",
+                    "--topl-wallet-seed-file",
+                    toplWalletJson,
+                    "--topl-wallet-db",
+                    toplWalletDb,
+                    "--btc-url",
+                    "http://localhost"
+                  )
+                )
+              ),
+            IO.sleep(10.seconds)
+          )
+          .map { case (f, _) =>
+            fiber = f
+          }
+          .void
+          .unsafeToFuture()
+      }
+
+      override def afterAll() = {
+        fiber.cancel.void.unsafeToFuture()
+      }
+    }
 
   val cleanupDir = FunFixture[Unit](
     setup = { _ =>
@@ -35,6 +83,7 @@ class BridgeIntegrationSpec
     }
   )
 
+  override def munitFixtures = List(startServer)
 
   cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
     successfulPegin()

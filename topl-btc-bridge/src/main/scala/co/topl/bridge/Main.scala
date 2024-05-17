@@ -67,8 +67,8 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
   ): IO[BIP39KeyManager] =
     KeyGenerationUtils.loadKeyManager[IO](
       params.btcNetwork,
-      params.pegInSeedFile,
-      params.pegInPassword
+      params.btcPegInSeedFile,
+      params.btcPegInPassword
     )
 
   private def loadKeyWallet(
@@ -76,7 +76,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
   ): IO[BIP39KeyManager] =
     KeyGenerationUtils.loadKeyManager[IO](
       params.btcNetwork,
-      params.walletSeedFile,
+      params.btcWalletSeedFile,
       params.walletPassword
     )
 
@@ -106,9 +106,9 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       _ <- info"btc-wait-expiration   : ${params.btcWaitExpirationTime}" (
         logger
       )
-      _ <- info"peg-in-seed-file      : ${params.pegInSeedFile}" (logger)
-      _ <- info"peg-in-password       : ******" (logger)
-      _ <- info"wallet-seed-file      : ${params.walletSeedFile}" (logger)
+      _ <- info"btc-peg-in-seed-file      : ${params.btcPegInSeedFile}" (logger)
+      _ <- info"btc-peg-in-password       : ******" (logger)
+      _ <- info"wallet-seed-file      : ${params.btcWalletSeedFile}" (logger)
       _ <- info"wallet-password       : ******" (logger)
       _ <- info"topl-wallet-seed-file : ${params.toplWalletSeedFile}" (logger)
       _ <- info"topl-wallet-password  : ******" (logger)
