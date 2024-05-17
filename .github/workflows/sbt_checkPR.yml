@@ -28,6 +28,7 @@ jobs:
   integration-test:
     name: Run Integration Tests
     runs-on: ubuntu-20.04
+    needs: unit-test
     services:
       # Label used to access the service container
       bifrost:
