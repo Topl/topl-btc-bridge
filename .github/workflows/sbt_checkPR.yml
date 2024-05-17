@@ -93,6 +93,7 @@ jobs:
           java-version: adopt@1.11
       - name: Prepare wallet
         run: |
+          pwd
           curl -fL "https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-linux.gz" | gzip -d > cs
           chmod +x cs
           ./cs setup --yes
