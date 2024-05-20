@@ -301,6 +301,30 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     )
   }
 
+  // MintingTBTC -> EndTransition when timeout
+  test(
+    "PeginTransitionRelation should transition from MintingTBTC to EndTransition when timeout"
+  ) {
+    assert(
+      PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          MintingTBTC(
+            1,
+            1,
+            "",
+            redeemAddress,
+            claimAddress,
+            "btcTxId",
+            0,
+            100
+          ),
+          NewBTCBlock(102)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .isInstanceOf[EndTrasition[IO]]: @nowarn
+    )
+  }
+
   // MintingTBTC -> WaitingForRedemption
   test(
     "PeginTransitionRelation should transition from MintingTBTC to WaitingForRedemption"
