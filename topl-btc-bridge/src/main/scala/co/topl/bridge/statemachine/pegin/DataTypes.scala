@@ -5,11 +5,12 @@ import org.bitcoins.core.protocol.script.ScriptPubKey
 
 sealed trait BlockchainEvent
 
-case class BTCFundsWithdrawn(blockHeight: Int, txId: String, vout: Long)
+case class BTCFundsWithdrawn(txId: String, vout: Long)
     extends BlockchainEvent
 
+case class NewBTCBlock(height: Int) extends BlockchainEvent
+
 case class BTCFundsDeposited(
-    blockHeight: Int,
     scriptPubKey: ScriptPubKey,
     txId: String,
     vout: Long,
@@ -40,6 +41,7 @@ case class WaitingForBTC(
     claimAddress: String
 ) extends PeginStateMachineState
 case class MintingTBTC(
+    startBTCBlockHeight: Long,
     currentWalletIdx: Int,
     scriptAsm: String,
     redeemAddress: String,

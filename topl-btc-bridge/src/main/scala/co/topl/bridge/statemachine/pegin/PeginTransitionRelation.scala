@@ -61,22 +61,15 @@ object PeginTransitionRelation {
           )
           .void
       case (
-            WaitingForBTC(
-              _,
-              _,
-              _,
-              _,
-              redeemAddress,
-              _
-            ),
-            BTCFundsDeposited(_, _, _, _, amount)
+            cs: WaitingForBTC,
+            BTCFundsDeposited(_, _, _, amount)
           ) =>
         Async[F]
           .start(
             startMintingProcess[F](
               defaultFromFellowship,
               defaultFromTemplate,
-              redeemAddress,
+              cs.redeemAddress,
               amount.satoshis.toLong
             )
           )
@@ -108,7 +101,7 @@ object PeginTransitionRelation {
         } else None
       case (
             WaitingForClaim(claimAddress),
-            BTCFundsDeposited(_, scriptPubKey, _, _, _)
+            BTCFundsDeposited(scriptPubKey, _, _, _)
           ) =>
         val bech32Address = Bech32Address.fromString(claimAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {
@@ -118,6 +111,34 @@ object PeginTransitionRelation {
             )
           )
         } else None
+      case (
+            cs: WaitingForBTC,
+            ev: NewBTCBlock
+          ) =>
+        if (
+          ev.height - cs.currentBTCBlockHeight > btcWaitExpirationTime.underlying
+        )
+          Some(
+            EndTrasition[F](
+              Async[F].unit
+            )
+          )
+        else
+          None
+      case (
+            cs: MintingTBTC,
+            ev: NewBTCBlock
+          ) =>
+        if (
+          ev.height - cs.startBTCBlockHeight > btcWaitExpirationTime.underlying
+        )
+          Some(
+            EndTrasition[F](
+              Async[F].unit
+            )
+          )
+        else
+          None
       case (
             cs: MintingTBTC,
             be: BifrostFundsDeposited
@@ -141,51 +162,29 @@ object PeginTransitionRelation {
           )
         } else None
       case (
-            WaitingForBTC(
-              startBlockHeight,
-              currentWalletIdx,
-              scriptAsm,
-              escrowAddress,
-              redeemAddress,
-              claimAddress
-            ),
-            BTCFundsDeposited(
-              currentBTCBlockHeight,
-              scriptPubKey,
-              txId,
-              vout,
-              amount
-            )
+            cs: WaitingForBTC,
+            ev: BTCFundsDeposited
           ) =>
-        if (
-          currentBTCBlockHeight - startBlockHeight > btcWaitExpirationTime.underlying
-        )
+        val bech32Address = Bech32Address.fromString(cs.escrowAddress)
+        if (ev.scriptPubKey == bech32Address.scriptPubKey) {
           Some(
-            EndTrasition[F](
-              Async[F].unit
+            FSMTransitionTo(
+              currentState,
+              MintingTBTC(
+                cs.currentBTCBlockHeight,
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.redeemAddress,
+                cs.claimAddress,
+                ev.txId,
+                ev.vout,
+                ev.amount.satoshis.toLong
+              ),
+              t2E(currentState, blockchainEvent)
             )
           )
-        else {
-          val bech32Address = Bech32Address.fromString(escrowAddress)
-          if (scriptPubKey == bech32Address.scriptPubKey) {
-            Some(
-              FSMTransitionTo(
-                currentState,
-                MintingTBTC(
-                  currentWalletIdx,
-                  scriptAsm,
-                  redeemAddress,
-                  claimAddress,
-                  txId,
-                  vout,
-                  amount.satoshis.toLong
-                ),
-                t2E(currentState, blockchainEvent)
-              )
-            )
-          } else
-            None
-        }
+        } else
+          None
       case (
             _: WaitingForRedemption,
             _
