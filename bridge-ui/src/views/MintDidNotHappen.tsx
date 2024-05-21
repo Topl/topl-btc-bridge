@@ -4,7 +4,7 @@ const style0 = {
 };
 
 
-function BTCWasNotSent(): JSX.Element {
+function MintDidNotHappen(): JSX.Element {
   return (
     <>
       <div className="card-body">
@@ -16,7 +16,7 @@ function BTCWasNotSent(): JSX.Element {
             <div className="row">
               <div className="mb-3">
                 <div className="d-flex align-items-center">
-                  <strong role="status">BTC was not received, the peg-in was cancelled</strong>
+                  <strong role="status">The minting did not happen. You can recover the BTC from the escrow address.</strong>
                 </div>
               </div>
             </div>
@@ -27,4 +27,4 @@ function BTCWasNotSent(): JSX.Element {
   );
 }
 
-export default BTCWasNotSent;
+export default MintDidNotHappen;

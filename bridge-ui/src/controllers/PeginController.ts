@@ -7,6 +7,7 @@ export enum PeginUIState {
   SessionStarted,
   TimeOutBTCNotSent,
   MintingTBTC,
+  TimeOutMintingTBTC,
   WaitingForRedemption,
   WaitingForClaim
 }
@@ -25,6 +26,8 @@ function stringToPeginUIState(state: string): PeginUIState {
       return PeginUIState.WaitingForClaim;
     case "PeginSessionTimeOutBTCNotSent":
       return PeginUIState.TimeOutBTCNotSent;
+    case "PeginSessionTimeOutMintingTBTC":
+      return PeginUIState.TimeOutMintingTBTC;
     default:
       return PeginUIState.InitialState;
   }
@@ -61,6 +64,11 @@ export function btcArrived(setSession: React.Dispatch<React.SetStateAction<Sessi
 export function mintingBTC(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
   setCookie("currentState", "PeginSessionStateMintingTBTC");
   setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.MintingTBTC, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
+}
+
+export function timeOutMintingBTC(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
+  setCookie("currentState", "PeginSessionTimeOutMintingTBTC");
+  setSession({ isSet: true, sessionID: session.sessionID, escrowAddress: session.escrowAddress, currentState: PeginUIState.TimeOutMintingTBTC, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
 }
 
 export function timeOutBTCNotSent(setSession: React.Dispatch<React.SetStateAction<SessionInformation>>, session: SessionInformation) {
