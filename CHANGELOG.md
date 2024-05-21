@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for monitoring the Topl network.
 - Logging all command line arguments when starting the application.
 - Support for sad path: User did not send the funds.
+- Support for sad path: Bridge did not mint the tokens in time.
 
 ### Changed
 
