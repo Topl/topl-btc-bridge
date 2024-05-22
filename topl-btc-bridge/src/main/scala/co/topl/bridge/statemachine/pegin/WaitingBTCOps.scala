@@ -17,10 +17,15 @@ import co.topl.genus.services.Txo
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.KeyPair
+import co.topl.brambl.wallet.WalletApi
+import cats.effect.kernel.Resource
+import io.grpc.ManagedChannel
 
 object WaitingBTCOps {
 
   import WalletApiHelpers._
+  import ToplWalletAlgebra._
+  import TransactionAlgebra._
 
   private def getGroupTokeUtxo(txos: Seq[Txo]) = {
     txos
@@ -58,30 +63,31 @@ object WaitingBTCOps {
       fromTemplate: Template,
       assetMintingStatement: AssetMintingStatement,
       keyPair: KeyPair,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
-      transactionAlgebra: TransactionAlgebra[F],
       fee: Lvl
+  )(implicit
+      tba: TransactionBuilderApi[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F],
+      utxoAlgebra: GenusQueryAlgebra[F],
+      channelResource: Resource[F, ManagedChannel]
   ) = for {
-    ioTransaction <- toplWalletAlgebra
-      .createSimpleAssetMintingTransactionFromParams(
-        keyPair,
-        fromFellowship,
-        fromTemplate,
-        None,
-        fee,
-        None,
-        None,
-        assetMintingStatement,
-        redeemAddress
-      )
-    provedIoTx <- transactionAlgebra
-      .proveSimpleTransactionFromParams(
-        ioTransaction,
-        keyPair
-      )
+    ioTransaction <- createSimpleAssetMintingTransactionFromParams(
+      keyPair,
+      fromFellowship,
+      fromTemplate,
+      None,
+      fee,
+      None,
+      None,
+      assetMintingStatement,
+      redeemAddress
+    )
+    provedIoTx <- proveSimpleTransactionFromParams(
+      ioTransaction,
+      keyPair
+    )
       .flatMap(Async[F].fromEither(_))
-    txId <- transactionAlgebra
-      .broadcastSimpleTransactionFromParams(provedIoTx)
+    txId <- broadcastSimpleTransactionFromParams(provedIoTx)
       .flatMap(Async[F].fromEither(_))
   } yield txId
 
@@ -92,11 +98,11 @@ object WaitingBTCOps {
       amount: Long
   )(implicit
       keyPair: KeyPair,
-      toplWalletAlgebra: ToplWalletAlgebra[F],
-      transactionAlgebra: TransactionAlgebra[F],
+      walletApi: WalletApi[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F],
+      channelResource: Resource[F, ManagedChannel],
       defaultMintingFee: Lvl
   ): F[Unit] = {
     import cats.implicits._
@@ -117,8 +123,6 @@ object WaitingBTCOps {
         fromTemplate,
         assetMintingStatement,
         keyPair,
-        toplWalletAlgebra,
-        transactionAlgebra,
         defaultMintingFee
       )
     } yield ()

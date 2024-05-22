@@ -18,8 +18,6 @@ import co.topl.bridge.managers.SessionCreated
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.SessionUpdated
-import co.topl.bridge.managers.ToplWalletAlgebra
-import co.topl.bridge.managers.TransactionAlgebra
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
@@ -30,6 +28,11 @@ import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import co.topl.bridge.managers.BTCWalletAlgebra
+import co.topl.brambl.wallet.WalletApi
+import cats.effect.kernel.Resource
+import io.grpc.ManagedChannel
+import cats.effect.kernel.Ref
+import co.topl.bridge.BTCWaitExpirationTime
 
 trait PeginStateMachineAlgebra[F[_]] {
 
@@ -46,31 +49,51 @@ trait PeginStateMachineAlgebra[F[_]] {
 object PeginStateMachine {
 
   def make[F[_]: Async: Logger](
+      currentBitcoinNetworkHeight: Ref[F, Int],
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
       sessionManager: SessionManagerAlgebra[F],
+      walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
       toplKeypair: KeyPair,
       walletStateApi: WalletStateAlgebra[F],
-      toplWalletAlgebra: ToplWalletAlgebra[F],
-      transactionAlgebra: TransactionAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
       utxoAlgebra: GenusQueryAlgebra[F],
       defaultFromFellowship: Fellowship,
       defaultFromTemplate: Template,
       defaultFeePerByte: BitcoinCurrencyUnit,
-      defaultMintingFee: Lvl
+      defaultMintingFee: Lvl,
+      btcWaitExpirationTime: BTCWaitExpirationTime,
+      channelResource: Resource[F, ManagedChannel]
   ) = new PeginStateMachineAlgebra[F] {
 
     import org.typelevel.log4cats.syntax._
     import PeginTransitionRelation._
 
+    private def updateBTCHeight(
+        blockchainEvent: BlockchainEvent
+    ): fs2.Stream[F, F[Unit]] =
+      blockchainEvent match {
+        case NewBTCBlock(height) =>
+          fs2.Stream(
+            for {
+              x <- currentBitcoinNetworkHeight.get
+              _ <-
+                if (height > x) // TODO: handle reorgs
+                  currentBitcoinNetworkHeight.set(height)
+                else Sync[F].unit
+            } yield ()
+          )
+
+        case _ => fs2.Stream.empty
+      }
+
     def handleBlockchainEventInContext(
         blockchainEvent: BlockchainEvent
     ): fs2.Stream[F, F[Unit]] = {
       import scala.jdk.CollectionConverters._
-      (for {
+      updateBTCHeight(blockchainEvent) ++ (for {
         entry <- fs2.Stream[F, Entry[String, PeginStateMachineState]](
           map.entrySet().asScala.toList: _*
         )
@@ -129,15 +152,18 @@ object PeginStateMachine {
       sessionEvent match {
         case SessionCreated(sessionId, psi: PeginSessionInfo) =>
           info"New session created, waiting for funds at ${psi.escrowAddress}" >>
-            Sync[F].delay(
-              map.put(
-                sessionId,
-                WaitingForBTC(
-                  psi.btcPeginCurrentWalletIdx,
-                  psi.scriptAsm,
-                  psi.escrowAddress,
-                  psi.redeemAddress,
-                  psi.claimAddress
+            currentBitcoinNetworkHeight.get.flatMap(cHeight =>
+              Sync[F].delay(
+                map.put(
+                  sessionId,
+                  WaitingForBTC(
+                    cHeight,
+                    psi.btcPeginCurrentWalletIdx,
+                    psi.scriptAsm,
+                    psi.escrowAddress,
+                    psi.redeemAddress,
+                    psi.claimAddress
+                  )
                 )
               )
             )

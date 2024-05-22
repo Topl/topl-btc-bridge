@@ -19,7 +19,7 @@ import quivr.models.KeyPair
 import TransactionBuilderApi.implicits._
 import co.topl.bridge.Lvl
 
-object AssetMintingOps extends CommonTxOps {
+object AssetMintingOps {
 
   import cats.implicits._
 

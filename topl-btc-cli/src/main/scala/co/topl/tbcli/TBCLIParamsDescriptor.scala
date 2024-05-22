@@ -32,7 +32,7 @@ trait TBCLIParamsDescriptor {
         .action((_, c) => someCommand.replace(InitSession())(c))
         .text("Initialize a new session")
         .children(
-          opt[String]("seed-file")
+          opt[String]("btc-wallet-seed-file")
             .action((x, c) => {
               val seedFile = GenLens[InitSession](_.seedFile)
               initSessionLens

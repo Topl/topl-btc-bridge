@@ -4,6 +4,8 @@ import _root_.quivr.models.Int128
 
 package object bridge {
 
+  class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
+
   class Fellowship(val underlying: String) extends AnyVal
 
   class Template(val underlying: String) extends AnyVal

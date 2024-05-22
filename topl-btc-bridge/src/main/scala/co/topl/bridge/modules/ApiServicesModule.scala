@@ -5,7 +5,9 @@ import cats.effect.kernel.Ref
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.constants.NetworkConstants
+import co.topl.brambl.dataApi.FellowshipStorageAlgebra
 import co.topl.brambl.dataApi.GenusQueryAlgebra
+import co.topl.brambl.dataApi.TemplateStorageAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.Indices
 import co.topl.brambl.models.LockAddress
@@ -17,7 +19,6 @@ import co.topl.bridge.controllers.StartSessionController
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.SessionManagerAlgebra
-import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.genus.services.Txo
 import co.topl.genus.services.TxoState
 import co.topl.shared.BitcoinNetworkIdentifiers
@@ -38,6 +39,7 @@ import org.http4s.circe._
 import org.http4s.dsl.io._
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
+import co.topl.bridge.BTCWaitExpirationTime
 
 trait ApiServicesModule {
 
@@ -122,18 +124,22 @@ trait ApiServicesModule {
   }
 
   def apiServices(
-      walletApi: WalletApi[IO],
       walletStateAlgebra: WalletStateAlgebra[IO],
-      genusQueryAlgebra: GenusQueryAlgebra[IO],
       toplKeypair: KeyPair,
       sessionManager: SessionManagerAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       bridgeWalletManager: BTCWalletAlgebra[IO],
-      toplWalletAlgebra: ToplWalletAlgebra[IO],
-      blockToRecover: Int,
       btcNetwork: BitcoinNetworkIdentifiers,
       toplNetwork: ToplNetworkIdentifiers,
       currentState: Ref[IO, SystemGlobalState]
+  )(implicit
+      fellowshipStorageAlgebra: FellowshipStorageAlgebra[IO],
+      templateStorageAlgebra: TemplateStorageAlgebra[IO],
+      tba: TransactionBuilderApi[IO],
+      walletApi: WalletApi[IO],
+      wsa: WalletStateAlgebra[IO],
+      btcWaitExpirationTime: BTCWaitExpirationTime,
+      genusQueryAlgebra: GenusQueryAlgebra[IO]
   ) = {
     import io.circe.syntax._
     implicit val bridgeErrorEncoder: Encoder[BridgeError] =
@@ -185,9 +191,7 @@ trait ApiServicesModule {
             pegInWalletManager,
             bridgeWalletManager,
             sessionManager,
-            blockToRecover,
             toplKeypair,
-            toplWalletAlgebra,
             btcNetwork
           )
           resp <- res match {
@@ -206,7 +210,6 @@ trait ApiServicesModule {
             x,
             toplNetwork,
             toplKeypair,
-            toplWalletAlgebra,
             sessionManager,
             1000
           )
@@ -227,7 +230,7 @@ trait ApiServicesModule {
           session <- sessionManager.getSession(x.sessionID)
           somePegin <- session match {
             case Some(p: PeginSessionInfo) => IO.pure(Option(p))
-            case None => IO.pure(None)
+            case None                      => IO.pure(None)
             case _ => IO.raiseError(new Exception("Invalid session type"))
           }
           resp <- somePegin match {

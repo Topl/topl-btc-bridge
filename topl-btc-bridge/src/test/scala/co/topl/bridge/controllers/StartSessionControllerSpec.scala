@@ -1,9 +1,9 @@
 package co.topl.bridge.controllers
 
 import cats.effect.IO
+import cats.effect.std.Queue
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
-import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.RpcChannelResource
 import co.topl.brambl.servicekit.FellowshipStorageApi
 import co.topl.brambl.servicekit.TemplateStorageApi
@@ -14,9 +14,9 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.managers.BTCWalletImpl
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
+import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionInfo
 import co.topl.bridge.managers.SessionManagerImpl
-import co.topl.bridge.managers.ToplWalletImpl
 import co.topl.bridge.managers.WalletManagementUtils
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
@@ -32,8 +32,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
-import cats.effect.std.Queue
-import co.topl.bridge.managers.SessionEvent
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -70,13 +68,11 @@ class StartSessionControllerSpec
         ToplPrivatenet.networkId,
         NetworkConstants.MAIN_LEDGER_ID
       )
-      val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-        channelResource(
-          "localhost",
-          9084,
-          false
-        )
-      )
+
+      implicit val fellowshipStorageApi =
+        FellowshipStorageApi.make(walletResource(toplWalletDb))
+      implicit val templateStorageApi =
+        TemplateStorageApi.make(walletResource(toplWalletDb))
       assertIOBoolean(
         for {
           km0 <- KeyGenerationUtils.createKeyManager[IO](
@@ -90,11 +86,6 @@ class StartSessionControllerSpec
             queue,
             new ConcurrentHashMap[String, SessionInfo]()
           )
-          toplWalletImpl = ToplWalletImpl.make[IO](
-            FellowshipStorageApi.make(walletResource(toplWalletDb)),
-            TemplateStorageApi.make(walletResource(toplWalletDb)),
-            genusQueryAlgebra
-          )
           keyPair <- walletManagementUtils.loadKeys(
             toplWalletFile,
             testToplPassword
@@ -107,9 +98,7 @@ class StartSessionControllerSpec
             peginWallet,
             peginWallet,
             sessionManager,
-            testBlockToRecover,
             keyPair,
-            toplWalletImpl,
             RegTest
           )
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
@@ -129,18 +118,10 @@ class StartSessionControllerSpec
       )
       implicit val walletStateAlgebra = WalletStateApi
         .make[IO](walletResource(toplWalletDb), walletApi)
-      implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
-        ToplPrivatenet.networkId,
-        NetworkConstants.MAIN_LEDGER_ID
-      )
-      val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-        channelResource(
-          "localhost",
-          9084,
-          false
-        )
-      )
-
+      implicit val fellowshipStorageApi =
+        FellowshipStorageApi.make(walletResource(toplWalletDb))
+      implicit val templateStorageApi =
+        TemplateStorageApi.make(walletResource(toplWalletDb))
       assertIOBoolean(
         for {
           queue <- Queue.unbounded[IO, SessionEvent]
@@ -152,11 +133,6 @@ class StartSessionControllerSpec
             toplWalletFile,
             testToplPassword
           )
-          toplWalletImpl = ToplWalletImpl.make[IO](
-            FellowshipStorageApi.make(walletResource(toplWalletDb)),
-            TemplateStorageApi.make(walletResource(toplWalletDb)),
-            genusQueryAlgebra
-          )
           res <- StartSessionController.startPegoutSession[IO](
             StartPegoutSessionRequest(
               pegoutTestKey,
@@ -165,7 +141,6 @@ class StartSessionControllerSpec
             ),
             ToplPrivatenet,
             keypair, // keypair
-            toplWalletImpl, // toplWalletAlgebra
             sessionManager, // session manager
             1000
           )
@@ -187,17 +162,11 @@ class StartSessionControllerSpec
     )
     implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
-      ToplPrivatenet.networkId,
-      NetworkConstants.MAIN_LEDGER_ID
-    )
-    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-      channelResource(
-        "localhost",
-        9084,
-        false
-      )
-    )
+
+    implicit val fellowshipStorageApi =
+      FellowshipStorageApi.make(walletResource(toplWalletDb))
+    implicit val templateStorageApi =
+      TemplateStorageApi.make(walletResource(toplWalletDb))
     assertIOBoolean(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
@@ -209,11 +178,6 @@ class StartSessionControllerSpec
           toplWalletFile,
           testToplPassword
         )
-        toplWalletImpl = ToplWalletImpl.make[IO](
-          FellowshipStorageApi.make(walletResource(toplWalletDb)),
-          TemplateStorageApi.make(walletResource(toplWalletDb)),
-          genusQueryAlgebra
-        )
         res <- StartSessionController.startPegoutSession[IO](
           StartPegoutSessionRequest(
             "invalidKey",
@@ -222,7 +186,6 @@ class StartSessionControllerSpec
           ),
           ToplPrivatenet,
           keypair, // keypair
-          toplWalletImpl, // toplWalletAlgebra
           sessionManager, // session manager
           1000
         )
@@ -247,23 +210,16 @@ class StartSessionControllerSpec
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
-    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-      channelResource(
-        "localhost",
-        9084,
-        false
-      )
-    )
+
+    implicit val fellowshipStorageApi =
+      FellowshipStorageApi.make(walletResource(toplWalletDb))
+    implicit val templateStorageApi =
+      TemplateStorageApi.make(walletResource(toplWalletDb))
     assertIOBoolean(
       for {
         keypair <- walletManagementUtils.loadKeys(
           toplWalletFile,
           testToplPassword
-        )
-        toplWalletImpl = ToplWalletImpl.make[IO](
-          FellowshipStorageApi.make(walletResource(toplWalletDb)),
-          TemplateStorageApi.make(walletResource(toplWalletDb)),
-          genusQueryAlgebra
         )
         km0 <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
@@ -284,9 +240,7 @@ class StartSessionControllerSpec
           peginWallet,
           peginWallet,
           sessionManager,
-          testBlockToRecover,
           keypair,
-          toplWalletImpl,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidKey(
@@ -308,23 +262,16 @@ class StartSessionControllerSpec
       ToplPrivatenet.networkId,
       NetworkConstants.MAIN_LEDGER_ID
     )
-    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-      channelResource(
-        "localhost",
-        9084,
-        false
-      )
-    )
+
+    implicit val fellowshipStorageApi =
+      FellowshipStorageApi.make(walletResource(toplWalletDb))
+    implicit val templateStorageApi =
+      TemplateStorageApi.make(walletResource(toplWalletDb))
     assertIOBoolean(
       for {
         keypair <- walletManagementUtils.loadKeys(
           toplWalletFile,
           testToplPassword
-        )
-        toplWalletImpl = ToplWalletImpl.make[IO](
-          FellowshipStorageApi.make(walletResource(toplWalletDb)),
-          TemplateStorageApi.make(walletResource(toplWalletDb)),
-          genusQueryAlgebra
         )
         queue <- Queue.unbounded[IO, SessionEvent]
         sessionManager = SessionManagerImpl.make[IO](
@@ -345,9 +292,7 @@ class StartSessionControllerSpec
           peginWallet,
           peginWallet,
           sessionManager,
-          testBlockToRecover,
           keypair,
-          toplWalletImpl,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidHash(
@@ -367,17 +312,11 @@ class StartSessionControllerSpec
     )
     implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
-      ToplPrivatenet.networkId,
-      NetworkConstants.MAIN_LEDGER_ID
-    )
-    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-      channelResource(
-        "localhost",
-        9084,
-        false
-      )
-    )
+
+    implicit val fellowshipStorageApi =
+      FellowshipStorageApi.make(walletResource(toplWalletDb))
+    implicit val templateStorageApi =
+      TemplateStorageApi.make(walletResource(toplWalletDb))
     assertIOBoolean(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
@@ -389,11 +328,6 @@ class StartSessionControllerSpec
           toplWalletFile,
           testToplPassword
         )
-        toplWalletImpl = ToplWalletImpl.make[IO](
-          FellowshipStorageApi.make(walletResource(toplWalletDb)),
-          TemplateStorageApi.make(walletResource(toplWalletDb)),
-          genusQueryAlgebra
-        )
         res <- StartSessionController.startPegoutSession[IO](
           StartPegoutSessionRequest(
             testKey,
@@ -402,7 +336,6 @@ class StartSessionControllerSpec
           ),
           ToplPrivatenet,
           keypair, // keypair
-          toplWalletImpl, // toplWalletAlgebra
           sessionManager, // session manager
           1000
         )
@@ -423,18 +356,11 @@ class StartSessionControllerSpec
     )
     implicit implicit val walletStateAlgebra = WalletStateApi
       .make[IO](walletResource(toplWalletDb), walletApi)
-    implicit val transactionBuilderApi = TransactionBuilderApi.make[IO](
-      ToplPrivatenet.networkId,
-      NetworkConstants.MAIN_LEDGER_ID
-    )
-    val genusQueryAlgebra = GenusQueryAlgebra.make[IO](
-      channelResource(
-        "localhost",
-        9084,
-        false
-      )
-    )
 
+    implicit val fellowshipStorageApi =
+      FellowshipStorageApi.make(walletResource(toplWalletDb))
+    implicit val templateStorageApi =
+      TemplateStorageApi.make(walletResource(toplWalletDb))
     assertIOBoolean(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
@@ -446,11 +372,6 @@ class StartSessionControllerSpec
           toplWalletFile,
           testToplPassword
         )
-        toplWalletImpl = ToplWalletImpl.make[IO](
-          FellowshipStorageApi.make(walletResource(toplWalletDb)),
-          TemplateStorageApi.make(walletResource(toplWalletDb)),
-          genusQueryAlgebra
-        )
         res <- StartSessionController.startPegoutSession[IO](
           StartPegoutSessionRequest(
             pegoutTestKey,
@@ -459,7 +380,6 @@ class StartSessionControllerSpec
           ),
           ToplPrivatenet,
           keypair, // keypair
-          toplWalletImpl, // toplWalletAlgebra
           sessionManager, // session manager
           1000
         )

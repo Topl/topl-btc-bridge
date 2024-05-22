@@ -1,6 +1,7 @@
 package co.topl.bridge.controllers
 
 import co.topl.shared.ToplPrivatenet
+import co.topl.bridge.BTCWaitExpirationTime
 
 trait SharedData {
 
@@ -21,7 +22,7 @@ trait SharedData {
   val walletFile = "src/test/resources/wallet.json"
 
   val toplWalletFile = "src/test/resources/topl-wallet.json"
-  
+
   val toplWalletDbInitial = "src/universal/topl-wallet.db"
 
   val toplWalletDb = "src/universal/topl-wallet-instance.db"
@@ -35,8 +36,8 @@ trait SharedData {
   val testTx =
     "02000000000101d0e18d3e7353fc08411019d71d04eb6b508e41d96084dd835d94058e3ca6d908000000000000000000016879070000000000160014"
 
-
-  val testBlockToRecover = 100
+  implicit val btcWaitExpirationTime: BTCWaitExpirationTime =
+    new BTCWaitExpirationTime(100)
 
   val testToplNetworkId = ToplPrivatenet
 

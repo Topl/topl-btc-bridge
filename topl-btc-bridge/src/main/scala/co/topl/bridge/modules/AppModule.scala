@@ -22,8 +22,6 @@ import co.topl.bridge.ToplBTCBridgeParamConfig
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerImpl
-import co.topl.bridge.managers.ToplWalletImpl
-import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletManagementUtils
 import co.topl.bridge.statemachine.pegin.PeginStateMachine
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
@@ -35,6 +33,7 @@ import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.BTCWaitExpirationTime
 
 trait AppModule
     extends WalletStateResource
@@ -53,6 +52,7 @@ trait AppModule
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       logger: SelfAwareStructuredLogger[IO],
+      currentBitcoinNetworkHeight: Ref[IO, Int],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       fromFellowship: Fellowship,
@@ -76,20 +76,8 @@ trait AppModule
         params.toplSecureConnection
       )
     )
-    implicit val toplWalletImpl = ToplWalletImpl.make[IO](
-      FellowshipStorageApi.make(walletRes),
-      TemplateStorageApi.make(walletRes),
-      genusQueryAlgebra
-    )
-    implicit val transactionAlgebra = TransactionAlgebra.make[IO](
-      walletApi,
-      walletStateAlgebra,
-      channelResource(
-        params.toplHost,
-        params.toplPort,
-        params.toplSecureConnection
-      )
-    )
+    implicit val fellowshipStorageApi = FellowshipStorageApi.make(walletRes)
+    implicit val templateStorageApi = TemplateStorageApi.make(walletRes)
     implicit val sessionManager =
       SessionManagerImpl.make[IO](queue, new ConcurrentHashMap())
     val walletManagementUtils = new WalletManagementUtils(
@@ -100,6 +88,9 @@ trait AppModule
     implicit val defaultMintingFee = Lvl(params.mintingFee)
     implicit val asyncForIO = IO.asyncForIO
     implicit val l = logger
+    implicit val btcWaitExpirationTime = new BTCWaitExpirationTime(
+      params.btcWaitExpirationTime
+    )
     for {
       keyPair <- walletManagementUtils.loadKeys(
         params.toplWalletSeedFile,
@@ -119,15 +110,11 @@ trait AppModule
       router = Router.define(
         "/" -> webUI(),
         "/api" -> apiServices(
-          walletApi,
           walletStateAlgebra,
-          genusQueryAlgebra,
           keyPair,
           sessionManager,
           pegInWalletManager,
           walletManager,
-          toplWalletImpl,
-          params.blockToRecover,
           params.btcNetwork,
           params.toplNetwork,
           currentState
@@ -138,14 +125,19 @@ trait AppModule
       implicit val kp = keyPair
       implicit val defaultFeePerByte = params.feePerByte
       implicit val iPeginWalletManager = pegInWalletManager
-      val peginStateMachine = PeginStateMachine.make[IO](
-        new ConcurrentHashMap()
+      implicit val toplChannelResource = channelResource(
+        params.toplHost,
+        params.toplPort,
+        params.toplSecureConnection
       )
+      val peginStateMachine = PeginStateMachine
+        .make[IO](currentBitcoinNetworkHeight, new ConcurrentHashMap())
       (
         Kleisli[IO, Request[IO], Response[IO]] { request =>
           router.run(request).getOrElse(notFoundResponse)
         },
-        InitializationModule.make[IO](currentState),
+        InitializationModule
+          .make[IO](currentBitcoinNetworkHeight, currentState),
         peginStateMachine
       )
     }

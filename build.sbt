@@ -137,20 +137,23 @@ lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
   .enablePlugins(DockerPlugin, JavaAppPackaging)
   .dependsOn(shared)
 
-
 val buildClient = taskKey[Unit]("Build client (frontend)")
 
 buildClient := {
 
   // Install JS dependencies from package-lock.json
-  val npmCiExitCode = Process("npm ci", cwd = (root / baseDirectory).value / "bridge-ui").!
+  val npmCiExitCode =
+    Process("npm ci", cwd = (root / baseDirectory).value / "bridge-ui").!
   if (npmCiExitCode > 0) {
     throw new IllegalStateException(s"npm ci failed. See above for reason")
   }
 
   // Build the frontend with vite
   val buildExitCode =
-    Process("npm run package", cwd = (root / baseDirectory).value / "bridge-ui").!
+    Process(
+      "npm run package",
+      cwd = (root / baseDirectory).value / "bridge-ui"
+    ).!
   if (buildExitCode > 0) {
     throw new IllegalStateException(
       s"Building frontend failed. See above for reason"
@@ -160,7 +163,7 @@ buildClient := {
   // Copy vite output into server resources, where it can be accessed by the server,
   // even after the server is packaged in a fat jar.
   IO.copyDirectory(
-    source = (root / baseDirectory).value /  "bridge-ui" / "dist",
+    source = (root / baseDirectory).value / "bridge-ui" / "dist",
     target =
       (toplBtcBridge / baseDirectory).value / "src" / "main" / "resources" / "static"
   )
@@ -182,6 +185,7 @@ lazy val integration = (project in file("integration"))
   .dependsOn(toplBtcBridge, toplBtcCli) // your current subproject
   .settings(
     publish / skip := true,
+    commonSettings,
     libraryDependencies ++= Dependencies.toplBtcBridge.main ++ Dependencies.toplBtcBridge.test
   )
 
@@ -190,6 +194,6 @@ lazy val root = project
   .settings(
     organization := "co.topl",
     name := "topl-btc-bridge-umbrella"
-    )
-    .settings(noPublish)
+  )
+  .settings(noPublish)
   .aggregate(toplBtcBridge, toplBtcCli)

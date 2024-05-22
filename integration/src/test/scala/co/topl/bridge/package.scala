@@ -1,29 +1,42 @@
 package co.topl
 
 import cats.effect.IO
-import co.topl.shared.BridgeContants
+import co.topl.shared.MintingStatusRequest
+import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
 import co.topl.shared.SyncWalletRequest
 import fs2.io.process
-import munit.CatsEffectSuite
-import org.checkerframework.checker.units.qual.g
+import io.circe.generic.auto._
 import org.http4s.EntityDecoder
-import org.http4s.Method
-import org.http4s.Request
-import org.http4s.Uri
-import org.http4s.ember.client._
-import org.http4s.headers.`Content-Type`
-
-import scala.concurrent.duration._
-import org.checkerframework.checker.units.qual.s
-import co.topl.shared.MintingStatusRequest
-import co.topl.shared.MintingStatusResponse
-import scala.io.Source
+import org.http4s._
+import org.http4s.circe._
 
 package object bridge {
 
-  val CS_CMD = "./cs"
+  object implicits {
+
+    implicit val startSessionRequestDecoder
+        : EntityEncoder[IO, StartPeginSessionRequest] =
+      jsonEncoderOf[IO, StartPeginSessionRequest]
+    implicit val syncWalletRequestDecoder
+        : EntityEncoder[IO, SyncWalletRequest] =
+      jsonEncoderOf[IO, SyncWalletRequest]
+    implicit val mintingStatusRequesEncoder
+        : EntityEncoder[IO, MintingStatusRequest] =
+      jsonEncoderOf[IO, MintingStatusRequest]
+    implicit val startSessionResponse
+        : EntityDecoder[IO, StartPeginSessionResponse] =
+      jsonOf[IO, StartPeginSessionResponse]
+    implicit val MintingStatusResponseDecoder
+        : EntityDecoder[IO, MintingStatusResponse] =
+      jsonOf[IO, MintingStatusResponse]
+
+  }
+
+  val CS_CMD = Option(System.getenv("CI"))
+    .map(_ => "/home/runner/work/topl-btc-bridge/topl-btc-bridge/cs")
+    .getOrElse("cs")
 
   val csParams = Seq(
     "launch",
@@ -224,10 +237,11 @@ package object bridge {
 
   // brambl-cli simple-transaction create --from-fellowship bridge --from-template redeemBridge -t ptetP7jshHTzLLp81RbPkeHKWFJWeE3ijH94TAmiBRPTUTj2htC31NyEWU8p -w password -o redeemTx.pbuf -n private -a 10 -h  localhost --port 9084  --keyfile user-keyfile.json --walletdb user-wallet.db --fee 10 --transfer-token asset
   def redeemAddressTx(
-    redeemAddress: String,
-    amount: Long,
-    groupId: String,
-    seriesId: String) = process
+      redeemAddress: String,
+      amount: Long,
+      groupId: String,
+      seriesId: String
+  ) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -246,7 +260,7 @@ package object bridge {
         "-n",
         "private",
         "-a",
-        "10",
+        amount.toString(),
         "-h",
         "localhost",
         "--port",
@@ -268,25 +282,26 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli tx prove -i fundRedeemTx.pbuf --walletdb user-wallet.db --keyfile user-keyfile.json -w password -o fundRedeemTxProved.pbuf
-  def proveFundRedeemAddressTx(fileToProve: String, provedFile: String) = process
-    .ProcessBuilder(
-      CS_CMD,
-      csParams ++ Seq(
-        "tx",
-        "prove",
-        "-i",
-        fileToProve, //"fundRedeemTx.pbuf",
-        "--walletdb",
-        userWalletDb,
-        "--keyfile",
-        userWalletJson,
-        "-w",
-        "password",
-        "-o",
-        provedFile //"fundRedeemTxProved.pbuf"
-      ): _*
-    )
-    .spawn[IO]
+  def proveFundRedeemAddressTx(fileToProve: String, provedFile: String) =
+    process
+      .ProcessBuilder(
+        CS_CMD,
+        csParams ++ Seq(
+          "tx",
+          "prove",
+          "-i",
+          fileToProve, // "fundRedeemTx.pbuf",
+          "--walletdb",
+          userWalletDb,
+          "--keyfile",
+          userWalletJson,
+          "-w",
+          "password",
+          "-o",
+          provedFile // "fundRedeemTxProved.pbuf"
+        ): _*
+      )
+      .spawn[IO]
 
   // brambl-cli tx broadcast -i fundRedeemTxProved.pbuf -h localhost --port 9084
   def broadcastFundRedeemAddressTx(txFile: String) = process
@@ -304,4 +319,124 @@ package object bridge {
       ): _*
     )
     .spawn[IO]
+
+  val createWallet = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-named",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "createwallet",
+    "wallet_name=testwallet"
+  )
+  val getNewaddress = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "-regtest",
+    "-rpcwallet=testwallet",
+    "getnewaddress"
+  )
+  def generateToAddress(blocks: Int, address: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "generatetoaddress",
+    blocks.toString,
+    address
+  )
+
+  def createTransaction(address: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "generatetoaddress",
+    "101",
+    address
+  )
+  def signTransaction(tx: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "-rpcwallet=testwallet",
+    "signrawtransactionwithwallet",
+    tx
+  )
+  def sendTransaction(signedTx: String) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "sendrawtransaction",
+    signedTx
+  )
+
+  val extractGetTxId = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-cli",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "-regtest",
+    "-rpcwallet=testwallet",
+    "listunspent"
+  )
+
+  def createTx(txId: String, address: String, amount: BigDecimal) = Seq(
+    "exec",
+    "bitcoin",
+    "bitcoin-tx",
+    "-regtest",
+    "-create",
+    s"in=$txId:0",
+    s"outaddr=$amount:$address"
+  )
+
+  def getText(p: fs2.io.process.Process[IO]) =
+    p.stdout
+      .through(fs2.text.utf8.decode)
+      .compile
+      .foldMonoid
+      .map(_.trim)
+  def getError(p: fs2.io.process.Process[IO]) =
+    p.stderr
+      .through(fs2.text.utf8.decode)
+      .compile
+      .foldMonoid
+
+  // brambl-cli fellowships add --walletdb user-wallet.db --fellowship-name bridge
+  val addFellowship = process
+    .ProcessBuilder(
+      CS_CMD,
+      Seq(
+        "launch",
+        "-r",
+        "https://s01.oss.sonatype.org/content/repositories/releases",
+        "co.topl:brambl-cli_2.13:2.0.0-beta5",
+        "--",
+        "fellowships",
+        "add",
+        "--walletdb",
+        "user-wallet.db",
+        "--fellowship-name",
+        "bridge"
+      ): _*
+    )
+    .spawn[IO]
+
 }
