@@ -23,11 +23,10 @@ object BlockProcessor {
       block: Either[BitcoinBlock, BifrostMonitor.BifrostBlockSync]
   ): fs2.Stream[F, BlockchainEvent] = block match {
     case Left(b) =>
-      fs2.Stream(
+      fs2.Stream(NewBTCBlock(b.height)) ++ fs2.Stream(
         b.block.transactions.flatMap(transaction =>
           transaction.inputs.map(input =>
             BTCFundsWithdrawn(
-              b.height,
               input.previousOutput.txIdBE.hex,
               input.previousOutput.vout.toLong
             )
@@ -36,7 +35,6 @@ object BlockProcessor {
           transaction.outputs.zipWithIndex.map { outputAndVout =>
             val (output, vout) = outputAndVout
             BTCFundsDeposited(
-              b.height,
               output.scriptPubKey,
               transaction.txIdBE.hex,
               vout.toLong,

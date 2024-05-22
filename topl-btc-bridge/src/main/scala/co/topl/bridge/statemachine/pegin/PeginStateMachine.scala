@@ -75,23 +75,13 @@ object PeginStateMachine {
         blockchainEvent: BlockchainEvent
     ): fs2.Stream[F, F[Unit]] =
       blockchainEvent match {
-        case deposit: BTCFundsDeposited =>
+        case NewBTCBlock(height) =>
           fs2.Stream(
             for {
               x <- currentBitcoinNetworkHeight.get
               _ <-
-                if (deposit.blockHeight > x) // TODO: handle reorgs
-                  currentBitcoinNetworkHeight.set(deposit.blockHeight)
-                else Sync[F].unit
-            } yield ()
-          )
-        case withdrawal: BTCFundsWithdrawn =>
-          fs2.Stream(
-            for {
-              x <- currentBitcoinNetworkHeight.get
-              _ <-
-                if (withdrawal.blockHeight > x) // TODO: handle reorgs
-                  currentBitcoinNetworkHeight.set(withdrawal.blockHeight)
+                if (height > x) // TODO: handle reorgs
+                  currentBitcoinNetworkHeight.set(height)
                 else Sync[F].unit
             } yield ()
           )

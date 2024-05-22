@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { PeginUIState, mintedBTC, mintingBTC, setupSession, claimedTBTC, timeOutBTCNotSent } from './controllers/PeginController';
+import { PeginUIState, mintedBTC, mintingBTC, setupSession, claimedTBTC, timeOutBTCNotSent, timeOutMintingBTC } from './controllers/PeginController';
 import { deleteCookie } from './cookie-typescript-utils';
 import { SessionInformation } from './views/StartSession';
 
@@ -41,6 +41,8 @@ async function checkAndTransitionFromMintingTBTC(session: SessionInformation, se
       mintedBTC(setSession, session, data.address, data.bridgePKey, data.redeemScript);
       clearInterval(sessionPoll)
     }
+  } else if (response.status == 404) {
+    timeOutMintingBTC(setSession, session)
   }
 }
 

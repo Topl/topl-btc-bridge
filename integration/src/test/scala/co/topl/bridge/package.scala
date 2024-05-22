@@ -397,14 +397,14 @@ package object bridge {
     "listunspent"
   )
 
-  def createTx(txId: String, address: String) = Seq(
+  def createTx(txId: String, address: String, amount: BigDecimal) = Seq(
     "exec",
     "bitcoin",
     "bitcoin-tx",
     "-regtest",
     "-create",
     s"in=$txId:0",
-    s"outaddr=49.99:$address"
+    s"outaddr=$amount:$address"
   )
 
   def getText(p: fs2.io.process.Process[IO]) =

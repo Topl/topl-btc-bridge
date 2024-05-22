@@ -14,7 +14,8 @@ import munit.AnyFixture
 class BridgeIntegrationSpec
     extends CatsEffectSuite
     with SuccessfulPeginModule
-    with FailedPeginNoDepositModule {
+    with FailedPeginNoDepositModule 
+    with FailedPeginNoMintModule {
 
   val DOCKER_CMD = "docker"
 
@@ -90,6 +91,9 @@ class BridgeIntegrationSpec
   }
   cleanupDir.test("Bridge should fail correctly when user does not send BTC") { _ =>
     failedPeginNoDeposit()
+  }
+  cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
+    failedPeginNoMint()
   }
 
 }
