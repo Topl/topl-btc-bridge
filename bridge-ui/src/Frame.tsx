@@ -56,6 +56,7 @@ async function checkAndTransitionFromWaitingForRedemption(session: SessionInform
       clearInterval(sessionPoll)
     }
   } else if (response.status == 404) {
+    claimedTBTC(setSession, session);
     // this is because the minting status is not found, so we can assume that the minting is complete
     clearInterval(sessionPoll)
   }
@@ -95,7 +96,7 @@ function Frame() {
   return (
     <>
       <div className="border-end bg-white" id="sidebar-wrapper">
-        <div className="sidebar-heading border-bottom bg-light">Topl-BTC Bridge</div>
+        <div className="sidebar-heading border-bottom bg-light">Apparatus-BTC Bridge</div>
         <div className="list-group list-group-flush">
           <Link className="list-group-item list-group-item-action list-group-item-light p-3" to={`/pegin`}>Peg-in</Link>
         </div>
@@ -110,7 +111,7 @@ function Frame() {
               <a className="nav-link" aria-current="page" href="/demo-btc-wallet">Demo BTC Wallet</a>
             </li>
             <li className='nav-item'>
-              <a className="nav-link" aria-current="page" href="/demo-btc-wallet">Topl Wallet</a>
+              <a className="nav-link" aria-current="page" href="/demo-btc-wallet">Apparatus Wallet</a>
             </li>
           </ul>
           <ul className="navbar-nav ms-auto mt-2 mt-lg-0">
