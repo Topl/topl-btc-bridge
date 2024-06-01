@@ -90,13 +90,14 @@ function waitingForDeposit(isWaiting: boolean) {
 function StartSession(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>) {
 
   const [hash, setHash] = useState<string>("")
+  const [pk, setPk] = useState<string>("")
   const [error, setError] = useState<string>("")
 
 
   async function handleSubmitSha(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const startSessionRequest: StartSessionRequest = {
-      pkey: "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
+      pkey: pk,
       sha256: hash
     }
     const response = await startSession(startSessionRequest);
@@ -125,6 +126,11 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
               <div className="mb-3">
                 <label htmlFor="hash" className="form-label">SHA-256 Hash</label>
                 <input value={hash} onChange={(e) => setHash(e.target.value)} type="text" className={error === "" ? "form-control" : "form-control is-invalid"} id="hash" placeholder="497a39b618484855ebb5a2cabf6ee52ff092e7c17f8bfe79313529f9774f83a2" />
+                {errorValidation(error)}
+              </div>
+              <div className="mb-3">
+                <label htmlFor="pKey" className="form-label">Public Key</label>
+                <input value={pk} onChange={(e) => setPk(e.target.value)} type="text" className={error === "" ? "form-control" : "form-control is-invalid"} id="pKey" placeholder="0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a" />
                 {errorValidation(error)}
               </div>
               <div className="mb-3">
