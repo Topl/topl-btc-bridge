@@ -141,7 +141,7 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
           </form>
           <div className='row g-3'>
             <div className="row">
-              <div className="mb-3">
+              <div>
                 <label htmlFor="escrowAddress" className="form-label">Escrow Address</label>
                 <input type="text" value={session.escrowAddress} className="form-control" id="escrowAddress" disabled />
               </div>
