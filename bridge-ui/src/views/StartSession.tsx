@@ -9,6 +9,7 @@ export interface SessionInformation {
   redeemAddress: string;
   toplBridgePKey: string;
   redeemTemplate: string;
+  escrowScript: string;
 }
 
 export interface StartSessionRequest {
@@ -143,6 +144,14 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
               <div className="mb-3">
                 <label htmlFor="escrowAddress" className="form-label">Escrow Address</label>
                 <input type="text" value={session.escrowAddress} className="form-control" id="escrowAddress" disabled />
+              </div>
+            </div>
+          </div>
+          <div className='row g-3'>
+            <div className="row">
+              <div className="mb-3">
+                <label htmlFor="escrowScript" className="form-label">Escrow Script</label>
+                <input type="text" value={session.escrowScript} className="form-control" id="escrowScript" disabled />
               </div>
             </div>
           </div>

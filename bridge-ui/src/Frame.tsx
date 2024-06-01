@@ -64,7 +64,7 @@ async function checkAndTransitionFromWaitingForRedemption(session: SessionInform
 
 function Frame() {
 
-  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", currentState: PeginUIState.InitialState, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
+  const [session, setSession] = useState<SessionInformation>({ isSet: false, sessionID: "", escrowAddress: "", escrowScript: "", currentState: PeginUIState.InitialState, redeemAddress: "", toplBridgePKey: "", redeemTemplate: "" });
   useEffect(() => setupSession(session, setSession), []);
   useEffect(() => {
     const sessionPoll = setInterval(async () => {
