@@ -92,6 +92,10 @@ object PeginTransitionRelation {
             cs: WaitingForRedemption,
             ev: NewToplBlock
           ) =>
+        // print the information in the if
+        println(s"toplWaitExpirationTime.underlying: ${toplWaitExpirationTime.underlying}")
+        println(s"ev.height: ${ev.height}")
+        println(s"cs.currentTolpBlockHeight: ${cs.currentTolpBlockHeight}")
         if (toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight))
           Some(
             EndTrasition[F](

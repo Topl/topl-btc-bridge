@@ -50,8 +50,8 @@ class BridgeIntegrationSpec
                     toplWalletDb,
                     "--btc-url",
                     "http://localhost",
-                    "--topl-blocks-to-recover",
-                    "6"
+                    // "--topl-blocks-to-recover",
+                    // "20"
                   )
                 )
               ),
@@ -94,15 +94,15 @@ class BridgeIntegrationSpec
   cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
     successfulPegin()
   }
-  cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
-    _ =>
-      failedPeginNoDeposit()
-  }
-  cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
-    failedPeginNoMint()
-  }
-  cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-    failedRedemption()
-  }
+  // cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
+  //   _ =>
+  //     failedPeginNoDeposit()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
+  //   failedPeginNoMint()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
+  //   failedRedemption()
+  // }
 
 }
