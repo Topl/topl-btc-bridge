@@ -105,10 +105,12 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .handleBlockchainEvent[IO](
           WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
           BifrostFundsDeposited(
-            redeemAddress,
-            "utxoTxId",
-            0,
-            AssetToken("groupId", "seriesId", 100L)
+            currentToplBlockHeight =
+              0L, // Assuming a placeholder value for the missing argument
+            address = redeemAddress,
+            utxoTxId = "utxoTxId",
+            utxoIndex = 0,
+            amount = AssetToken("groupId", "seriesId", 100L)
           )
         )(transitionToEffect[IO](_, _))
         .isEmpty &&
@@ -134,14 +136,15 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForRedemption(
-            1,
-            "",
-            redeemAddress,
-            claimAddress,
-            "txId",
-            0,
-            "bifrostTxId",
-            0
+            currentTolpBlockHeight = 1L,
+            currentWalletIdx = 0,
+            scriptAsm = "",
+            redeemAddress = redeemAddress,
+            claimAddress = claimAddress,
+            btcTxId = "txId",
+            btcVout = 0L,
+            utxoTxId = "bifrostTxId",
+            utxoIndex = 0 // Added missing utxoIndex parameter
           ),
           BifrostFundsWithdrawn(
             "bifrostTxId",
@@ -157,6 +160,31 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     )
   }
 
+  
+  test(
+    "PeginTransitionRelation should transition from WaitingForRedemption to EndTransition when the height difference is bigger than expiration time"
+  ) {
+    assert(
+      PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          WaitingForRedemption(
+            currentTolpBlockHeight = 1L,
+            currentWalletIdx = 0,
+            scriptAsm = "",
+            redeemAddress = redeemAddress,
+            claimAddress = claimAddress,
+            btcTxId = "txId",
+            btcVout = 0L,
+            utxoTxId = "bifrostTxId",
+            utxoIndex = 0 // Added missing utxoIndex parameter
+          ),
+          NewToplBlock(2002)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .isInstanceOf[EndTrasition[IO]]: @nowarn
+    )
+  }
+
   test(
     "PeginTransitionRelation should NOT transition from WaitingForRedemption to BifrostFundsWithdrawn if guard fails"
   ) {
@@ -165,14 +193,15 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForRedemption(
-            1,
-            "",
-            redeemAddress,
-            claimAddress,
-            "txId",
-            0,
-            "bifrostTxId",
-            0
+            currentTolpBlockHeight = 1L,
+            currentWalletIdx = 0,
+            scriptAsm = "",
+            redeemAddress = redeemAddress,
+            claimAddress = claimAddress,
+            btcTxId = "txId",
+            btcVout = 0L,
+            utxoTxId = "bifrostTxId",
+            utxoIndex = 0 // Added missing utxoIndex parameter
           ),
           BifrostFundsWithdrawn(
             "bifrostTxIdDifferent",
@@ -185,14 +214,15 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         PeginTransitionRelation
           .handleBlockchainEvent[IO](
             WaitingForRedemption(
-              1,
-              "",
-              redeemAddress,
-              claimAddress,
-              "txId",
-              0,
-              "bifrostTxId",
-              0
+              currentTolpBlockHeight = 1L,
+              currentWalletIdx = 0,
+              scriptAsm = "",
+              redeemAddress = redeemAddress,
+              claimAddress = claimAddress,
+              btcTxId = "txId",
+              btcVout = 0L,
+              utxoTxId = "bifrostTxId",
+              utxoIndex = 0 // Added missing utxoIndex parameter
             ),
             BifrostFundsWithdrawn(
               "bifrostTxId",
@@ -213,14 +243,15 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForRedemption(
-            1,
-            "",
-            redeemAddress,
-            claimAddress,
-            "txId",
-            0,
-            "bifrostTxId",
-            0
+            currentTolpBlockHeight = 1L,
+            currentWalletIdx = 0,
+            scriptAsm = "",
+            redeemAddress = redeemAddress,
+            claimAddress = claimAddress,
+            btcTxId = "txId",
+            btcVout = 0L,
+            utxoTxId = "bifrostTxId",
+            utxoIndex = 0 // Added missing utxoIndex parameter
           ),
           BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
@@ -228,14 +259,15 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         PeginTransitionRelation
           .handleBlockchainEvent[IO](
             WaitingForRedemption(
-              1,
-              "",
-              redeemAddress,
-              claimAddress,
-              "txId",
-              0,
-              "bifrostTxId",
-              0
+              currentTolpBlockHeight = 1L,
+              currentWalletIdx = 0,
+              scriptAsm = "",
+              redeemAddress = redeemAddress,
+              claimAddress = claimAddress,
+              btcTxId = "txId",
+              btcVout = 0L,
+              utxoTxId = "bifrostTxId",
+              utxoIndex = 0 // Added missing utxoIndex parameter
             ),
             BTCFundsWithdrawn("txId", 0)
           )(transitionToEffect[IO](_, _))
@@ -280,10 +312,16 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .handleBlockchainEvent[IO](
           WaitingForClaim(claimAddress),
           BifrostFundsDeposited(
-            redeemAddress,
-            "utxoTxId",
-            0,
-            AssetToken("groupId", "seriesId", 100L)
+            currentToplBlockHeight =
+              0L, // Assuming a missing parameter needs to be added
+            address = redeemAddress,
+            utxoTxId = "utxoTxId",
+            utxoIndex = 0,
+            amount = AssetToken(
+              "groupId",
+              "seriesId",
+              100L
+            ) // Assuming AssetToken is a valid BifrostCurrencyUnit
           )
         )(transitionToEffect[IO](_, _))
         .isEmpty &&
@@ -345,10 +383,16 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             100
           ),
           BifrostFundsDeposited(
-            redeemAddress,
-            "utxoTxId",
-            0,
-            AssetToken("groupId", "seriesId", 100L)
+            currentToplBlockHeight =
+              0L, // Assuming a missing parameter needs to be added
+            address = redeemAddress,
+            utxoTxId = "utxoTxId",
+            utxoIndex = 0,
+            amount = AssetToken(
+              "groupId",
+              "seriesId",
+              100L
+            ) // Assuming AssetToken is a valid BifrostCurrencyUnit
           )
         )(transitionToEffect[IO](_, _))
         .get
@@ -377,10 +421,16 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             100
           ),
           BifrostFundsDeposited(
-            redeemAddressOther,
-            "utxoTxId",
-            0,
-            AssetToken("groupId", "seriesId", 100L)
+            currentToplBlockHeight =
+              0L, // Assuming a missing parameter needs to be added
+            address = redeemAddressOther,
+            utxoTxId = "utxoTxId",
+            utxoIndex = 0,
+            amount = AssetToken(
+              "groupId",
+              "seriesId",
+              100L
+            ) // Assuming AssetToken is a valid BifrostCurrencyUnit
           )
         )(transitionToEffect[IO](_, _))
         .isEmpty

@@ -28,10 +28,15 @@ trait BridgeParamsDescriptor {
         .text(
           "Network name: Possible values: mainnet, testnet, private. (mandatory)"
         ),
-      opt[Int]("blocks-to-recover")
+      opt[Int]("btc-blocks-to-recover")
         .action((x, c) => c.copy(btcWaitExpirationTime = x))
         .text(
           "The number of blocks that the user needs to wait before they can reclaim their funds. (default: 100)"
+        ),
+      opt[Int]("topl-blocks-to-recover")
+        .action((x, c) => c.copy(toplWaitExpirationTime = x))
+        .text(
+          "The number of blocks that the bridge needs to wait before it can burn the block. (default: 2000)"
         ),
       opt[String]("topl-wallet-seed-file")
         .action((x, c) => c.copy(toplWalletSeedFile = x))

@@ -2,6 +2,7 @@ package co.topl.bridge.controllers
 
 import co.topl.shared.ToplPrivatenet
 import co.topl.bridge.BTCWaitExpirationTime
+import co.topl.bridge.ToplWaitExpirationTime
 
 trait SharedData {
 
@@ -38,6 +39,9 @@ trait SharedData {
 
   implicit val btcWaitExpirationTime: BTCWaitExpirationTime =
     new BTCWaitExpirationTime(100)
+
+  implicit val toplWaitExpirationTime: ToplWaitExpirationTime =
+    new ToplWaitExpirationTime(2000)
 
   val testToplNetworkId = ToplPrivatenet
 

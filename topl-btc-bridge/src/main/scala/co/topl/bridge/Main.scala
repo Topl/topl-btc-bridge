@@ -103,31 +103,35 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
           .getLoggerFromName[IO]("btc-bridge")
       // For each parameter, log its value to info
       _ <- info"Command line arguments" (logger)
-      _ <- info"btc-wait-expiration   : ${params.btcWaitExpirationTime}" (
+      _ <- info"btc-blocks-to-recover  : ${params.btcWaitExpirationTime}" (
         logger
       )
-      _ <- info"btc-peg-in-seed-file      : ${params.btcPegInSeedFile}" (logger)
-      _ <- info"btc-peg-in-password       : ******" (logger)
-      _ <- info"wallet-seed-file      : ${params.btcWalletSeedFile}" (logger)
-      _ <- info"wallet-password       : ******" (logger)
-      _ <- info"topl-wallet-seed-file : ${params.toplWalletSeedFile}" (logger)
-      _ <- info"topl-wallet-password  : ******" (logger)
-      _ <- info"topl-wallet-db        : ${params.toplWalletDb}" (logger)
-      _ <- info"btc-url               : ${params.btcUrl}" (logger)
-      _ <- info"btc-user              : ${params.btcUser}" (logger)
-      _ <- info"zmq-host              : ${params.zmqHost}" (logger)
-      _ <- info"zmq-port              : ${params.zmqPort}" (logger)
-      _ <- info"btc-password          : ******" (logger)
-      _ <- info"btc-network           : ${params.btcNetwork}" (logger)
-      _ <- info"topl-network          : ${params.toplNetwork}" (logger)
-      _ <- info"topl-host             : ${params.toplHost}" (logger)
-      _ <- info"topl-port             : ${params.toplPort}" (logger)
-      _ <- info"topl-secure-connection: ${params.toplSecureConnection}" (logger)
-      _ <- info"minting-fee           : ${params.mintingFee}" (logger)
-      _ <- info"fee-per-byte          : ${params.feePerByte}" (logger)
+      _ <- info"topl-blocks-to-recover : ${params.toplWaitExpirationTime}" (
+        logger
+      )
+      _ <- info"btc-peg-in-seed-file   : ${params.btcPegInSeedFile}" (logger)
+      _ <- info"btc-peg-in-password    : ******" (logger)
+      _ <- info"wallet-seed-file       : ${params.btcWalletSeedFile}" (logger)
+      _ <- info"wallet-password        : ******" (logger)
+      _ <- info"topl-wallet-seed-file  : ${params.toplWalletSeedFile}" (logger)
+      _ <- info"topl-wallet-password   : ******" (logger)
+      _ <- info"topl-wallet-db         : ${params.toplWalletDb}" (logger)
+      _ <- info"btc-url                : ${params.btcUrl}" (logger)
+      _ <- info"btc-user               : ${params.btcUser}" (logger)
+      _ <- info"zmq-host               : ${params.zmqHost}" (logger)
+      _ <- info"zmq-port               : ${params.zmqPort}" (logger)
+      _ <- info"btc-password           : ******" (logger)
+      _ <- info"btc-network            : ${params.btcNetwork}" (logger)
+      _ <- info"topl-network           : ${params.toplNetwork}" (logger)
+      _ <- info"topl-host              : ${params.toplHost}" (logger)
+      _ <- info"topl-port              : ${params.toplPort}" (logger)
+      _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (logger)
+      _ <- info"minting-fee            : ${params.mintingFee}" (logger)
+      _ <- info"fee-per-byte           : ${params.feePerByte}" (logger)
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
+      currentToplHeight <- Ref[IO].of(0L)
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
       appAndInitAndStateMachine <- createApp(
@@ -137,6 +141,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         pegInWalletManager,
         logger,
         currentBitcoinNetworkHeight,
+        currentToplHeight,
         globalState
       )
       (app, init, peginStateMachine) = appAndInitAndStateMachine

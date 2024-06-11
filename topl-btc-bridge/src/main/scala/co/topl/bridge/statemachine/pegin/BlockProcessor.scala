@@ -3,7 +3,7 @@ package co.topl.bridge.statemachine.pegin
 import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.monitoring.BifrostMonitor
-import co.topl.brambl.monitoring.BitcoinMonitor.BitcoinBlock
+import co.topl.brambl.monitoring.BitcoinMonitor.BitcoinBlockSync
 import co.topl.brambl.utils.Encoding
 
 import scala.util.Try
@@ -20,7 +20,7 @@ object BlockProcessor {
   }
 
   def process[F[_]](
-      block: Either[BitcoinBlock, BifrostMonitor.BifrostBlockSync]
+      block: Either[BitcoinBlockSync, BifrostMonitor.BifrostBlockSync]
   ): fs2.Stream[F, BlockchainEvent] = block match {
     case Left(b) =>
       fs2.Stream(NewBTCBlock(b.height)) ++ fs2.Stream(
@@ -44,7 +44,7 @@ object BlockProcessor {
         ): _*
       )
     case Right(b) =>
-      fs2.Stream(
+      fs2.Stream(NewToplBlock(b.height)) ++ fs2.Stream(
         b.block.transactions.flatMap(transaction =>
           transaction.inputs
             .filter(x => isLvlSeriesGroupOrAsset(x.value.value))
@@ -62,6 +62,7 @@ object BlockProcessor {
             val (output, idx) = outputAndIdx
             val bifrostCurrencyUnit = toCurrencyUnit(output.value.value)
             BifrostFundsDeposited(
+              b.height,
               AddressCodecs.encodeAddress(output.address),
               Encoding.encodeToBase58(
                 transaction.transactionId.get.value.toByteArray()

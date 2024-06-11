@@ -18,6 +18,7 @@ import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import quivr.models.KeyPair
+import co.topl.bridge.ToplWaitExpirationTime
 
 object PeginTransitionRelation {
 
@@ -83,9 +84,22 @@ object PeginTransitionRelation {
   )(
       t2E: (PeginStateMachineState, BlockchainEvent) => F[Unit]
   )(implicit
-      btcWaitExpirationTime: BTCWaitExpirationTime
+      btcWaitExpirationTime: BTCWaitExpirationTime,
+      toplWaitExpirationTime: ToplWaitExpirationTime
   ): Option[FSMTransition] =
     (currentState, blockchainEvent) match {
+      case (
+            cs: WaitingForRedemption,
+            ev: NewToplBlock
+          ) =>
+        if (toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight))
+          Some(
+            EndTrasition[F](
+              Async[F].unit
+            )
+          )
+        else
+          None
       case (
             cs: WaitingForRedemption,
             be: BifrostFundsWithdrawn
@@ -115,9 +129,7 @@ object PeginTransitionRelation {
             cs: WaitingForBTC,
             ev: NewBTCBlock
           ) =>
-        if (
-          ev.height - cs.currentBTCBlockHeight > btcWaitExpirationTime.underlying
-        )
+        if (btcWaitExpirationTime.underlying < (ev.height - cs.currentBTCBlockHeight))
           Some(
             EndTrasition[F](
               Async[F].unit
@@ -148,6 +160,7 @@ object PeginTransitionRelation {
             FSMTransitionTo(
               currentState,
               WaitingForRedemption(
+                be.currentToplBlockHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
                 cs.redeemAddress,

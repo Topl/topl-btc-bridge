@@ -40,6 +40,7 @@ import org.http4s.dsl.io._
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import co.topl.bridge.BTCWaitExpirationTime
+import co.topl.bridge.ToplWaitExpirationTime
 
 trait ApiServicesModule {
 
@@ -131,6 +132,7 @@ trait ApiServicesModule {
       bridgeWalletManager: BTCWalletAlgebra[IO],
       btcNetwork: BitcoinNetworkIdentifiers,
       toplNetwork: ToplNetworkIdentifiers,
+      currentToplHeight: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[IO],
@@ -138,6 +140,7 @@ trait ApiServicesModule {
       tba: TransactionBuilderApi[IO],
       walletApi: WalletApi[IO],
       wsa: WalletStateAlgebra[IO],
+      toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       genusQueryAlgebra: GenusQueryAlgebra[IO]
   ) = {
@@ -192,6 +195,7 @@ trait ApiServicesModule {
             bridgeWalletManager,
             sessionManager,
             toplKeypair,
+            currentToplHeight,
             btcNetwork
           )
           resp <- res match {

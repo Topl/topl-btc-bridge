@@ -34,6 +34,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.BTCWaitExpirationTime
+import co.topl.bridge.ToplWaitExpirationTime
 
 trait AppModule
     extends WalletStateResource
@@ -53,6 +54,7 @@ trait AppModule
       pegInWalletManager: BTCWalletAlgebra[IO],
       logger: SelfAwareStructuredLogger[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentToplHeight: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       fromFellowship: Fellowship,
@@ -91,6 +93,9 @@ trait AppModule
     implicit val btcWaitExpirationTime = new BTCWaitExpirationTime(
       params.btcWaitExpirationTime
     )
+    implicit val toplWaitExpirationTime = new ToplWaitExpirationTime(
+      params.toplWaitExpirationTime
+    )
     for {
       keyPair <- walletManagementUtils.loadKeys(
         params.toplWalletSeedFile,
@@ -117,6 +122,7 @@ trait AppModule
           walletManager,
           params.btcNetwork,
           params.toplNetwork,
+          currentToplHeight,
           currentState
         )
       )(default = staticAssetsService)
@@ -131,7 +137,11 @@ trait AppModule
         params.toplSecureConnection
       )
       val peginStateMachine = PeginStateMachine
-        .make[IO](currentBitcoinNetworkHeight, new ConcurrentHashMap())
+        .make[IO](
+          currentBitcoinNetworkHeight,
+          currentToplHeight,
+          new ConcurrentHashMap()
+        )
       (
         Kleisli[IO, Request[IO], Response[IO]] { request =>
           router.run(request).getOrElse(notFoundResponse)

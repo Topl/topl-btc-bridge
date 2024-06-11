@@ -32,6 +32,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
+import cats.effect.kernel.Ref
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -90,6 +91,7 @@ class StartSessionControllerSpec
             toplWalletFile,
             testToplPassword
           )
+          currentToplHeight <- Ref[IO].of(0)
           res <- StartSessionController.startPeginSession(
             StartPeginSessionRequest(
               testKey,
@@ -99,6 +101,7 @@ class StartSessionControllerSpec
             peginWallet,
             sessionManager,
             keyPair,
+            currentToplHeight,
             RegTest
           )
           sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
@@ -228,6 +231,7 @@ class StartSessionControllerSpec
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
         queue <- Queue.unbounded[IO, SessionEvent]
+        currentToplHeight <- Ref[IO].of(0)
         sessionManager = SessionManagerImpl.make[IO](
           queue,
           new ConcurrentHashMap[String, SessionInfo]()
@@ -241,6 +245,7 @@ class StartSessionControllerSpec
           peginWallet,
           sessionManager,
           keypair,
+          currentToplHeight,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidKey(
@@ -284,6 +289,7 @@ class StartSessionControllerSpec
           testPassword
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
+        currentToplHeight <- Ref[IO].of(0)
         res <- StartSessionController.startPeginSession(
           StartPeginSessionRequest(
             testKey,
@@ -293,6 +299,7 @@ class StartSessionControllerSpec
           peginWallet,
           sessionManager,
           keypair,
+          currentToplHeight,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidHash(

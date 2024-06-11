@@ -25,15 +25,16 @@ package object managers {
     )
 
 
-  def templateFromSha(decodedHex: Array[Byte]) = s"""{
-                "threshold":1,
+  def templateFromSha(decodedHex: Array[Byte], min: Long, max: Long) = s"""{
+                "threshold":2,
                 "innerTemplates":[
                   {
                     "left": {"routine":"ExtendedEd25519","entityIdx":0,"type":"signature"},
                     "right": {"routine":"Sha256","digest": "${Encoding
       .encodeToBase58(decodedHex)}","type":"digest"},
                     "type": "or"
-                  }
+                  },
+                  {"chain":"header","min":${min},"max":${max},"type":"height"}
                 ],
                 "type":"predicate"}
               """

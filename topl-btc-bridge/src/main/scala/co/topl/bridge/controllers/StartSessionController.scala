@@ -38,6 +38,8 @@ import scodec.bits.ByteVector
 
 import java.util.UUID
 import co.topl.bridge.BTCWaitExpirationTime
+import cats.effect.kernel.Ref
+import co.topl.bridge.ToplWaitExpirationTime
 
 object StartSessionController {
 
@@ -118,10 +120,12 @@ object StartSessionController {
       bridgeWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       keyPair: KeyPair,
+      currentToplHeight: Ref[F, Long],
       btcNetwork: BitcoinNetworkIdentifiers
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
+      toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       tba: TransactionBuilderApi[F],
       walletApi: WalletApi[F],
@@ -136,11 +140,14 @@ object StartSessionController {
       (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
+      toplHeight <- currentToplHeight.get
       someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,
         mintTemplateName,
         keyPair,
-        req.sha256
+        req.sha256,
+        toplHeight,
+        toplHeight + toplWaitExpirationTime.underlying
       )
       someRedeemAdress = someRedeemAdressAndKey.map(_._1)
       _ = assert(

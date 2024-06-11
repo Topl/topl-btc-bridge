@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Logging all command line arguments when starting the application.
 - Support for sad path: User did not send the funds.
 - Support for sad path: Bridge did not mint the tokens in time.
+- Support for sad path: User did not redeem the tokens in time.
 
 ### Changed
 
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated BramblSc to 2.0.0-beta4.
 - Integration tests to use our own Bitcoin regtest node Docker image.
 - Front-end to use the new minting status.
+- Rename `--blocks-to-recover` to `--btc-blocks-to-recover`.
 
 ### Removed
 
