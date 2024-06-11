@@ -37,7 +37,9 @@ case class StartPeginSessionResponse(
     sessionID: String,
     script: String,
     escrowAddress: String,
-    descriptor: String
+    descriptor: String,
+    minHeight: Long,
+    maxHeight: Long
 )
 
 case class StartPegoutSessionResponse(

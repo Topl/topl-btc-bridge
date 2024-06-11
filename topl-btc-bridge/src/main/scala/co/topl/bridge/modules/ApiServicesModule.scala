@@ -244,7 +244,7 @@ trait ApiServicesModule {
                   pegin.mintingBTCState.toString(),
                   pegin.redeemAddress,
                   pegin.toplBridgePKey,
-                  s"threshold(1, sign(0) or sha256(${pegin.sha256}))"
+                  s""""threshold(1, sha256(${pegin.sha256}) and height(${pegin.minHeight}, ${pegin.maxHeight}))"""
                 ).asJson
               )
             case None =>

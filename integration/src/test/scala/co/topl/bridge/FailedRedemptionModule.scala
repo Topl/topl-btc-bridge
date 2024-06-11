@@ -36,8 +36,6 @@ trait FailedRedemptionModule {
         _ <- IO.println("initResult: " + initResult)
         addFellowshipResult <- addFellowship.use { getText }
         _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addTemplateResult <- addTemplate(sha256ToplSecret).use { getText }
-        _ <- IO.println("addTemplateResult: " + addTemplateResult)
         addSecretResult <- addSecret.use { getText }
         _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
@@ -88,6 +86,12 @@ trait FailedRedemptionModule {
             )
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
+        addTemplateResult <- addTemplate(
+          sha256ToplSecret,
+          startSessionResponse.minHeight,
+          startSessionResponse.maxHeight
+        ).use { getText }
+        _ <- IO.println("addTemplateResult: " + addTemplateResult)
         _ <- IO(Source.fromString(startSessionResponse.descriptor))
         bitcoinTx <- process
           .ProcessBuilder(

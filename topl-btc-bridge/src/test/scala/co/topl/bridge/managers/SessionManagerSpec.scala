@@ -18,6 +18,8 @@ class SessionManagerSpec extends CatsEffectSuite {
     "scriptAsm",
     "toplBridgePKey",
     "sha256",
+    1,
+    100,
     "claimAddress",
     PeginSessionState.PeginSessionStateWaitingForBTC
   )

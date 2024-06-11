@@ -49,6 +49,8 @@ case class PeginSessionInfo(
     scriptAsm: String,
     toplBridgePKey: String,
     sha256: String,
+    minHeight: Long,
+    maxHeight: Long,
     claimAddress: String,
     mintingBTCState: PeginSessionState
 ) extends SessionInfo

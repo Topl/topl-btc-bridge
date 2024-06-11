@@ -54,7 +54,9 @@ object StartSessionController {
       btcWaitExpirationTime: BTCWaitExpirationTime,
       btcNetwork: BitcoinNetworkIdentifiers,
       toplBridgePKey: String,
-      redeemAddress: String
+      redeemAddress: String,
+      minHeight: Long,
+      maxHeight: Long
   ): F[(String, PeginSessionInfo)] = {
     import cats.implicits._
     for {
@@ -108,6 +110,8 @@ object StartSessionController {
         scriptAsm.toHex,
         toplBridgePKey,
         sha256,
+        minHeight,
+        maxHeight,
         claimAddress,
         PeginSessionState.PeginSessionStateWaitingForBTC
       )
@@ -140,14 +144,15 @@ object StartSessionController {
       (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
-      toplHeight <- currentToplHeight.get
+      minToplHeight <- currentToplHeight.get
+      maxToplHeight = minToplHeight + toplWaitExpirationTime.underlying
       someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,
         mintTemplateName,
         keyPair,
         req.sha256,
-        toplHeight,
-        toplHeight + toplWaitExpirationTime.underlying
+        minToplHeight,
+        maxToplHeight
       )
       someRedeemAdress = someRedeemAdressAndKey.map(_._1)
       _ = assert(
@@ -166,7 +171,9 @@ object StartSessionController {
         btcWaitExpirationTime,
         btcNetwork,
         bridgeBifrostKey,
-        someRedeemAdress.get
+        someRedeemAdress.get,
+        minToplHeight,
+        maxToplHeight
       )
       (address, sessionInfo) = addressAndsessionInfo
       sessionId <- sessionManager.createNewSession(sessionInfo)
@@ -175,7 +182,9 @@ object StartSessionController {
       sessionInfo.scriptAsm,
       address,
       BitcoinUtils
-        .createDescriptor(btcPeginBridgePKey.hex, req.pkey, req.sha256)
+        .createDescriptor(btcPeginBridgePKey.hex, req.pkey, req.sha256),
+      minToplHeight,
+      maxToplHeight
     ).asRight[BridgeError]).handleError { case e: BridgeError =>
       Left(e)
     }
