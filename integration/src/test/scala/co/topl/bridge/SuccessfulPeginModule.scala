@@ -260,7 +260,13 @@ trait SuccessfulPeginModule {
                 )
               ))
               .flatMap(x =>
-                IO.println(x.code) >> IO.sleep(5.second) >> IO.pure(x)
+                IO.println(x.code) >> process
+                  .ProcessBuilder(
+                    DOCKER_CMD,
+                    generateToAddress(1, newAddress): _*
+                  )
+                  .spawn[IO]
+                  .use(_.exitValue) >> IO.sleep(5.second) >> IO.pure(x)
               )
               .iterateUntil(
                 _.code == 404
