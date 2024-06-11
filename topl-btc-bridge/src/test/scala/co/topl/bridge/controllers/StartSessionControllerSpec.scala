@@ -91,7 +91,7 @@ class StartSessionControllerSpec
             toplWalletFile,
             testToplPassword
           )
-          currentToplHeight <- Ref[IO].of(0)
+          currentToplHeight <- Ref[IO].of(0L)
           res <- StartSessionController.startPeginSession(
             StartPeginSessionRequest(
               testKey,
@@ -231,7 +231,7 @@ class StartSessionControllerSpec
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
         queue <- Queue.unbounded[IO, SessionEvent]
-        currentToplHeight <- Ref[IO].of(0)
+        currentToplHeight <- Ref[IO].of(0L)
         sessionManager = SessionManagerImpl.make[IO](
           queue,
           new ConcurrentHashMap[String, SessionInfo]()
@@ -289,7 +289,7 @@ class StartSessionControllerSpec
           testPassword
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
-        currentToplHeight <- Ref[IO].of(0)
+        currentToplHeight <- Ref[IO].of(0L)
         res <- StartSessionController.startPeginSession(
           StartPeginSessionRequest(
             testKey,

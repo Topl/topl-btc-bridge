@@ -42,7 +42,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForBTC(1L, 1, "", escrowAddress, redeemAddress, claimAddress),
+          WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
           BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
