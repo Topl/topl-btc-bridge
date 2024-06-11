@@ -50,8 +50,8 @@ class BridgeIntegrationSpec
                     toplWalletDb,
                     "--btc-url",
                     "http://localhost",
-                    // "--topl-blocks-to-recover",
-                    // "20"
+                    "--topl-blocks-to-recover",
+                    "20"
                   )
                 )
               ),

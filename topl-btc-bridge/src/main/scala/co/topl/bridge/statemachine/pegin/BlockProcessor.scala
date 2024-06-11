@@ -13,7 +13,7 @@ object BlockProcessor {
   private def extractFromToplTx(proof: Attestation): String = {
     // The following is possible because we know the exact structure of the attestation
     val attestation = proof.getPredicate
-    val preimage = attestation.responses.head.getOr.right.getDigest.preimage
+    val preimage = attestation.responses.head.getAnd.left.getDigest.preimage
     new String(
       preimage.input.toByteArray
     )

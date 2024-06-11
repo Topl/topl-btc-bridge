@@ -37,7 +37,7 @@ object Dependencies {
 
   val brambl: Seq[ModuleID] = Seq(bramblSdk, bramblCrypto, bramblServiceKit)
 
-  lazy val bitcoinsVersion = "1.9.4"
+  lazy val bitcoinsVersion = "1.9.7"
 
   lazy val monocleVersion = "3.1.0"
 
@@ -79,7 +79,6 @@ object Dependencies {
     "org.bitcoin-s" %% "bitcoin-s-key-manager" % bitcoinsVersion,
     "org.bitcoin-s" %% "bitcoin-s-lnd-rpc" % bitcoinsVersion,
     "org.bitcoin-s" %% "bitcoin-s-node" % bitcoinsVersion,
-    "org.bitcoin-s" %% "bitcoin-s-oracle-explorer-client" % bitcoinsVersion,
     "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % bitcoinsVersion,
     "org.bitcoin-s" %% "bitcoin-s-wallet" % bitcoinsVersion,
     "org.bitcoin-s" %% "bitcoin-s-zmq" % bitcoinsVersion
