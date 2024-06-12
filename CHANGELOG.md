@@ -41,3 +41,5 @@ This is needed to know the range of blocks to wait for the redemption.
 - `/api/confirm-deposit-btc` WS was removed.
 - `/api/confirm-redemption` WS was removed.
 - Removed the signature from the contract for the redemption.
+- Removed the bridge public key from the `MintingStatusResponse`, as it is not
+needed anymore.
