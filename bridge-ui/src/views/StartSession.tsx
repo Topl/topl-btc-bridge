@@ -9,6 +9,7 @@ export interface SessionInformation {
   redeemAddress: string;
   toplBridgePKey: string;
   redeemTemplate: string;
+  escrowScript: string;
 }
 
 export interface StartSessionRequest {
@@ -90,13 +91,14 @@ function waitingForDeposit(isWaiting: boolean) {
 function StartSession(session: SessionInformation, setSession: React.Dispatch<React.SetStateAction<SessionInformation>>) {
 
   const [hash, setHash] = useState<string>("")
+  const [pk, setPk] = useState<string>("")
   const [error, setError] = useState<string>("")
 
 
   async function handleSubmitSha(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const startSessionRequest: StartSessionRequest = {
-      pkey: "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
+      pkey: pk,
       sha256: hash
     }
     const response = await startSession(startSessionRequest);
@@ -128,15 +130,28 @@ function StartSession(session: SessionInformation, setSession: React.Dispatch<Re
                 {errorValidation(error)}
               </div>
               <div className="mb-3">
+                <label htmlFor="pKey" className="form-label">Public Key</label>
+                <input value={pk} onChange={(e) => setPk(e.target.value)} type="text" className={error === "" ? "form-control" : "form-control is-invalid"} id="pKey" placeholder="0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a" />
+                {errorValidation(error)}
+              </div>
+              <div className="mb-3">
                 <button type="submit" className="btn btn-primary mb-3" disabled={session.isSet}>Start Session</button>
               </div>
             </div>
           </form>
           <div className='row g-3'>
             <div className="row">
-              <div className="mb-3">
+              <div>
                 <label htmlFor="escrowAddress" className="form-label">Escrow Address</label>
                 <input type="text" value={session.escrowAddress} className="form-control" id="escrowAddress" disabled />
+              </div>
+            </div>
+          </div>
+          <div className='row g-3'>
+            <div className="row">
+              <div className="mb-3">
+                <label htmlFor="escrowScript" className="form-label">Escrow Script</label>
+                <input type="text" value={session.escrowScript} className="form-control" id="escrowScript" disabled />
               </div>
             </div>
           </div>
