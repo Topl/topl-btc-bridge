@@ -53,7 +53,6 @@ object StartSessionController {
       btcBridgePKey: ECPublicKey,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       btcNetwork: BitcoinNetworkIdentifiers,
-      toplBridgePKey: String,
       redeemAddress: String,
       minHeight: Long,
       maxHeight: Long
@@ -108,7 +107,6 @@ object StartSessionController {
         redeemAddress,
         address,
         scriptAsm.toHex,
-        toplBridgePKey,
         sha256,
         minHeight,
         maxHeight,
@@ -170,7 +168,6 @@ object StartSessionController {
         btcBridgePKey,
         btcWaitExpirationTime,
         btcNetwork,
-        bridgeBifrostKey,
         someRedeemAdress.get,
         minToplHeight,
         maxToplHeight

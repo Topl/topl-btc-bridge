@@ -156,7 +156,7 @@ trait SuccessfulPeginModule {
           .readInputStream[IO](
             IO(
               new ByteArrayInputStream(
-                mintingStatusResponse.bridgePKey.getBytes()
+                "".getBytes()
               )
             ),
             10

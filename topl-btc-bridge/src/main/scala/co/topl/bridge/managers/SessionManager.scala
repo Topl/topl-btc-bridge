@@ -33,8 +33,6 @@ sealed trait SessionInfo
   *   The address where the BTC to peg in will be deposited.
   * @param scriptAsm
   *   The script that is used to redeem the pegin.
-  * @param toplBridgePKey
-  *   The public key of the bridge.
   * @param sha256
   *   The hash of the secret that is used to redeem the pegin.
   * @param mintingBTCState
@@ -47,7 +45,6 @@ case class PeginSessionInfo(
     redeemAddress: String,
     escrowAddress: String,
     scriptAsm: String,
-    toplBridgePKey: String,
     sha256: String,
     minHeight: Long,
     maxHeight: Long,

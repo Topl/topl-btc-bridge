@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for sad path: User did not send the funds.
 - Support for sad path: Bridge did not mint the tokens in time.
 - Support for sad path: User did not redeem the tokens in time.
+- Add new parameter `--topl-blocks-to-recover` to specify the number of blocks to wait for the Topl network to recover.
+- Add two new fields to the `StartPeginSessionResponse` message: `minHeight` and `maxHeight`.
+This is needed to know the range of blocks to wait for the redemption.
+
 
 ### Changed
 
@@ -29,8 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration tests to use our own Bitcoin regtest node Docker image.
 - Front-end to use the new minting status.
 - Rename `--blocks-to-recover` to `--btc-blocks-to-recover`.
+- Update the contract for the redemption to include the height. The new contract
+`threshold(1, sha256($sha256) and height($min, $max))`.
 
 ### Removed
 
 - `/api/confirm-deposit-btc` WS was removed.
 - `/api/confirm-redemption` WS was removed.
+- Removed the signature from the contract for the redemption.

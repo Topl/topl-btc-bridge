@@ -51,7 +51,7 @@ class BridgeIntegrationSpec
                     "--btc-url",
                     "http://localhost",
                     "--topl-blocks-to-recover",
-                    "20"
+                    "10"
                   )
                 )
               ),
