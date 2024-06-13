@@ -3,6 +3,7 @@ package co.topl.bridge.controllers
 import co.topl.shared.ToplPrivatenet
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.BTCConfirmationThreshold
 
 trait SharedData {
 
@@ -42,6 +43,9 @@ trait SharedData {
 
   implicit val toplWaitExpirationTime: ToplWaitExpirationTime =
     new ToplWaitExpirationTime(2000)
+
+  implicit val btcConfirmationThreshold: BTCConfirmationThreshold =
+    new BTCConfirmationThreshold(6)
 
   val testToplNetworkId = ToplPrivatenet
 

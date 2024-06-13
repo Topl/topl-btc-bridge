@@ -34,6 +34,8 @@ case object PeginSessionState {
   case object PeginSessionStateMintingTBTC extends PeginSessionState
   case object PeginSessionWaitingForRedemption extends PeginSessionState
   case object PeginSessionWaitingForClaim extends PeginSessionState
+  case object PeginSessionWaitingForEscrowBTCConfirmation
+      extends PeginSessionState
 }
 
 object Main extends IOApp with BridgeParamsDescriptor with AppModule {
@@ -109,6 +111,10 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       _ <- info"topl-blocks-to-recover : ${params.toplWaitExpirationTime}" (
         logger
       )
+      _ <-
+        info"btc-confirmation-threshold : ${params.btcConfirmationThreshold}" (
+          logger
+        )
       _ <- info"btc-peg-in-seed-file   : ${params.btcPegInSeedFile}" (logger)
       _ <- info"btc-peg-in-password    : ******" (logger)
       _ <- info"wallet-seed-file       : ${params.btcWalletSeedFile}" (logger)
@@ -125,7 +131,9 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       _ <- info"topl-network           : ${params.toplNetwork}" (logger)
       _ <- info"topl-host              : ${params.toplHost}" (logger)
       _ <- info"topl-port              : ${params.toplPort}" (logger)
-      _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (logger)
+      _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (
+        logger
+      )
       _ <- info"minting-fee            : ${params.mintingFee}" (logger)
       _ <- info"fee-per-byte           : ${params.feePerByte}" (logger)
       globalState <- Ref[IO].of(

@@ -136,7 +136,17 @@ trait BridgeParamsDescriptor {
           if (x > 0.satoshis) success
           else failure("Fee per byte must be stricly greater than 0")
         )
-        .text("The fee per byte in satoshis. (optional)")
+        .text("The fee per byte in satoshis. (optional)"),
+      opt[Int]("btc-confirmation-threshold")
+        .action((x, c) => c.copy(btcConfirmationThreshold = x))
+        .text(
+          "The number of confirmations required for a peg-in transaction. (mandatory)"
+        )
+        .validate( // check that it is a positive number
+          x =>
+            if (x > 0) success
+            else failure("Confirmation threshold must be a positive number")
+        )
     )
   }
 

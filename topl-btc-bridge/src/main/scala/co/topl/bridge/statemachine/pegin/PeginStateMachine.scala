@@ -34,6 +34,7 @@ import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.BTCConfirmationThreshold
 
 trait PeginStateMachineAlgebra[F[_]] {
 
@@ -68,6 +69,7 @@ object PeginStateMachine {
       defaultMintingFee: Lvl,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
+      btcConfirmationThreshold: BTCConfirmationThreshold,
       channelResource: Resource[F, ManagedChannel]
   ) = new PeginStateMachineAlgebra[F] {
 
@@ -159,6 +161,7 @@ object PeginStateMachine {
       case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
       case _: WaitingForRedemption => PeginSessionWaitingForRedemption
       case _: WaitingForClaim      => PeginSessionWaitingForClaim
+      case _: WaitingForEscrowBTCConfirmation => PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
     }
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =

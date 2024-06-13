@@ -19,11 +19,18 @@ import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import quivr.models.KeyPair
 import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.BTCConfirmationThreshold
 
 object PeginTransitionRelation {
 
   import WaitingBTCOps._
   import WaitingForRedemptionOps._
+
+  private def isAboveThreshold(
+      currentHeight: Int,
+      startHeight: Int
+  )(implicit btcConfirmationThreshold: BTCConfirmationThreshold) =
+    currentHeight - startHeight > btcConfirmationThreshold.underlying
 
   def transitionToEffect[F[_]: Async](
       currentState: PeginStateMachineState,
@@ -40,7 +47,8 @@ object PeginTransitionRelation {
       defaultFromTemplate: Template,
       utxoAlgebra: GenusQueryAlgebra[F],
       defaultFeePerByte: BitcoinCurrencyUnit,
-      defaultMintingFee: Lvl
+      defaultMintingFee: Lvl,
+      btcConfirmationThreshold: BTCConfirmationThreshold
   ) =
     (currentState, blockchainEvent) match {
       case (
@@ -62,19 +70,22 @@ object PeginTransitionRelation {
           )
           .void
       case (
-            cs: WaitingForBTC,
-            BTCFundsDeposited(_, _, _, amount)
+            cs: WaitingForEscrowBTCConfirmation,
+            newBTCBLock: NewBTCBlock
           ) =>
-        Async[F]
-          .start(
-            startMintingProcess[F](
-              defaultFromFellowship,
-              defaultFromTemplate,
-              cs.redeemAddress,
-              amount.satoshis.toLong
+        if (isAboveThreshold(newBTCBLock.height, cs.startBTCBlockHeight))
+          Async[F]
+            .start(
+              startMintingProcess[F](
+                defaultFromFellowship,
+                defaultFromTemplate,
+                cs.redeemAddress,
+                cs.amount
+              )
             )
-          )
-          .void
+            .void
+        else Async[F].unit
+
       case (_, _) => Async[F].unit
     }
 
@@ -85,17 +96,61 @@ object PeginTransitionRelation {
       t2E: (PeginStateMachineState, BlockchainEvent) => F[Unit]
   )(implicit
       btcWaitExpirationTime: BTCWaitExpirationTime,
-      toplWaitExpirationTime: ToplWaitExpirationTime
+      toplWaitExpirationTime: ToplWaitExpirationTime,
+      btcConfirmationThreshold: BTCConfirmationThreshold
   ): Option[FSMTransition] =
     (currentState, blockchainEvent) match {
       case (
             cs: WaitingForRedemption,
             ev: NewToplBlock
           ) =>
-        if (toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight))
+        if (
+          toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight)
+        )
           Some(
             EndTrasition[F](
               Async[F].unit
+            )
+          )
+        else
+          None
+      case (
+            cs: WaitingForEscrowBTCConfirmation,
+            ev: NewBTCBlock
+          ) =>
+        // check that the confirmation threshold has been passed
+        if (isAboveThreshold(ev.height, cs.startBTCBlockHeight))
+          Some(
+            FSMTransitionTo(
+              currentState,
+              MintingTBTC(
+                ev.height,
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.redeemAddress,
+                cs.claimAddress,
+                cs.btcTxId,
+                cs.btcVout,
+                cs.amount
+              ),
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        else if (ev.height <= cs.startBTCBlockHeight)
+          // we are seeing the block where the transaction was found again
+          // this can only mean that block is being unapplied
+          Some(
+            FSMTransitionTo(
+              currentState,
+              WaitingForBTC(
+                cs.startBTCBlockHeight,
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.escrowAddress,
+                cs.redeemAddress,
+                cs.claimAddress
+              ),
+              t2E(currentState, blockchainEvent)
             )
           )
         else
@@ -129,7 +184,9 @@ object PeginTransitionRelation {
             cs: WaitingForBTC,
             ev: NewBTCBlock
           ) =>
-        if (btcWaitExpirationTime.underlying < (ev.height - cs.currentBTCBlockHeight))
+        if (
+          btcWaitExpirationTime.underlying < (ev.height - cs.currentBTCBlockHeight)
+        )
           Some(
             EndTrasition[F](
               Async[F].unit
@@ -183,10 +240,11 @@ object PeginTransitionRelation {
           Some(
             FSMTransitionTo(
               currentState,
-              MintingTBTC(
+              WaitingForEscrowBTCConfirmation(
                 cs.currentBTCBlockHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
+                cs.escrowAddress,
                 cs.redeemAddress,
                 cs.claimAddress,
                 ev.txId,
@@ -209,6 +267,8 @@ object PeginTransitionRelation {
           ) =>
         None // No transition
       case (_: MintingTBTC, _) =>
+        None // No transition
+      case (_: WaitingForEscrowBTCConfirmation, _) =>
         None // No transition
       case (
             _: WaitingForBTC,

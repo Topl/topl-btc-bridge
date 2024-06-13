@@ -35,6 +35,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.BTCConfirmationThreshold
 
 trait AppModule
     extends WalletStateResource
@@ -95,6 +96,9 @@ trait AppModule
     )
     implicit val toplWaitExpirationTime = new ToplWaitExpirationTime(
       params.toplWaitExpirationTime
+    )
+    implicit val btcConfirmationThreshold = new BTCConfirmationThreshold(
+      params.btcConfirmationThreshold
     )
     for {
       keyPair <- walletManagementUtils.loadKeys(

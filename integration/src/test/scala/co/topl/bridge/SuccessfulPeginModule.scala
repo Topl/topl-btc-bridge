@@ -122,7 +122,7 @@ trait SuccessfulPeginModule {
         _ <- IO.println("Generating blocks..")
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(7, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         mintingStatusResponse <- EmberClientBuilder

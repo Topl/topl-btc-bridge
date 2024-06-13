@@ -37,7 +37,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   import org.bitcoins.core.currency.SatoshisLong
 
   test(
-    "PeginTransitionRelation should go from WaitingForBTC to MintingTBTC on deposited funds"
+    "PeginTransitionRelation should go from WaitingForBTC to WaitingForEscrowBTCConfirmation on deposited funds"
   ) {
     assert(
       PeginTransitionRelation
@@ -48,15 +48,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
         .nextState
-        .isInstanceOf[MintingTBTC] && PeginTransitionRelation
-        .handleBlockchainEvent[IO](
-          WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
-        )(transitionToEffect[IO](_, _))
-        .get
-        .asInstanceOf[FSMTransitionTo[IO]]
-        .nextState
-        .isInstanceOf[MintingTBTC]
+        .isInstanceOf[WaitingForEscrowBTCConfirmation]
     )
   }
 
@@ -160,7 +152,6 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     )
   }
 
-  
   test(
     "PeginTransitionRelation should transition from WaitingForRedemption to EndTransition when the height difference is bigger than expiration time"
   ) {
@@ -472,6 +463,75 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             BTCFundsWithdrawn("txId", 0)
           )(transitionToEffect[IO](_, _))
           .isEmpty
+    )
+  }
+
+  // WaitingForEscrowBTCConfirmation -> MintingTBTC
+  test(
+    "PeginTransitionRelation should transition from WaitingForEscrowBTCConfirmation to MintingTBTC"
+  ) {
+    assert(
+      PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          WaitingForEscrowBTCConfirmation(
+            1,
+            1,
+            "",
+            escrowAddress,
+            redeemAddress,
+            claimAddress,
+            "btcTxId",
+            0,
+            100
+          ),
+          NewBTCBlock(8)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .asInstanceOf[FSMTransitionTo[IO]]
+        .nextState
+        .isInstanceOf[MintingTBTC] &&
+        PeginTransitionRelation
+          .handleBlockchainEvent[IO](
+            WaitingForEscrowBTCConfirmation(
+              1,
+              1,
+              "",
+              escrowAddress,
+              redeemAddress,
+              claimAddress,
+              "btcTxId",
+              0,
+              100
+            ),
+            NewBTCBlock(7)
+          )(transitionToEffect[IO](_, _))
+          .isEmpty
+    )
+  }
+  // WaitingForEscrowBTCConfirmation -> WaitingForBTC
+  test(
+    "PeginTransitionRelation should transition from WaitingForEscrowBTCConfirmation to WaitingForBTC on reorg"
+  ) {
+    assert(
+      PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          WaitingForEscrowBTCConfirmation(
+            8,
+            1,
+            "",
+            escrowAddress,
+            redeemAddress,
+            claimAddress,
+            "btcTxId",
+            0,
+            100
+          ),
+          NewBTCBlock(8)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .asInstanceOf[FSMTransitionTo[IO]]
+        .nextState
+        .isInstanceOf[WaitingForBTC]
     )
   }
 
