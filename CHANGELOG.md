@@ -32,6 +32,8 @@ This is needed to know the range of blocks to wait for the redemption.
 - Updated BramblSc to 2.0.0-beta4.
 - Integration tests to use our own Bitcoin regtest node Docker image.
 - Front-end to use the new minting status.
+- No longer hardcodes the user's public key. User can provide it during session creation
+- Session creation also displays the escrow script for the user
 - Rename `--blocks-to-recover` to `--btc-blocks-to-recover`.
 - Update the contract for the redemption to include the height. The new contract
 `threshold(1, sha256($sha256) and height($min, $max))`.
