@@ -73,6 +73,7 @@ object WaitingForRedemptionOps {
             bridgeSig
           )
         )
+      _ = println("txWit: " + txWit.hex)
       _ <- Async[F].start(
         Async[F].delay(bitcoindInstance.sendRawTransaction(txWit))
       )

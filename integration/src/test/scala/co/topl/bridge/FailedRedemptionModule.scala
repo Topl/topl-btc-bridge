@@ -5,7 +5,6 @@ import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
-import fs2.io.file.Files
 import fs2.io.process
 import io.circe.parser._
 import org.http4s.Method
@@ -15,16 +14,15 @@ import org.http4s._
 import org.http4s.ember.client._
 import org.http4s.headers.`Content-Type`
 
-import java.io.ByteArrayInputStream
 import scala.concurrent.duration._
 import scala.io.Source
 
-trait SuccessfulPeginModule {
+trait FailedRedemptionModule {
 
   // self BridgeIntegrationSpec
   self: BridgeIntegrationSpec =>
 
-  def successfulPegin(): IO[Unit] = {
+  def failedRedemption(): IO[Unit] = {
     import co.topl.bridge.implicits._
 
     assertIO(
@@ -51,7 +49,7 @@ trait SuccessfulPeginModule {
           .use(getText)
         _ <- IO.println("newAddress: " + newAddress)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(101, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         unspent <- process
@@ -87,7 +85,6 @@ trait SuccessfulPeginModule {
               )
             )
           })
-        _ <- IO.println("script: " + startSessionResponse.script)
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         addTemplateResult <- addTemplate(
           sha256ToplSecret,
@@ -125,7 +122,7 @@ trait SuccessfulPeginModule {
           .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-        mintingStatusResponse <- EmberClientBuilder
+        _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
@@ -152,93 +149,6 @@ trait SuccessfulPeginModule {
                 _.mintingStatus == "PeginSessionWaitingForRedemption"
               )
           })
-        _ <- fs2.io
-          .readInputStream[IO](
-            IO(
-              new ByteArrayInputStream(
-                "".getBytes()
-              )
-            ),
-            10
-          )
-          .through(Files[IO].writeAll(fs2.io.file.Path(vkFile)))
-          .compile
-          .drain
-        importVkResult <- importVks.use { getText }
-        _ <- IO.println("importVkResult: " + importVkResult)
-        fundRedeemAddressTx <- fundRedeemAddressTx(
-          mintingStatusResponse.address
-        ).use { getText }
-        _ <- IO.println("fundRedeemAddressTx: " + fundRedeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
-          "fundRedeemTx.pbuf",
-          "fundRedeemTxProved.pbuf"
-        ).use { getText }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
-        )
-        broadcastFundRedeemAddressTxRes <- broadcastFundRedeemAddressTx(
-          "fundRedeemTxProved.pbuf"
-        ).use {
-          getText
-        }
-        _ <- IO.println(
-          "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
-        )
-        utxo <- getCurrentUtxosFromAddress(mintingStatusResponse.address)
-          .use(
-            getText
-          )
-          .iterateUntil(_.contains("LVL"))
-        _ <- IO.println("utxos: " + utxo)
-        groupId = utxo
-          .split("\n")
-          .filter(_.contains("GroupId"))
-          .head
-          .split(":")
-          .last
-          .trim()
-        seriesId = utxo
-          .split("\n")
-          .filter(_.contains("SeriesId"))
-          .head
-          .split(":")
-          .last
-          .trim()
-        _ <- IO.println("groupId: " + groupId)
-        _ <- IO.println("seriesId: " + seriesId)
-        currentAddress <- currentAddress.use { getText }
-        redeemAddressTx <- redeemAddressTx(
-          currentAddress,
-          4999000000L,
-          groupId,
-          seriesId
-        ).use { getText }
-        _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
-          "redeemTx.pbuf",
-          "redeemTxProved.pbuf"
-        )
-          .use {
-            getText
-          }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
-        )
-        _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
-          getText
-        }
-        utxo <- getCurrentUtxosFromAddress(currentAddress)
-          .use(
-            getText
-          )
-          .iterateUntil(_.contains("Asset"))
-        _ <- IO.println("utxos: " + utxo)
-        _ <- IO.sleep(5.second)
-        _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
-          .spawn[IO]
-          .use(_.exitValue)
         _ <- EmberClientBuilder
           .default[IO]
           .build
@@ -260,13 +170,7 @@ trait SuccessfulPeginModule {
                 )
               ))
               .flatMap(x =>
-                IO.println(x.code) >> process
-                  .ProcessBuilder(
-                    DOCKER_CMD,
-                    generateToAddress(1, newAddress): _*
-                  )
-                  .spawn[IO]
-                  .use(_.exitValue) >> IO.sleep(5.second) >> IO.pure(x)
+                IO.println(x.code) >> IO.sleep(5.second) >> IO.pure(x)
               )
               .iterateUntil(
                 _.code == 404

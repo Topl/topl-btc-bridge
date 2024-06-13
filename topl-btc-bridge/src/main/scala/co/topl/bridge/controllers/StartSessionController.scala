@@ -38,6 +38,8 @@ import scodec.bits.ByteVector
 
 import java.util.UUID
 import co.topl.bridge.BTCWaitExpirationTime
+import cats.effect.kernel.Ref
+import co.topl.bridge.ToplWaitExpirationTime
 
 object StartSessionController {
 
@@ -51,8 +53,9 @@ object StartSessionController {
       btcBridgePKey: ECPublicKey,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       btcNetwork: BitcoinNetworkIdentifiers,
-      toplBridgePKey: String,
-      redeemAddress: String
+      redeemAddress: String,
+      minHeight: Long,
+      maxHeight: Long
   ): F[(String, PeginSessionInfo)] = {
     import cats.implicits._
     for {
@@ -104,8 +107,9 @@ object StartSessionController {
         redeemAddress,
         address,
         scriptAsm.toHex,
-        toplBridgePKey,
         sha256,
+        minHeight,
+        maxHeight,
         claimAddress,
         PeginSessionState.PeginSessionStateWaitingForBTC
       )
@@ -118,10 +122,12 @@ object StartSessionController {
       bridgeWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],
       keyPair: KeyPair,
+      currentToplHeight: Ref[F, Long],
       btcNetwork: BitcoinNetworkIdentifiers
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
+      toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       tba: TransactionBuilderApi[F],
       walletApi: WalletApi[F],
@@ -136,11 +142,15 @@ object StartSessionController {
       (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
+      minToplHeight <- currentToplHeight.get
+      maxToplHeight = minToplHeight + toplWaitExpirationTime.underlying
       someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,
         mintTemplateName,
         keyPair,
-        req.sha256
+        req.sha256,
+        minToplHeight,
+        maxToplHeight
       )
       someRedeemAdress = someRedeemAdressAndKey.map(_._1)
       _ = assert(
@@ -158,8 +168,9 @@ object StartSessionController {
         btcBridgePKey,
         btcWaitExpirationTime,
         btcNetwork,
-        bridgeBifrostKey,
-        someRedeemAdress.get
+        someRedeemAdress.get,
+        minToplHeight,
+        maxToplHeight
       )
       (address, sessionInfo) = addressAndsessionInfo
       sessionId <- sessionManager.createNewSession(sessionInfo)
@@ -168,7 +179,9 @@ object StartSessionController {
       sessionInfo.scriptAsm,
       address,
       BitcoinUtils
-        .createDescriptor(btcPeginBridgePKey.hex, req.pkey, req.sha256)
+        .createDescriptor(btcPeginBridgePKey.hex, req.pkey, req.sha256),
+      minToplHeight,
+      maxToplHeight
     ).asRight[BridgeError]).handleError { case e: BridgeError =>
       Left(e)
     }

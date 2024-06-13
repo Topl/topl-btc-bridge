@@ -41,6 +41,7 @@ lazy val commonSettings = Seq(
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Sonatype Releases" at "https://s01.oss.sonatype.org/content/repositories/releases/",
     "Sonatype Releases s01" at "https://s01.oss.sonatype.org/content/repositories/releases/",
+    "Maven Repo" at  "https://repo1.maven.org/maven2/" ,
     "Bintray" at "https://jcenter.bintray.com/"
   ),
   testFrameworks += TestFrameworks.MUnit

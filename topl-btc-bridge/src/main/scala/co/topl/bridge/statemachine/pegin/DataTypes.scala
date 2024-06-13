@@ -10,6 +10,8 @@ case class BTCFundsWithdrawn(txId: String, vout: Long)
 
 case class NewBTCBlock(height: Int) extends BlockchainEvent
 
+case class NewToplBlock(height: Long) extends BlockchainEvent
+
 case class BTCFundsDeposited(
     scriptPubKey: ScriptPubKey,
     txId: String,
@@ -17,6 +19,7 @@ case class BTCFundsDeposited(
     amount: CurrencyUnit
 ) extends BlockchainEvent
 case class BifrostFundsDeposited(
+    currentToplBlockHeight: Long,
     address: String,
     utxoTxId: String,
     utxoIndex: Int,
@@ -33,7 +36,7 @@ case class BifrostFundsWithdrawn(
 sealed trait PeginStateMachineState
 
 case class WaitingForBTC(
-    currentBTCBlockHeight: Long,
+    currentBTCBlockHeight: Int,
     currentWalletIdx: Int,
     scriptAsm: String,
     escrowAddress: String,
@@ -41,7 +44,7 @@ case class WaitingForBTC(
     claimAddress: String
 ) extends PeginStateMachineState
 case class MintingTBTC(
-    startBTCBlockHeight: Long,
+    startBTCBlockHeight: Int,
     currentWalletIdx: Int,
     scriptAsm: String,
     redeemAddress: String,
@@ -51,6 +54,7 @@ case class MintingTBTC(
     amount: Long
 ) extends PeginStateMachineState
 case class WaitingForRedemption(
+    currentTolpBlockHeight: Long,
     currentWalletIdx: Int,
     scriptAsm: String,
     redeemAddress: String,

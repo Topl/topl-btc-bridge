@@ -129,16 +129,15 @@ package object bridge {
     )
     .spawn[IO]
 
-  def templateFromSha(sha256: String) =
-    s"""threshold(1, sign(0) or sha256($sha256))"""
-
+  def templateFromSha(sha256: String,  min: Long, max: Long) =
+    s"""threshold(1, sha256($sha256) and height($min, $max))"""
   val secret = "topl-secret"
 
   val sha256ToplSecret =
     "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df"
 
   // brambl-cli templates add --walletdb user-wallet.db --template-name redeemBridge --lock-template
-  def addTemplate(sha256: String) = process
+  def addTemplate(sha256: String, min: Long, max: Long) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -149,7 +148,7 @@ package object bridge {
         "--template-name",
         "redeemBridge",
         "--lock-template",
-        templateFromSha(sha256)
+        templateFromSha(sha256, min, max)
       ): _*
     )
     .spawn[IO]

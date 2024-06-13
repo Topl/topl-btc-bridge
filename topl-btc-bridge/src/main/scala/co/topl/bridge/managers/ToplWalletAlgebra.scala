@@ -35,7 +35,9 @@ object ToplWalletAlgebra {
   import AssetMintingOps._
 
   private def computeSerializedTemplateMintLock[F[_]: Sync](
-      sha256: String
+      sha256: String,
+      min: Long,
+      max: Long
   ) = {
     import cats.implicits._
     for {
@@ -56,7 +58,7 @@ object ToplWalletAlgebra {
           .sequence
       )
       lockTemplateAsJson <- OptionT(
-        Sync[F].delay(templateFromSha(decodedHex).some)
+        Sync[F].delay(templateFromSha(decodedHex, min, max).some)
       )
     } yield lockTemplateAsJson
   }
@@ -65,7 +67,9 @@ object ToplWalletAlgebra {
       fromFellowship: String,
       mintTemplateName: String,
       keypair: KeyPair,
-      sha256: String
+      sha256: String,
+      min: Long,
+      max: Long
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
@@ -84,7 +88,9 @@ object ToplWalletAlgebra {
     }
     (for {
       lockTemplateAsJson <- computeSerializedTemplateMintLock(
-        sha256
+        sha256,
+        min,
+        max
       )
       _ <- fellowshipStorageAlgebra
         .addFellowship(

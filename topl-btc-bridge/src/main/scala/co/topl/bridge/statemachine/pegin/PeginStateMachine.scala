@@ -1,38 +1,39 @@
 package co.topl.bridge.statemachine.pegin
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Ref
+import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
+import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
+import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.Fellowship
 import co.topl.bridge.Lvl
 import co.topl.bridge.PeginSessionState
 import co.topl.bridge.PeginSessionState.PeginSessionStateMintingTBTC
 import co.topl.bridge.PeginSessionState.PeginSessionStateWaitingForBTC
-import co.topl.bridge.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.PeginSessionState.PeginSessionWaitingForClaim
+import co.topl.bridge.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.Template
+import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
 import co.topl.bridge.managers.SessionCreated
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.SessionUpdated
+import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.brambl.builders.TransactionBuilderApi
-import co.topl.brambl.dataApi.WalletStateAlgebra
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
-import co.topl.bridge.managers.BTCWalletAlgebra
-import co.topl.brambl.wallet.WalletApi
-import cats.effect.kernel.Resource
-import io.grpc.ManagedChannel
-import cats.effect.kernel.Ref
-import co.topl.bridge.BTCWaitExpirationTime
 
 trait PeginStateMachineAlgebra[F[_]] {
 
@@ -50,6 +51,7 @@ object PeginStateMachine {
 
   def make[F[_]: Async: Logger](
       currentBitcoinNetworkHeight: Ref[F, Int],
+      currentToplNetworkHeight: Ref[F, Long],
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
       sessionManager: SessionManagerAlgebra[F],
@@ -65,6 +67,7 @@ object PeginStateMachine {
       defaultFeePerByte: BitcoinCurrencyUnit,
       defaultMintingFee: Lvl,
       btcWaitExpirationTime: BTCWaitExpirationTime,
+      toplWaitExpirationTime: ToplWaitExpirationTime,
       channelResource: Resource[F, ManagedChannel]
   ) = new PeginStateMachineAlgebra[F] {
 
@@ -89,44 +92,63 @@ object PeginStateMachine {
         case _ => fs2.Stream.empty
       }
 
+    private def updateToplHeight(
+        blockchainEvent: BlockchainEvent
+    ): fs2.Stream[F, F[Unit]] =
+      blockchainEvent match {
+        case NewToplBlock(height) =>
+          fs2.Stream(
+            for {
+              x <- currentToplNetworkHeight.get
+              _ <-
+                if (height > x) // TODO: handle reorgs
+                  currentToplNetworkHeight.set(height)
+                else Sync[F].unit
+            } yield ()
+          )
+
+        case _ => fs2.Stream.empty
+      }
+
     def handleBlockchainEventInContext(
         blockchainEvent: BlockchainEvent
     ): fs2.Stream[F, F[Unit]] = {
       import scala.jdk.CollectionConverters._
-      updateBTCHeight(blockchainEvent) ++ (for {
-        entry <- fs2.Stream[F, Entry[String, PeginStateMachineState]](
-          map.entrySet().asScala.toList: _*
-        )
-        sessionId = entry.getKey
-        currentState = entry.getValue
-      } yield handleBlockchainEvent[F](
-        currentState,
-        blockchainEvent
-      )(transitionToEffect[F])
-        .map(x =>
-          x match {
-            case EndTrasition(effect) =>
-              info"Session $sessionId ended successfully" >>
-                Sync[F].delay(map.remove(sessionId)) >>
-                sessionManager
-                  .removeSession(sessionId)
-                  .flatMap(_ => effect.asInstanceOf[F[Unit]])
-            case FSMTransitionTo(prevState, nextState, effect) =>
-              info"Transitioning session $sessionId from ${currentState
-                  .getClass()
-                  .getSimpleName()} to ${nextState.getClass().getSimpleName()}" >>
-                processTransition(
-                  sessionId,
-                  FSMTransitionTo[F](
-                    prevState,
-                    nextState,
-                    effect.asInstanceOf[F[Unit]]
+      updateToplHeight(blockchainEvent) ++
+        updateBTCHeight(blockchainEvent) ++ (for {
+          entry <- fs2.Stream[F, Entry[String, PeginStateMachineState]](
+            map.entrySet().asScala.toList: _*
+          )
+          sessionId = entry.getKey
+          currentState = entry.getValue
+        } yield handleBlockchainEvent[F](
+          currentState,
+          blockchainEvent
+        )(transitionToEffect[F])
+          .map(x =>
+            x match {
+              case EndTrasition(effect) =>
+                info"Session $sessionId ended successfully" >>
+                  Sync[F].delay(map.remove(sessionId)) >>
+                  sessionManager
+                    .removeSession(sessionId)
+                    .flatMap(_ => effect.asInstanceOf[F[Unit]])
+              case FSMTransitionTo(prevState, nextState, effect) =>
+                info"Transitioning session $sessionId from ${currentState
+                    .getClass()
+                    .getSimpleName()} to ${nextState.getClass().getSimpleName()}" >>
+                  processTransition(
+                    sessionId,
+                    FSMTransitionTo[F](
+                      prevState,
+                      nextState,
+                      effect.asInstanceOf[F[Unit]]
+                    )
                   )
-                )
-          }
-        )).collect({ case Some(value) =>
-        info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
-      })
+            }
+          )).collect({ case Some(value) =>
+          info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
+        })
 
     }
 

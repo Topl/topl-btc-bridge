@@ -14,21 +14,24 @@ import munit.AnyFixture
 class BridgeIntegrationSpec
     extends CatsEffectSuite
     with SuccessfulPeginModule
-    with FailedPeginNoDepositModule 
-    with FailedPeginNoMintModule {
+    with FailedPeginNoDepositModule
+    with FailedPeginNoMintModule
+    with FailedRedemptionModule {
 
   val DOCKER_CMD = "docker"
 
   override val munitIOTimeout = Duration(180, "s")
 
-  lazy val toplWalletDb = Option(System.getenv("TOPL_WALLET_DB")).getOrElse("topl-wallet.db")
-  lazy val toplWalletJson = Option(System.getenv("TOPL_WALLET_JSON")).getOrElse("topl-wallet.json")
+  lazy val toplWalletDb =
+    Option(System.getenv("TOPL_WALLET_DB")).getOrElse("topl-wallet.db")
+  lazy val toplWalletJson =
+    Option(System.getenv("TOPL_WALLET_JSON")).getOrElse("topl-wallet.json")
 
   val startServer: AnyFixture[Unit] =
     new FutureFixture[Unit]("server setup") {
 
       var fiber: Fiber[IO, Throwable, ExitCode] = _
-      def apply() = fiber : Unit
+      def apply() = fiber: Unit
 
       override def beforeAll() = {
         IO.asyncForIO
@@ -46,7 +49,9 @@ class BridgeIntegrationSpec
                     "--topl-wallet-db",
                     toplWalletDb,
                     "--btc-url",
-                    "http://localhost"
+                    "http://localhost",
+                    "--topl-blocks-to-recover",
+                    "10"
                   )
                 )
               ),
@@ -89,11 +94,15 @@ class BridgeIntegrationSpec
   cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
     successfulPegin()
   }
-  cleanupDir.test("Bridge should fail correctly when user does not send BTC") { _ =>
-    failedPeginNoDeposit()
+  cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
+    _ =>
+      failedPeginNoDeposit()
   }
   cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
     failedPeginNoMint()
+  }
+  cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
+    failedRedemption()
   }
 
 }
