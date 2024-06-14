@@ -51,7 +51,7 @@ trait SuccessfulPeginModule {
           .use(getText)
         _ <- IO.println("newAddress: " + newAddress)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(101, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 101, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         unspent <- process
@@ -122,7 +122,7 @@ trait SuccessfulPeginModule {
         _ <- IO.println("Generating blocks..")
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(7, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         mintingStatusResponse <- EmberClientBuilder
@@ -236,7 +236,7 @@ trait SuccessfulPeginModule {
         _ <- IO.println("utxos: " + utxo)
         _ <- IO.sleep(5.second)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder
@@ -263,7 +263,7 @@ trait SuccessfulPeginModule {
                 IO.println(x.code) >> process
                   .ProcessBuilder(
                     DOCKER_CMD,
-                    generateToAddress(1, newAddress): _*
+                    generateToAddress(1, 1, newAddress): _*
                   )
                   .spawn[IO]
                   .use(_.exitValue) >> IO.sleep(5.second) >> IO.pure(x)

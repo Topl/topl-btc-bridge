@@ -73,7 +73,7 @@ object PeginTransitionRelation {
             cs: WaitingForEscrowBTCConfirmation,
             newBTCBLock: NewBTCBlock
           ) =>
-        if (isAboveThreshold(newBTCBLock.height, cs.startBTCBlockHeight))
+        if (isAboveThreshold(newBTCBLock.height, cs.depositBTCBlockHeight))
           Async[F]
             .start(
               startMintingProcess[F](
@@ -119,7 +119,7 @@ object PeginTransitionRelation {
             ev: NewBTCBlock
           ) =>
         // check that the confirmation threshold has been passed
-        if (isAboveThreshold(ev.height, cs.startBTCBlockHeight))
+        if (isAboveThreshold(ev.height, cs.depositBTCBlockHeight))
           Some(
             FSMTransitionTo(
               currentState,
@@ -136,7 +136,7 @@ object PeginTransitionRelation {
               t2E(currentState, blockchainEvent)
             )
           )
-        else if (ev.height <= cs.startBTCBlockHeight)
+        else if (ev.height <= cs.depositBTCBlockHeight)
           // we are seeing the block where the transaction was found again
           // this can only mean that block is being unapplied
           Some(
@@ -170,7 +170,7 @@ object PeginTransitionRelation {
         } else None
       case (
             WaitingForClaim(claimAddress),
-            BTCFundsDeposited(scriptPubKey, _, _, _)
+            BTCFundsDeposited(_, scriptPubKey, _, _, _)
           ) =>
         val bech32Address = Bech32Address.fromString(claimAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {
@@ -242,6 +242,7 @@ object PeginTransitionRelation {
               currentState,
               WaitingForEscrowBTCConfirmation(
                 cs.currentBTCBlockHeight,
+                ev.fundsDepositedHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
                 cs.escrowAddress,

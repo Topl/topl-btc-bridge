@@ -60,7 +60,7 @@ trait FailedPeginNoDepositModule {
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         _ <- IO.println("Generating blocks..")
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(102, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 102, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder

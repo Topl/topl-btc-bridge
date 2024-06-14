@@ -3,20 +3,23 @@ package co.topl.bridge
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.kernel.Fiber
+import fs2.io.process
+import io.circe.parser._
+import munit.AnyFixture
 import munit.CatsEffectSuite
+import munit.FutureFixture
 
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
-import munit.FutureFixture
-import munit.AnyFixture
 
 class BridgeIntegrationSpec
     extends CatsEffectSuite
     with SuccessfulPeginModule
     with FailedPeginNoDepositModule
     with FailedPeginNoMintModule
-    with FailedRedemptionModule {
+    with FailedRedemptionModule
+    with FailedPeginNoDepositWithReorgModule {
 
   val DOCKER_CMD = "docker"
 
@@ -34,34 +37,83 @@ class BridgeIntegrationSpec
       def apply() = fiber: Unit
 
       override def beforeAll() = {
-        IO.asyncForIO
-          .both(
-            IO.asyncForIO
-              .start(
-                Main.run(
-                  List(
-                    "--btc-wallet-seed-file",
-                    "src/test/resources/wallet.json",
-                    "--btc-peg-in-seed-file",
-                    "src/test/resources/pegin-wallet.json",
-                    "--topl-wallet-seed-file",
-                    toplWalletJson,
-                    "--topl-wallet-db",
-                    toplWalletDb,
-                    "--btc-url",
-                    "http://localhost",
-                    "--topl-blocks-to-recover",
-                    "10"
+        (for {
+          _ <- IO.asyncForIO
+            .both(
+              IO.asyncForIO
+                .start(
+                  Main.run(
+                    List(
+                      "--btc-wallet-seed-file",
+                      "src/test/resources/wallet.json",
+                      "--btc-peg-in-seed-file",
+                      "src/test/resources/pegin-wallet.json",
+                      "--topl-wallet-seed-file",
+                      toplWalletJson,
+                      "--topl-wallet-db",
+                      toplWalletDb,
+                      "--btc-url",
+                      "http://localhost",
+                      "--topl-blocks-to-recover",
+                      "10"
+                    )
                   )
-                )
-              ),
-            IO.sleep(10.seconds)
+                ),
+              IO.sleep(10.seconds)
+            )
+            .map { case (f, _) =>
+              fiber = f
+            }
+            .void
+          // inspect bridge
+          bridgeNetwork <- process
+            .ProcessBuilder(DOCKER_CMD, inspectBridge: _*)
+            .spawn[IO]
+            .use { getText }
+          // print bridgeNetwork
+          _ <- IO.println("bridgeNetwork: " + bridgeNetwork)
+          // parse
+          ipBitcoin02 <- IO.fromEither(
+            parse(bridgeNetwork)
+              .map(x =>
+                (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+                  x.filter(x =>
+                    (x._2 \\ "Name").head.asString.get == "bitcoin02"
+                  ).values
+                    .head
+                }).get \\ "IPv4Address").head.asString.get
+                  .split("/")
+                  .head
+              )
           )
-          .map { case (f, _) =>
-            fiber = f
-          }
-          .void
-          .unsafeToFuture()
+          // print IP BTC 02
+          _ <- IO.println("ipBitcoin02: " + ipBitcoin02)
+          // parse
+          ipBitcoin01 <- IO.fromEither(
+            parse(bridgeNetwork)
+              .map(x =>
+                (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+                  x.filter(x =>
+                    (x._2 \\ "Name").head.asString.get == "bitcoin01"
+                  ).values
+                    .head
+                }).get \\ "IPv4Address").head.asString.get
+                  .split("/")
+                  .head
+              )
+          )
+          // print IP BTC 01
+          _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
+          // add node
+          _ <- process
+            .ProcessBuilder(DOCKER_CMD, addNode(1, ipBitcoin02, 18444): _*)
+            .spawn[IO]
+            .use { getText }
+          _ <- process
+            .ProcessBuilder(DOCKER_CMD, addNode(2, ipBitcoin01, 18444): _*)
+            .spawn[IO]
+            .use { getText }
+        } yield ()).unsafeToFuture()
       }
 
       override def afterAll() = {
@@ -103,6 +155,12 @@ class BridgeIntegrationSpec
   }
   cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
     failedRedemption()
+  }
+
+  cleanupDir.test(
+    "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
+  ) { _ =>
+    failedPeginNoDepositWithReorg()
   }
 
 }

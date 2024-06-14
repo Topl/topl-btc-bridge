@@ -1,4 +1,5 @@
 package co.topl.bridge
+
 import cats.effect.IO
 import co.topl.shared.BridgeContants
 import co.topl.shared.MintingStatusRequest
@@ -15,14 +16,12 @@ import org.http4s.ember.client._
 import org.http4s.headers.`Content-Type`
 
 import scala.concurrent.duration._
-import scala.io.Source
 
-trait FailedRedemptionModule {
+trait FailedPeginNoDepositWithReorgModule {
 
-  // self BridgeIntegrationSpec
   self: BridgeIntegrationSpec =>
 
-  def failedRedemption(): IO[Unit] = {
+  def failedPeginNoDepositWithReorg(): IO[Unit] = {
     import co.topl.bridge.implicits._
 
     assertIO(
@@ -32,12 +31,6 @@ trait FailedRedemptionModule {
           .spawn[IO]
           .use { getText }
         _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet.use { getText }
-        _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship.use { getText }
-        _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret.use { getText }
-        _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
@@ -86,13 +79,10 @@ trait FailedRedemptionModule {
             )
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
-        addTemplateResult <- addTemplate(
-          sha256ToplSecret,
-          startSessionResponse.minHeight,
-          startSessionResponse.maxHeight
-        ).use { getText }
-        _ <- IO.println("addTemplateResult: " + addTemplateResult)
-        _ <- IO(Source.fromString(startSessionResponse.descriptor))
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, disconnectBridge(2): _*)
+          .spawn[IO]
+          .use(getText)
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
@@ -112,14 +102,14 @@ trait FailedRedemptionModule {
         signedTxHex <- IO.fromEither(
           parse(signedTx).map(x => (x \\ "hex").head.asString.get)
         )
+        _ <- IO.println("Generating blocks..")
         sentTxId <- process
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
           .use(getText)
-        _ <- IO.println("Generating blocks..")
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 2, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder
@@ -146,15 +136,27 @@ trait FailedRedemptionModule {
                 IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)
               ))
               .iterateUntil(
-                _.mintingStatus == "PeginSessionWaitingForRedemption"
+                _.mintingStatus == "PeginSessionWaitingForEscrowBTCConfirmation"
               )
           })
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 2, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(2, 8, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, connectBridge(2): _*)
+          .spawn[IO]
+          .use(getText)
         _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
             (IO.println("Requesting..") >> client
-              .status(
+              .expect[MintingStatusResponse](
                 Request[IO](
                   method = Method.POST,
                   Uri
@@ -170,18 +172,17 @@ trait FailedRedemptionModule {
                 )
               ))
               .flatMap(x =>
-                IO.println(x.code) >> IO.sleep(5.second) >> IO.pure(x)
+                IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)
               )
               .iterateUntil(
-                _.code == 404
+                _.mintingStatus == "PeginSessionStateWaitingForBTC"
               )
           })
         _ <- IO.println(
-          s"Session ${startSessionResponse.sessionID} was successfully removed"
+          s"Session ${startSessionResponse.sessionID} went back to wait again"
         )
       } yield (),
       ()
     )
   }
-
 }

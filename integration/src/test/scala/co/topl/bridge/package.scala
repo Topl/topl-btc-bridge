@@ -129,7 +129,7 @@ package object bridge {
     )
     .spawn[IO]
 
-  def templateFromSha(sha256: String,  min: Long, max: Long) =
+  def templateFromSha(sha256: String, min: Long, max: Long) =
     s"""threshold(1, sha256($sha256) and height($min, $max))"""
   val secret = "topl-secret"
 
@@ -321,7 +321,7 @@ package object bridge {
 
   val createWallet = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-named",
@@ -332,7 +332,7 @@ package object bridge {
   )
   val getNewaddress = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-rpcuser=bitcoin",
     "-rpcpassword=password",
@@ -340,9 +340,9 @@ package object bridge {
     "-rpcwallet=testwallet",
     "getnewaddress"
   )
-  def generateToAddress(blocks: Int, address: String) = Seq(
+  def generateToAddress(nodeId: Int, blocks: Int, address: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin" + f"$nodeId%02d",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -352,9 +352,40 @@ package object bridge {
     address
   )
 
+  // docker network disconnect bridge bitcoin02
+  def disconnectBridge(nodeId: Int) = Seq(
+    "network",
+    "disconnect",
+    "bridge",
+    "bitcoin" + f"${nodeId}%02d"
+  )
+
+  def connectBridge(nodeId: Int) = Seq(
+    "network",
+    "connect",
+    "bridge",
+    "bitcoin" + f"${nodeId}%02d"
+  )
+
+  // exec bitcoin01 bitcoin-cli -regtest -rpcuser=bitcoin -rpcpassword=password addnode <ip>:<port> add
+  def addNode(nodeId: Int, ip: String, port: Int) = Seq(
+    "exec",
+    "bitcoin" + f"${nodeId}%02d",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "addnode",
+    s"$ip:$port",
+    "add"
+  )
+
+  // network inspect bridge
+  val inspectBridge = Seq("network", "inspect", "bridge")
+
   def createTransaction(address: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -365,7 +396,7 @@ package object bridge {
   )
   def signTransaction(tx: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -376,7 +407,7 @@ package object bridge {
   )
   def sendTransaction(signedTx: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -387,7 +418,7 @@ package object bridge {
 
   val extractGetTxId = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-rpcuser=bitcoin",
     "-rpcpassword=password",
@@ -398,7 +429,7 @@ package object bridge {
 
   def createTx(txId: String, address: String, amount: BigDecimal) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-tx",
     "-regtest",
     "-create",

@@ -43,7 +43,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForBTC(1, 1, "", escrowAddress, redeemAddress, claimAddress),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
@@ -66,7 +66,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             redeemAddress,
             claimAddress
           ),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty
     )
@@ -244,7 +244,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             utxoTxId = "bifrostTxId",
             utxoIndex = 0 // Added missing utxoIndex parameter
           ),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty &&
         PeginTransitionRelation
@@ -273,7 +273,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForClaim(claimAddress),
-          BTCFundsDeposited(claimAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(2, claimAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
         .isInstanceOf[EndTrasition[IO]]: @nowarn
@@ -287,7 +287,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForClaim(claimAddress),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty
     )
@@ -445,7 +445,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             0,
             100
           ),
-          BTCFundsDeposited(escrowAddressPubkey, "txId", 0, 100.satoshis)
+          BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty &&
         PeginTransitionRelation
@@ -476,6 +476,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
           WaitingForEscrowBTCConfirmation(
             1,
             1,
+            1,
             "",
             escrowAddress,
             redeemAddress,
@@ -493,6 +494,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         PeginTransitionRelation
           .handleBlockchainEvent[IO](
             WaitingForEscrowBTCConfirmation(
+              1,
               1,
               1,
               "",
@@ -516,6 +518,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
           WaitingForEscrowBTCConfirmation(
+            1,
             8,
             1,
             "",

@@ -35,6 +35,7 @@ object BlockProcessor {
           transaction.outputs.zipWithIndex.map { outputAndVout =>
             val (output, vout) = outputAndVout
             BTCFundsDeposited(
+              b.height,
               output.scriptPubKey,
               transaction.txIdBE.hex,
               vout.toLong,

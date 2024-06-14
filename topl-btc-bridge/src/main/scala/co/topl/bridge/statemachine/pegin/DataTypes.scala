@@ -12,6 +12,7 @@ case class NewBTCBlock(height: Int) extends BlockchainEvent
 case class NewToplBlock(height: Long) extends BlockchainEvent
 
 case class BTCFundsDeposited(
+    fundsDepositedHeight: Int,
     scriptPubKey: ScriptPubKey,
     txId: String,
     vout: Long,
@@ -45,6 +46,7 @@ case class WaitingForBTC(
 
 case class WaitingForEscrowBTCConfirmation(
     startBTCBlockHeight: Int,
+    depositBTCBlockHeight: Int,
     currentWalletIdx: Int,
     scriptAsm: String,
     escrowAddress: String,
