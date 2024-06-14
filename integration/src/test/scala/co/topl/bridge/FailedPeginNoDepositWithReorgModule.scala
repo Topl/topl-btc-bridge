@@ -80,11 +80,11 @@ trait FailedPeginNoDepositWithReorgModule {
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         bridgeNetwork <- computeBridgeNetworkName
-        dockerDisconnect <- process
-          .ProcessBuilder(DOCKER_CMD, disconnectBridge(2, bridgeNetwork): _*)
-          .spawn[IO]
-          .use(getText)
-        _ <- IO.println("dockerDisconnect: " + dockerDisconnect)
+        // dockerDisconnect <- process
+        //   .ProcessBuilder(DOCKER_CMD, disconnectBridge(2, bridgeNetwork): _*)
+        //   .spawn[IO]
+        //   .use(getText)
+        // _ <- IO.println("dockerDisconnect: " + dockerDisconnect)
         dockerDisconnectError <- process
           .ProcessBuilder(DOCKER_CMD, disconnectBridge(2, bridgeNetwork): _*)
           .spawn[IO]
