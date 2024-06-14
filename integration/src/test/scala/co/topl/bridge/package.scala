@@ -383,6 +383,9 @@ package object bridge {
   // network inspect bridge
   val inspectBridge = Seq("network", "inspect", "bridge")
 
+  // docker network ls
+  val networkLs = Seq("network", "ls")
+
   def createTransaction(address: String) = Seq(
     "exec",
     "bitcoin01",

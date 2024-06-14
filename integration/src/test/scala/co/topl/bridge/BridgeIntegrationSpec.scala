@@ -65,6 +65,21 @@ class BridgeIntegrationSpec
               fiber = f
             }
             .void
+          // network ls
+          networkLs <- process
+            .ProcessBuilder(DOCKER_CMD, networkLs: _*)
+            .spawn[IO]
+            .use { getText }
+          // extract the string that starts with github_network_
+          // the format is
+          // NETWORK ID     NAME      DRIVER    SCOPE
+          // 7b1e3b1b1b1b   github_network_bitcoin01   bridge   local
+          pattern = ".*?(github_network_\\S+)\\s+.*".r
+          networkName = pattern.findFirstMatchIn(networkLs) match {
+            case Some(m) =>
+              m.group(1) // Extract the first group matching the pattern
+            case None => "bridge"
+          }
           // inspect bridge
           bridgeNetwork <- process
             .ProcessBuilder(DOCKER_CMD, inspectBridge: _*)
