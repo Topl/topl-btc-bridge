@@ -80,9 +80,11 @@ class BridgeIntegrationSpec
               m.group(1) // Extract the first group matching the pattern
             case None => "bridge"
           }
+          // print network name
+          _ <- IO.println("networkName: " + networkName)
           // inspect bridge
           bridgeNetwork <- process
-            .ProcessBuilder(DOCKER_CMD, inspectBridge: _*)
+            .ProcessBuilder(DOCKER_CMD, inspectBridge(networkName): _*)
             .spawn[IO]
             .use { getText }
           // print bridgeNetwork

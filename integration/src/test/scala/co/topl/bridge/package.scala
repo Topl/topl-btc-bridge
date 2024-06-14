@@ -381,7 +381,7 @@ package object bridge {
   )
 
   // network inspect bridge
-  val inspectBridge = Seq("network", "inspect", "bridge")
+  def inspectBridge(networkName: String) = Seq("network", "inspect", networkName)
 
   // docker network ls
   val networkLs = Seq("network", "ls")
