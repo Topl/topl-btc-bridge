@@ -352,18 +352,19 @@ package object bridge {
     address
   )
 
+
   // docker network disconnect bridge bitcoin02
-  def disconnectBridge(nodeId: Int) = Seq(
+  def disconnectBridge(nodeId: Int, bridgeNetwork: String) = Seq(
     "network",
     "disconnect",
-    "bridge",
+    bridgeNetwork,
     "bitcoin" + f"${nodeId}%02d"
   )
 
-  def connectBridge(nodeId: Int) = Seq(
+  def connectBridge(nodeId: Int, bridgeNetwork: String) = Seq(
     "network",
     "connect",
-    "bridge",
+    bridgeNetwork,
     "bitcoin" + f"${nodeId}%02d"
   )
 
@@ -381,7 +382,8 @@ package object bridge {
   )
 
   // network inspect bridge
-  def inspectBridge(networkName: String) = Seq("network", "inspect", networkName)
+  def inspectBridge(networkName: String) =
+    Seq("network", "inspect", networkName)
 
   // docker network ls
   val networkLs = Seq("network", "ls")

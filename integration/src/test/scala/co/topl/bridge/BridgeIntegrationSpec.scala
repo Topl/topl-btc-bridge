@@ -25,6 +25,33 @@ class BridgeIntegrationSpec
 
   override val munitIOTimeout = Duration(180, "s")
 
+  
+  val computeBridgeNetworkName = for {
+    // network ls
+    networkLs <- process
+      .ProcessBuilder(DOCKER_CMD, networkLs: _*)
+      .spawn[IO]
+      .use { getText }
+    // extract the string that starts with github_network_
+    // the format is
+    // NETWORK ID     NAME      DRIVER    SCOPE
+    // 7b1e3b1b1b1b   github_network_bitcoin01   bridge   local
+    pattern = ".*?(github_network_\\S+)\\s+.*".r
+    networkName = pattern.findFirstMatchIn(networkLs) match {
+      case Some(m) =>
+        m.group(1) // Extract the first group matching the pattern
+      case None => "bridge"
+    }
+    // print network name
+    _ <- IO.println("networkName: " + networkName)
+    // inspect bridge
+    bridgeNetwork <- process
+      .ProcessBuilder(DOCKER_CMD, inspectBridge(networkName): _*)
+      .spawn[IO]
+      .use { getText }
+    // print bridgeNetwork
+  } yield bridgeNetwork
+
   lazy val toplWalletDb =
     Option(System.getenv("TOPL_WALLET_DB")).getOrElse("topl-wallet.db")
   lazy val toplWalletJson =
@@ -65,29 +92,7 @@ class BridgeIntegrationSpec
               fiber = f
             }
             .void
-          // network ls
-          networkLs <- process
-            .ProcessBuilder(DOCKER_CMD, networkLs: _*)
-            .spawn[IO]
-            .use { getText }
-          // extract the string that starts with github_network_
-          // the format is
-          // NETWORK ID     NAME      DRIVER    SCOPE
-          // 7b1e3b1b1b1b   github_network_bitcoin01   bridge   local
-          pattern = ".*?(github_network_\\S+)\\s+.*".r
-          networkName = pattern.findFirstMatchIn(networkLs) match {
-            case Some(m) =>
-              m.group(1) // Extract the first group matching the pattern
-            case None => "bridge"
-          }
-          // print network name
-          _ <- IO.println("networkName: " + networkName)
-          // inspect bridge
-          bridgeNetwork <- process
-            .ProcessBuilder(DOCKER_CMD, inspectBridge(networkName): _*)
-            .spawn[IO]
-            .use { getText }
-          // print bridgeNetwork
+          bridgeNetwork <- computeBridgeNetworkName
           _ <- IO.println("bridgeNetwork: " + bridgeNetwork)
           // parse
           ipBitcoin02 <- IO.fromEither(

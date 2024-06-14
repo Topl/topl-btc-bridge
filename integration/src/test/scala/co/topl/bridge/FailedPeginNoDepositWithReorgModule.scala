@@ -49,7 +49,7 @@ trait FailedPeginNoDepositWithReorgModule {
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
           .use(getText)
-        _ <- IO.println("unspent: " + unspent)
+        // _ <- IO.println("unspent: " + unspent)
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
@@ -79,8 +79,9 @@ trait FailedPeginNoDepositWithReorgModule {
             )
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
+        bridgeNetwork <- computeBridgeNetworkName
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, disconnectBridge(2): _*)
+          .ProcessBuilder(DOCKER_CMD, disconnectBridge(2, bridgeNetwork): _*)
           .spawn[IO]
           .use(getText)
         bitcoinTx <- process
@@ -148,7 +149,7 @@ trait FailedPeginNoDepositWithReorgModule {
           .spawn[IO]
           .use(_.exitValue)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, connectBridge(2): _*)
+          .ProcessBuilder(DOCKER_CMD, connectBridge(2, bridgeNetwork): _*)
           .spawn[IO]
           .use(getText)
         _ <- EmberClientBuilder

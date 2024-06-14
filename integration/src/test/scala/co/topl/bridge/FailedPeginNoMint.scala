@@ -45,7 +45,7 @@ trait FailedPeginNoMintModule {
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
           .use(getText)
-        _ <- IO.println("unspent: " + unspent)
+        // _ <- IO.println("unspent: " + unspent)
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
