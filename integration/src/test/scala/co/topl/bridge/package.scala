@@ -380,6 +380,17 @@ package object bridge {
     s"$ip:$port",
     "add"
   )
+  def removeNode(nodeId: Int, ip: String, port: Int) = Seq(
+    "exec",
+    "bitcoin" + f"${nodeId}%02d",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "addnode",
+    s"$ip:$port",
+    "remove"
+  )
 
   // network inspect bridge
   def inspectBridge(networkName: String) =
