@@ -267,7 +267,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   }
 
   test(
-    "PeginTransitionRelation should transition from WaitingForClaim to EndTrasition"
+    "PeginTransitionRelation should transition from WaitingForClaim to WaitingForClaimBTCConfirmation"
   ) {
     assert(
       PeginTransitionRelation
@@ -276,7 +276,16 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
           BTCFundsDeposited(2, claimAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
-        .isInstanceOf[EndTrasition[IO]]: @nowarn
+        .asInstanceOf[FSMTransitionTo[IO]]
+        .nextState
+        .isInstanceOf[WaitingForClaimBTCConfirmation]
+        &&
+          PeginTransitionRelation
+            .handleBlockchainEvent[IO](
+              WaitingForClaim(claimAddress),
+              BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
+            )(transitionToEffect[IO](_, _))
+            .isEmpty
     )
   }
 
