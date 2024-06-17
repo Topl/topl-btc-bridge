@@ -17,6 +17,8 @@ import co.topl.bridge.PeginSessionState.PeginSessionStateMintingTBTC
 import co.topl.bridge.PeginSessionState.PeginSessionStateWaitingForBTC
 import co.topl.bridge.PeginSessionState.PeginSessionWaitingForClaim
 import co.topl.bridge.PeginSessionState.PeginSessionWaitingForRedemption
+import co.topl.bridge.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
+import co.topl.bridge.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 import co.topl.bridge.Template
 import co.topl.bridge.ToplWaitExpirationTime
 import co.topl.bridge.managers.BTCWalletAlgebra
@@ -161,7 +163,8 @@ object PeginStateMachine {
       case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
       case _: WaitingForRedemption => PeginSessionWaitingForRedemption
       case _: WaitingForClaim      => PeginSessionWaitingForClaim
-      case _: WaitingForEscrowBTCConfirmation => PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
+      case _: WaitingForEscrowBTCConfirmation => PeginSessionWaitingForEscrowBTCConfirmation
+      case _: WaitingForClaimBTCConfirmation => PeginSessionWaitingForClaimBTCConfirmation
     }
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =

@@ -78,7 +78,11 @@ case class WaitingForRedemption(
     utxoTxId: String,
     utxoIndex: Int
 ) extends PeginStateMachineState
+
 case class WaitingForClaim(claimAddress: String) extends PeginStateMachineState
+
+case class WaitingForClaimBTCConfirmation(claimBTCBlockHeight: Int, claimAddress: String)
+    extends PeginStateMachineState
 
 sealed trait FSMTransition
 

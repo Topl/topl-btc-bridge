@@ -80,54 +80,44 @@ trait FailedPeginNoDepositWithReorgModule {
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         bridgeNetwork <- computeBridgeNetworkName
-          // parse
-          ipBitcoin02 <- IO.fromEither(
-            parse(bridgeNetwork)
-              .map(x =>
-                (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
-                  x.filter(x =>
-                    (x._2 \\ "Name").head.asString.get == "bitcoin02"
-                  ).values
-                    .head
-                }).get \\ "IPv4Address").head.asString.get
-                  .split("/")
+        // parse
+        ipBitcoin02 <- IO.fromEither(
+          parse(bridgeNetwork)
+            .map(x =>
+              (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+                x.filter(x => (x._2 \\ "Name").head.asString.get == "bitcoin02")
+                  .values
                   .head
-              )
-          )
-          // print IP BTC 02
-          _ <- IO.println("ipBitcoin02: " + ipBitcoin02)
-          // parse
-          ipBitcoin01 <- IO.fromEither(
-            parse(bridgeNetwork)
-              .map(x =>
-                (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
-                  x.filter(x =>
-                    (x._2 \\ "Name").head.asString.get == "bitcoin01"
-                  ).values
-                    .head
-                }).get \\ "IPv4Address").head.asString.get
-                  .split("/")
+              }).get \\ "IPv4Address").head.asString.get
+                .split("/")
+                .head
+            )
+        )
+        // print IP BTC 02
+        _ <- IO.println("ipBitcoin02: " + ipBitcoin02)
+        // parse
+        ipBitcoin01 <- IO.fromEither(
+          parse(bridgeNetwork)
+            .map(x =>
+              (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+                x.filter(x => (x._2 \\ "Name").head.asString.get == "bitcoin01")
+                  .values
                   .head
-              )
-          )
-          // print IP BTC 01
-          _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
-          _ <- process
-            .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, false): _*)
-            .spawn[IO]
-            .use { getText }
-          _ <- process
-            .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, false): _*)
-            .spawn[IO]
-            .use { getText }
-          _ <- process
-            .ProcessBuilder(DOCKER_CMD, forceConnection(1, ipBitcoin02, 18444): _*)
-            .spawn[IO]
-            .use { getText }
-          _ <- process
-            .ProcessBuilder(DOCKER_CMD, forceConnection(2, ipBitcoin01, 18444): _*)
-            .spawn[IO]
-            .use { getText }
+              }).get \\ "IPv4Address").head.asString.get
+                .split("/")
+                .head
+            )
+        )
+        // print IP BTC 01
+        _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, false): _*)
+          .spawn[IO]
+          .use { getText }
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, false): _*)
+          .spawn[IO]
+          .use { getText }
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
@@ -192,17 +182,30 @@ trait FailedPeginNoDepositWithReorgModule {
           .ProcessBuilder(DOCKER_CMD, generateToAddress(2, 8, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-          // add node
-          _ <- process
-            .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, true): _*)
-            // .ProcessBuilder(DOCKER_CMD, addNode(1, ipBitcoin02, 18444): _*)
-            .spawn[IO]
-            .use { getText }
-          _ <- process
-            .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, true): _*)
-            // .ProcessBuilder(DOCKER_CMD, addNode(2, ipBitcoin01, 18444): _*)
-            .spawn[IO]
-            .use { getText }
+        // add node
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, true): _*)
+          .spawn[IO]
+          .use { getText }
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, true): _*)
+          .spawn[IO]
+          .use { getText }
+          // force connection
+        _ <- process
+          .ProcessBuilder(
+            DOCKER_CMD,
+            forceConnection(1, ipBitcoin02, 18444): _*
+          )
+          .spawn[IO]
+          .use { getText }
+        _ <- process
+          .ProcessBuilder(
+            DOCKER_CMD,
+            forceConnection(2, ipBitcoin01, 18444): _*
+          )
+          .spawn[IO]
+          .use { getText }
         _ <- EmberClientBuilder
           .default[IO]
           .build

@@ -156,6 +156,31 @@ object PeginTransitionRelation {
         else
           None
       case (
+            cs: WaitingForClaimBTCConfirmation,
+            ev: NewBTCBlock
+          ) =>
+        // check that the confirmation threshold has been passed
+        if (isAboveThreshold(ev.height, cs.claimBTCBlockHeight))
+          Some(
+            EndTrasition[F](
+              Async[F].unit
+            )
+          )
+        else if (ev.height <= cs.claimBTCBlockHeight)
+          // we are seeing the block where the transaction was found again
+          // this can only mean that block is being unapplied
+          Some(
+            FSMTransitionTo(
+              currentState,
+              WaitingForClaim(
+                cs.claimAddress
+              ),
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        else
+          None
+      case (
             cs: WaitingForRedemption,
             be: BifrostFundsWithdrawn
           ) =>
@@ -170,13 +195,18 @@ object PeginTransitionRelation {
         } else None
       case (
             WaitingForClaim(claimAddress),
-            BTCFundsDeposited(_, scriptPubKey, _, _, _)
+            BTCFundsDeposited(depositBTCBlockHeight, scriptPubKey, _, _, _)
           ) =>
         val bech32Address = Bech32Address.fromString(claimAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {
           Some(
-            EndTrasition[F](
-              Async[F].unit
+            FSMTransitionTo(
+              currentState,
+              WaitingForClaimBTCConfirmation(
+                depositBTCBlockHeight,
+                claimAddress
+              ),
+              t2E(currentState, blockchainEvent)
             )
           )
         } else None
@@ -270,6 +300,8 @@ object PeginTransitionRelation {
       case (_: MintingTBTC, _) =>
         None // No transition
       case (_: WaitingForEscrowBTCConfirmation, _) =>
+        None // No transition
+      case (_: WaitingForClaimBTCConfirmation, _) =>
         None // No transition
       case (
             _: WaitingForBTC,
