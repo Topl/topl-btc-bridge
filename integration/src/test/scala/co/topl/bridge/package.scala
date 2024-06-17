@@ -352,15 +352,6 @@ package object bridge {
     address
   )
 
-  // docker network disconnect bridge bitcoin02
-  def disconnectBridge(nodeId: Int, bridgeNetwork: String) =
-    Seq(
-      "network",
-      "disconnect",
-      bridgeNetwork,
-      "bitcoin" + f"${nodeId}%02d"
-    )
-
   def setNetworkActive(nodeId: Int, state: Boolean) = Seq(
     "exec",
     "bitcoin" + f"${nodeId}%02d",
@@ -370,13 +361,6 @@ package object bridge {
     "-rpcpassword=password",
     "setnetworkactive",
     state.toString
-  )
-
-  def connectBridge(nodeId: Int, bridgeNetwork: String) = Seq(
-    "network",
-    "connect",
-    bridgeNetwork,
-    "bitcoin" + f"${nodeId}%02d"
   )
 
   // exec bitcoin01 bitcoin-cli -regtest -rpcuser=bitcoin -rpcpassword=password addnode <ip>:<port> add
@@ -410,17 +394,6 @@ package object bridge {
   // docker network ls
   val networkLs = Seq("network", "ls")
 
-  def createTransaction(address: String) = Seq(
-    "exec",
-    "bitcoin01",
-    "bitcoin-cli",
-    "-regtest",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "generatetoaddress",
-    "101",
-    address
-  )
   def signTransaction(tx: String) = Seq(
     "exec",
     "bitcoin01",
