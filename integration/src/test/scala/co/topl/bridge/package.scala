@@ -391,7 +391,7 @@ package object bridge {
     s"$ip:$port",
     "add"
   )
-  def removeNode(nodeId: Int, ip: String, port: Int) = Seq(
+  def forceConnection(nodeId: Int, ip: String, port: Int) = Seq(
     "exec",
     "bitcoin" + f"${nodeId}%02d",
     "bitcoin-cli",
@@ -400,7 +400,7 @@ package object bridge {
     "-rpcpassword=password",
     "addnode",
     s"$ip:$port",
-    "remove"
+    "onetry"
   )
 
   // network inspect bridge
