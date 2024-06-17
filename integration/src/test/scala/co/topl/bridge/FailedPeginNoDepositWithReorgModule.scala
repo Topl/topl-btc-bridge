@@ -112,26 +112,20 @@ trait FailedPeginNoDepositWithReorgModule {
           )
           // print IP BTC 01
           _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
-          // add node
           _ <- process
-            // .ProcessBuilder(DOCKER_CMD, removeNode(1, ipBitcoin02, 18444): _*)
             .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, false): _*)
             .spawn[IO]
             .use { getText }
           _ <- process
             .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, false): _*)
-            // .ProcessBuilder(DOCKER_CMD, removeNode(2, ipBitcoin01, 18444): _*)
             .spawn[IO]
             .use { getText }
-          // add node
           _ <- process
-            // .ProcessBuilder(DOCKER_CMD, removeNode(1, ipBitcoin02, 18444): _*)
             .ProcessBuilder(DOCKER_CMD, forceConnection(1, ipBitcoin02, 18444): _*)
             .spawn[IO]
             .use { getText }
           _ <- process
             .ProcessBuilder(DOCKER_CMD, forceConnection(2, ipBitcoin01, 18444): _*)
-            // .ProcessBuilder(DOCKER_CMD, removeNode(2, ipBitcoin01, 18444): _*)
             .spawn[IO]
             .use { getText }
         bitcoinTx <- process
