@@ -114,11 +114,13 @@ trait FailedPeginNoDepositWithReorgModule {
           _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
           // add node
           _ <- process
-            .ProcessBuilder(DOCKER_CMD, removeNode(1, ipBitcoin02, 18444): _*)
+            // .ProcessBuilder(DOCKER_CMD, removeNode(1, ipBitcoin02, 18444): _*)
+            .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, false): _*)
             .spawn[IO]
             .use { getText }
           _ <- process
-            .ProcessBuilder(DOCKER_CMD, removeNode(2, ipBitcoin01, 18444): _*)
+            .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, false): _*)
+            // .ProcessBuilder(DOCKER_CMD, removeNode(2, ipBitcoin01, 18444): _*)
             .spawn[IO]
             .use { getText }
         bitcoinTx <- process
@@ -187,11 +189,13 @@ trait FailedPeginNoDepositWithReorgModule {
           .use(_.exitValue)
           // add node
           _ <- process
-            .ProcessBuilder(DOCKER_CMD, addNode(1, ipBitcoin02, 18444): _*)
+            .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, true): _*)
+            // .ProcessBuilder(DOCKER_CMD, addNode(1, ipBitcoin02, 18444): _*)
             .spawn[IO]
             .use { getText }
           _ <- process
-            .ProcessBuilder(DOCKER_CMD, addNode(2, ipBitcoin01, 18444): _*)
+            .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, true): _*)
+            // .ProcessBuilder(DOCKER_CMD, addNode(2, ipBitcoin01, 18444): _*)
             .spawn[IO]
             .use { getText }
         _ <- EmberClientBuilder

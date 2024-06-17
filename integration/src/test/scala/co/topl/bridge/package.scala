@@ -352,15 +352,26 @@ package object bridge {
     address
   )
 
-
   // docker network disconnect bridge bitcoin02
-  def disconnectBridge(nodeId: Int, bridgeNetwork: String) = Seq(
-    "network",
-    "disconnect",
-    bridgeNetwork,
-    "bitcoin" + f"${nodeId}%02d"
-  )
+  def disconnectBridge(nodeId: Int, bridgeNetwork: String) =
+    Seq(
+      "network",
+      "disconnect",
+      bridgeNetwork,
+      "bitcoin" + f"${nodeId}%02d"
+    )
 
+  def setNetworkActive(nodeId: Int, state: Boolean) = Seq(
+    "exec",
+    "bitcoin" + f"${nodeId}%02d",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "setnetworkactive",
+    state.toString
+  )  
+  
   def connectBridge(nodeId: Int, bridgeNetwork: String) = Seq(
     "network",
     "connect",

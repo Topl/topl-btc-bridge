@@ -25,7 +25,6 @@ class BridgeIntegrationSpec
 
   override val munitIOTimeout = Duration(180, "s")
 
-  
   val computeBridgeNetworkName = for {
     // network ls
     networkLs <- process
