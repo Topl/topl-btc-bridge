@@ -49,7 +49,7 @@ trait FailedRedemptionModule {
           .use(getText)
         _ <- IO.println("newAddress: " + newAddress)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 101, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 1, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         unspent <- process

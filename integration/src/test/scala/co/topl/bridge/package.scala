@@ -370,8 +370,8 @@ package object bridge {
     "-rpcpassword=password",
     "setnetworkactive",
     state.toString
-  )  
-  
+  )
+
   def connectBridge(nodeId: Int, bridgeNetwork: String) = Seq(
     "network",
     "connect",
