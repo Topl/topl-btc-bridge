@@ -19,7 +19,8 @@ class BridgeIntegrationSpec
     with FailedPeginNoDepositModule
     with FailedPeginNoMintModule
     with FailedRedemptionModule
-    with FailedPeginNoDepositWithReorgModule {
+    with FailedPeginNoDepositWithReorgModule
+    with SuccessfulPeginWithClaimReorgModule {
 
   val DOCKER_CMD = "docker"
 
@@ -190,6 +191,13 @@ class BridgeIntegrationSpec
     IO.println(
       "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
     ) >> failedPeginNoDepositWithReorg()
+  }
+  cleanupDir.test(
+    "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
+  ) { _ =>
+    IO.println(
+      "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
+    ) >> successfulPeginWithClaimError()
   }
 
 }

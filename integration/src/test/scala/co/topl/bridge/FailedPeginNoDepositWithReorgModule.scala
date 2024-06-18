@@ -182,7 +182,7 @@ trait FailedPeginNoDepositWithReorgModule {
           .ProcessBuilder(DOCKER_CMD, generateToAddress(2, 8, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-        // add node
+        // reconnect network
         _ <- process
           .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, true): _*)
           .spawn[IO]

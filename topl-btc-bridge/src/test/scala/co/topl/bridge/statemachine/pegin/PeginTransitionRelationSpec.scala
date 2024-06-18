@@ -83,7 +83,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
           NewBTCBlock(102)
         )(transitionToEffect[IO](_, _))
         .get
-        .isInstanceOf[EndTrasition[IO]]: @nowarn)
+        .isInstanceOf[EndTransition[IO]]: @nowarn)
     )
   }
 
@@ -172,7 +172,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
           NewToplBlock(2002)
         )(transitionToEffect[IO](_, _))
         .get
-        .isInstanceOf[EndTrasition[IO]]: @nowarn
+        .isInstanceOf[EndTransition[IO]]: @nowarn
     )
   }
 
@@ -289,8 +289,29 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     )
   }
 
+  // WaitingForClaimBTCConfirmation -> EndTransition when timeout
   test(
-    "PeginTransitionRelation should not transition from WaitingForClaim to EndTrasition when the address is different"
+    "PeginTransitionRelation should transition from WaitingForClaimBTCConfirmation to EndTransition when timeout"
+  ) {
+    assert(
+      (PeginTransitionRelation
+        .handleBlockchainEvent[IO](
+          WaitingForClaimBTCConfirmation(1, claimAddress),
+          NewBTCBlock(8)
+        )(transitionToEffect[IO](_, _))
+        .get
+        .isInstanceOf[EndTransition[IO]]: @nowarn) &&
+        PeginTransitionRelation
+          .handleBlockchainEvent[IO](
+            WaitingForClaimBTCConfirmation(1, claimAddress),
+            NewBTCBlock(7)
+          )(transitionToEffect[IO](_, _))
+          .isEmpty
+    )
+  }
+
+  test(
+    "PeginTransitionRelation should not transition from WaitingForClaim to EndTransition when the address is different"
   ) {
     assert(
       PeginTransitionRelation
@@ -359,7 +380,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
           NewBTCBlock(102)
         )(transitionToEffect[IO](_, _))
         .get
-        .isInstanceOf[EndTrasition[IO]]: @nowarn
+        .isInstanceOf[EndTransition[IO]]: @nowarn
     )
   }
 

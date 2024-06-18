@@ -131,7 +131,7 @@ object PeginStateMachine {
         )(transitionToEffect[F])
           .map(x =>
             x match {
-              case EndTrasition(effect) =>
+              case EndTransition(effect) =>
                 info"Session $sessionId ended successfully" >>
                   Sync[F].delay(map.remove(sessionId)) >>
                   sessionManager

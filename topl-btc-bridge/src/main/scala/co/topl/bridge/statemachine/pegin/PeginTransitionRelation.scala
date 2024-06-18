@@ -108,7 +108,7 @@ object PeginTransitionRelation {
           toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight)
         )
           Some(
-            EndTrasition[F](
+            EndTransition[F](
               Async[F].unit
             )
           )
@@ -162,7 +162,7 @@ object PeginTransitionRelation {
         // check that the confirmation threshold has been passed
         if (isAboveThreshold(ev.height, cs.claimBTCBlockHeight))
           Some(
-            EndTrasition[F](
+            EndTransition[F](
               Async[F].unit
             )
           )
@@ -218,7 +218,7 @@ object PeginTransitionRelation {
           btcWaitExpirationTime.underlying < (ev.height - cs.currentBTCBlockHeight)
         )
           Some(
-            EndTrasition[F](
+            EndTransition[F](
               Async[F].unit
             )
           )
@@ -232,7 +232,7 @@ object PeginTransitionRelation {
           ev.height - cs.startBTCBlockHeight > btcWaitExpirationTime.underlying
         )
           Some(
-            EndTrasition[F](
+            EndTransition[F](
               Async[F].unit
             )
           )

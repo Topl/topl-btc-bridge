@@ -92,6 +92,6 @@ case class FSMTransitionTo[F[_]](
     effect: F[Unit]
 ) extends FSMTransition
 
-case class EndTrasition[F[_]](
+case class EndTransition[F[_]](
     effect: F[Unit]
 ) extends FSMTransition
