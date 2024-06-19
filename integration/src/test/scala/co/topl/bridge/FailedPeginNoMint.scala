@@ -79,7 +79,7 @@ trait FailedPeginNoMintModule {
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
-            createTx(txId, startSessionResponse.escrowAddress, BigDecimal("49.99")): _*
+            createTx(txId, startSessionResponse.escrowAddress, BigDecimal("24.99")): _*
           )
           .spawn[IO]
           .use(getText)
