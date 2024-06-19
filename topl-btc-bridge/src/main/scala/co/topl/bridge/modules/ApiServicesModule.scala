@@ -37,6 +37,7 @@ import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.dsl.io._
+import org.http4s.server.middleware.CORS
 import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import co.topl.bridge.BTCWaitExpirationTime
@@ -187,7 +188,7 @@ trait ApiServicesModule {
             : EntityDecoder[IO, StartPeginSessionRequest] =
           jsonOf[IO, StartPeginSessionRequest]
 
-        for {
+        (for {
           x <- req.as[StartPeginSessionRequest]
           res <- startPeginSession(
             x,
@@ -202,7 +203,10 @@ trait ApiServicesModule {
             case Left(e: BridgeError) => BadRequest(e.asJson)
             case Right(value)         => Ok(value.asJson)
           }
-        } yield resp
+        } yield resp).handleErrorWith { case e =>
+          e.printStackTrace()
+          BadRequest("Error starting pegin session")
+        }
       case req @ POST -> Root / BridgeContants.START_PEGOUT_SESSION_PATH =>
         import StartSessionController._
         implicit val startSessionRequestDecoder
