@@ -34,11 +34,11 @@ trait SuccessfulPeginModule {
           .spawn[IO]
           .use { getText }
         _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet.use { getText }
+        initResult <- initUserWallet(1).use { getText }
         _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship.use { getText }
+        addFellowshipResult <- addFellowship(1).use { getText }
         _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret.use { getText }
+        addSecretResult <- addSecret(1).use { getText }
         _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
@@ -90,6 +90,7 @@ trait SuccessfulPeginModule {
         _ <- IO.println("script: " + startSessionResponse.script)
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         addTemplateResult <- addTemplate(
+          1,
           sha256ToplSecret,
           startSessionResponse.minHeight,
           startSessionResponse.maxHeight
@@ -164,13 +165,14 @@ trait SuccessfulPeginModule {
           .through(Files[IO].writeAll(fs2.io.file.Path(vkFile)))
           .compile
           .drain
-        importVkResult <- importVks.use { getText }
+        importVkResult <- importVks(1).use { getError }
         _ <- IO.println("importVkResult: " + importVkResult)
-        fundRedeemAddressTx <- fundRedeemAddressTx(
+        fundRedeemAddressTx <- fundRedeemAddressTx(1, 
           mintingStatusResponse.address
-        ).use { getText }
+        ).use { getError }
         _ <- IO.println("fundRedeemAddressTx: " + fundRedeemAddressTx)
         proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+          1,
           "fundRedeemTx.pbuf",
           "fundRedeemTxProved.pbuf"
         ).use { getText }
@@ -185,7 +187,7 @@ trait SuccessfulPeginModule {
         _ <- IO.println(
           "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
         )
-        utxo <- getCurrentUtxosFromAddress(mintingStatusResponse.address)
+        utxo <- getCurrentUtxosFromAddress(1, mintingStatusResponse.address)
           .use(
             getText
           )
@@ -207,8 +209,9 @@ trait SuccessfulPeginModule {
           .trim()
         _ <- IO.println("groupId: " + groupId)
         _ <- IO.println("seriesId: " + seriesId)
-        currentAddress <- currentAddress.use { getText }
+        currentAddress <- currentAddress(1).use { getText }
         redeemAddressTx <- redeemAddressTx(
+          1,
           currentAddress,
           4999000000L,
           groupId,
@@ -216,6 +219,7 @@ trait SuccessfulPeginModule {
         ).use { getText }
         _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
         proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+          1,
           "redeemTx.pbuf",
           "redeemTxProved.pbuf"
         )
@@ -228,7 +232,7 @@ trait SuccessfulPeginModule {
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
           getText
         }
-        utxo <- getCurrentUtxosFromAddress(currentAddress)
+        utxo <- getCurrentUtxosFromAddress(1, currentAddress)
           .use(
             getText
           )

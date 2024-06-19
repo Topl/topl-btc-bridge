@@ -146,17 +146,61 @@ class BridgeIntegrationSpec
   val cleanupDir = FunFixture[Unit](
     setup = { _ =>
       try {
-        Files.delete(Paths.get(userWalletDb))
-        Files.delete(Paths.get(userWalletMnemonic))
-        Files.delete(Paths.get(userWalletJson))
+        Files.delete(Paths.get(userWalletDb(1)))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
+        Files.delete(Paths.get(userWalletMnemonic(1)))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
+        Files.delete(Paths.get(userWalletJson(1)))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
+        Files.delete(Paths.get(userWalletDb(2)))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
+        Files.delete(Paths.get(userWalletMnemonic(2)))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
+        Files.delete(Paths.get(userWalletJson(2)))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
         Files.delete(Paths.get(vkFile))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
         Files.delete(Paths.get("fundRedeemTx.pbuf"))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
         Files.delete(Paths.get("fundRedeemTxProved.pbuf"))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
         Files.delete(Paths.get("redeemTx.pbuf"))
+      } catch {
+        case _: Throwable => ()
+      }
+      try {
         Files.delete(Paths.get("redeemTxProved.pbuf"))
       } catch {
         case _: Throwable => ()
       }
+
     },
     teardown = { _ =>
       ()

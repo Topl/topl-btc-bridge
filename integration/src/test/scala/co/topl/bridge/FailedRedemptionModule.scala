@@ -32,12 +32,6 @@ trait FailedRedemptionModule {
           .spawn[IO]
           .use { getText }
         _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet.use { getText }
-        _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship.use { getText }
-        _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret.use { getText }
-        _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
@@ -86,12 +80,6 @@ trait FailedRedemptionModule {
             )
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
-        addTemplateResult <- addTemplate(
-          sha256ToplSecret,
-          startSessionResponse.minHeight,
-          startSessionResponse.maxHeight
-        ).use { getText }
-        _ <- IO.println("addTemplateResult: " + addTemplateResult)
         _ <- IO(Source.fromString(startSessionResponse.descriptor))
         bitcoinTx <- process
           .ProcessBuilder(

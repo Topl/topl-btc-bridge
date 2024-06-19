@@ -64,11 +64,11 @@ trait SuccessfulPeginWithClaimReorgModule {
           .spawn[IO]
           .use { getText }
         _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet.use { getText }
+        initResult <- initUserWallet(2).use { getText }
         _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship.use { getText }
+        addFellowshipResult <- addFellowship(2).use { getText }
         _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret.use { getText }
+        addSecretResult <- addSecret(2).use { getText }
         _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
@@ -120,6 +120,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- IO.println("script: " + startSessionResponse.script)
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         addTemplateResult <- addTemplate(
+          2,
           sha256ToplSecret,
           startSessionResponse.minHeight,
           startSessionResponse.maxHeight
@@ -148,7 +149,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         sentTxId <- process
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
-          .use(getText)
+          .use(getError)
         _ <- IO.println("Generating blocks..")
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
@@ -194,13 +195,15 @@ trait SuccessfulPeginWithClaimReorgModule {
           .through(Files[IO].writeAll(fs2.io.file.Path(vkFile)))
           .compile
           .drain
-        importVkResult <- importVks.use { getText }
+        importVkResult <- importVks(2).use { getText }
         _ <- IO.println("importVkResult: " + importVkResult)
         fundRedeemAddressTx <- fundRedeemAddressTx(
+          2,
           mintingStatusResponse.address
         ).use { getText }
         _ <- IO.println("fundRedeemAddressTx: " + fundRedeemAddressTx)
         proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+          2,
           "fundRedeemTx.pbuf",
           "fundRedeemTxProved.pbuf"
         ).use { getText }
@@ -215,7 +218,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- IO.println(
           "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
         )
-        utxo <- getCurrentUtxosFromAddress(mintingStatusResponse.address)
+        utxo <- getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
           .use(
             getText
           )
@@ -237,8 +240,9 @@ trait SuccessfulPeginWithClaimReorgModule {
           .trim()
         _ <- IO.println("groupId: " + groupId)
         _ <- IO.println("seriesId: " + seriesId)
-        currentAddress <- currentAddress.use { getText }
+        currentAddress <- currentAddress(2).use { getText }
         redeemAddressTx <- redeemAddressTx(
+          2,
           currentAddress,
           4999000000L,
           groupId,
@@ -246,6 +250,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         ).use { getText }
         _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
         proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+          2,
           "redeemTx.pbuf",
           "redeemTxProved.pbuf"
         )
@@ -268,7 +273,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
           getText
         }
-        utxo <- getCurrentUtxosFromAddress(currentAddress)
+        utxo <- getCurrentUtxosFromAddress(2, currentAddress)
           .use(
             getText
           )
