@@ -74,7 +74,7 @@ trait FailedRedemptionModule {
                 StartPeginSessionRequest(
                   pkey =
                     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
-                  sha256 = sha256ToplSecret
+                  sha256 = shaSecretMap(1)
                 )
               )
             )

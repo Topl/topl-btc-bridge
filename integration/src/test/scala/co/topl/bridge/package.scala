@@ -131,15 +131,13 @@ package object bridge {
 
   def templateFromSha(sha256: String, min: Long, max: Long) =
     s"""threshold(1, sha256($sha256) and height($min, $max))"""
-  val secret = "topl-secret"
 
-  val sha256ToplSecret =
-    "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df"
+  val secretMap = Map(1 -> "topl-secret", 2 -> "topl-secret01")
 
-  val secret01 = "topl-secret01"
-
-  val sha256ToplSecret01 =
-    "b46478c2553d2972c4a79172f7b468b422c6c516a980340acf83508d478504c3"
+  val shaSecretMap = Map(
+    1 -> "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df",
+    2 -> "b46478c2553d2972c4a79172f7b468b422c6c516a980340acf83508d478504c3"
+  )
 
   // brambl-cli templates add --walletdb user-wallet.db --template-name redeemBridge --lock-template
   def addTemplate(id: Int, sha256: String, min: Long, max: Long) = process
@@ -151,7 +149,7 @@ package object bridge {
         "--walletdb",
         userWalletDb(id),
         "--template-name",
-        "redeemBridge",
+        "redeemBridge" + f"$id%02d",
         "--lock-template",
         templateFromSha(sha256, min, max)
       ): _*
@@ -172,7 +170,7 @@ package object bridge {
         "--fellowship-name",
         "bridge",
         "--template-name",
-        "redeemBridge",
+        "redeemBridge" + f"$id%02d",
         "-w",
         "password",
         "-k",
@@ -255,7 +253,7 @@ package object bridge {
         "--from-fellowship",
         "bridge",
         "--from-template",
-        "redeemBridge",
+        "redeemBridge" + f"$id%02d",
         "-t",
         redeemAddress,
         "-w",
@@ -287,7 +285,11 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli tx prove -i fundRedeemTx.pbuf --walletdb user-wallet.db --keyfile user-keyfile.json -w password -o fundRedeemTxProved.pbuf
-  def proveFundRedeemAddressTx(id: Int, fileToProve: String, provedFile: String) =
+  def proveFundRedeemAddressTx(
+      id: Int,
+      fileToProve: String,
+      provedFile: String
+  ) =
     process
       .ProcessBuilder(
         CS_CMD,
