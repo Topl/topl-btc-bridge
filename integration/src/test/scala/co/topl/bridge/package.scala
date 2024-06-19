@@ -136,6 +136,11 @@ package object bridge {
   val sha256ToplSecret =
     "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df"
 
+  val secret01 = "topl-secret01"
+
+  val sha256ToplSecret01 =
+    "b46478c2553d2972c4a79172f7b468b422c6c516a980340acf83508d478504c3"
+
   // brambl-cli templates add --walletdb user-wallet.db --template-name redeemBridge --lock-template
   def addTemplate(id: Int, sha256: String, min: Long, max: Long) = process
     .ProcessBuilder(
