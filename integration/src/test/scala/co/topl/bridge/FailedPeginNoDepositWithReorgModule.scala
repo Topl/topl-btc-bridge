@@ -233,6 +233,10 @@ trait FailedPeginNoDepositWithReorgModule {
                 _.mintingStatus == "PeginSessionStateWaitingForBTC"
               )
           })
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
         _ <- IO.println(
           s"Session ${startSessionResponse.sessionID} went back to wait again"
         )
