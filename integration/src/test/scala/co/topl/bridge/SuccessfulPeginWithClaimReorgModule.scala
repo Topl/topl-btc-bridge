@@ -133,7 +133,7 @@ trait SuccessfulPeginWithClaimReorgModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal("49.99")
+              BigDecimal("24.99")
             ): _*
           )
           .spawn[IO]
@@ -244,7 +244,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         redeemAddressTx <- redeemAddressTx(
           2,
           currentAddress,
-          4999000000L,
+          2499000000L,
           groupId,
           seriesId
         ).use { getText }
