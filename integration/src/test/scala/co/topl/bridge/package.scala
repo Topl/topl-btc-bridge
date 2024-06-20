@@ -14,6 +14,51 @@ import org.http4s.circe._
 
 package object bridge {
 
+  case class InputData(
+      LockAddress: String,
+      Type: String,
+      Id: Option[String],
+      Fungibility: Option[String],
+      TokenSupply: Option[String],
+      QuantDescr: Option[String],
+      Value: Int,
+      TxoAddress: Option[String],
+      FixedSeries: Option[String]
+  )
+
+  def parseInput(input: String): List[InputData] = {
+    val blocks = input.split("\n\n").toList // Split input into blocks
+    blocks.map { block =>
+      val lines = block.split("\n").map(_.trim).toList
+      val dataMap = lines.map { line =>
+        val Array(key, value) = line.split(":", 2).map(_.trim)
+        key -> value
+      }.toMap
+
+      InputData(
+        LockAddress = dataMap("LockAddress"),
+        Type = dataMap("Type"),
+        Id = dataMap.get("Id"),
+        Fungibility = dataMap.get("Fungibility"),
+        TokenSupply = dataMap.get("Token-Supply"),
+        QuantDescr = dataMap.get("Quant-Descr."),
+        Value = dataMap("Value").toInt,
+        TxoAddress = dataMap.get("TxoAddress"),
+        FixedSeries = dataMap.get("Fixed-Series")
+      )
+    }
+  }
+
+  def extractIds(input: String): (String, String) = {
+    val dataList = parseInput(input)
+    val seriesConstructorId =
+      dataList.filter(_.Type == "Series Constructor").flatMap(_.Id)
+    val groupConstructorId =
+      dataList.filter(_.Type == "Group Constructor").flatMap(_.Id)
+
+    (groupConstructorId.mkString, seriesConstructorId.mkString)
+  }
+
   object implicits {
 
     implicit val startSessionRequestDecoder
@@ -81,7 +126,7 @@ package object bridge {
         "--walletdb",
         userWalletDb(id),
         "--secret",
-        "topl-secret",
+        secretMap(id),
         "--digest",
         "sha256"
       ): _*

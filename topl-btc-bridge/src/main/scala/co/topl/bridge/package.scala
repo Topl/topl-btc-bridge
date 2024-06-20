@@ -8,6 +8,7 @@ package object bridge {
   class ToplWaitExpirationTime(val underlying: Int) extends AnyVal
   class BTCConfirmationThreshold(val underlying: Int) extends AnyVal
 
+
   class Fellowship(val underlying: String) extends AnyVal
 
   class Template(val underlying: String) extends AnyVal

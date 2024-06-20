@@ -31,6 +31,8 @@ import org.http4s.dsl.io._
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
 
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.BTCWaitExpirationTime
@@ -60,7 +62,9 @@ trait AppModule
   )(implicit
       fromFellowship: Fellowship,
       fromTemplate: Template,
-      bitcoindInstance: BitcoindRpcClient
+      bitcoindInstance: BitcoindRpcClient,
+      groupIdIdentifier: GroupId,
+      seriesIdIdentifier: SeriesId
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val walletKeyApi = WalletKeyApi.make[IO]()

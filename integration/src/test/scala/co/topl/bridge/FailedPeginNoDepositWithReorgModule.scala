@@ -49,7 +49,6 @@ trait FailedPeginNoDepositWithReorgModule {
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
           .use(getText)
-        // _ <- IO.println("unspent: " + unspent)
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
@@ -141,7 +140,7 @@ trait FailedPeginNoDepositWithReorgModule {
         sentTxId <- process
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
-          .use(getText)
+          .use(getError)
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
           .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 2, newAddress): _*)

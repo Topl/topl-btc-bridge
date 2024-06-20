@@ -20,6 +20,10 @@ import co.topl.bridge.managers.SessionEvent
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.bridge.statemachine.pegin.BlockProcessor
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.utils.Encoding
+import com.google.protobuf.ByteString
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -54,6 +58,16 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
           Option(System.getenv("ZMQ_PORT")).map(_.toInt).getOrElse(28332),
         btcUrl = Option(System.getenv("BTC_URL")).getOrElse("http://localhost"),
         btcUser = Option(System.getenv("BTC_USER")).getOrElse("bitcoin"),
+        groupId = Option(System.getenv("ABTC_GROUP_ID"))
+          .map(Encoding.decodeFromHex(_).toOption)
+          .flatten
+          .map(x => GroupId(ByteString.copyFrom(x)))
+          .getOrElse(GroupId(ByteString.copyFrom(Array.fill(32)(0.toByte)))),
+        seriesId = Option(System.getenv("ABTC_SERIES_ID"))
+          .map(Encoding.decodeFromHex(_).toOption)
+          .flatten
+          .map(x => SeriesId(ByteString.copyFrom(x)))
+          .getOrElse(SeriesId(ByteString.copyFrom(Array.fill(32)(0.toByte)))),
         btcPassword =
           Option(System.getenv("BTC_PASSWORD")).getOrElse("password")
       )
@@ -97,6 +111,8 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       params.btcUrl,
       credentials
     )
+    implicit val groupId = params.groupId
+    implicit val seriesId = params.seriesId
     (for {
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
@@ -138,6 +154,12 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       )
       _ <- info"minting-fee            : ${params.mintingFee}" (logger)
       _ <- info"fee-per-byte           : ${params.feePerByte}" (logger)
+      _ <- info"abtc-group-id          : ${Encoding.encodeToHex(params.groupId.value.toByteArray)}" (
+        logger
+      )
+      _ <- info"abtc-series-id         : ${Encoding.encodeToHex(params.seriesId.value.toByteArray)}" (
+        logger
+      )
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )

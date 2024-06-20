@@ -38,6 +38,9 @@ import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.BTCConfirmationThreshold
 
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
+
 trait PeginStateMachineAlgebra[F[_]] {
 
   def handleBlockchainEventInContext(
@@ -72,7 +75,9 @@ object PeginStateMachine {
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcConfirmationThreshold: BTCConfirmationThreshold,
-      channelResource: Resource[F, ManagedChannel]
+      channelResource: Resource[F, ManagedChannel],
+      groupIdIdentifier: GroupId,
+      seriesIdIdentifier: SeriesId
   ) = new PeginStateMachineAlgebra[F] {
 
     import org.typelevel.log4cats.syntax._
@@ -163,8 +168,10 @@ object PeginStateMachine {
       case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
       case _: WaitingForRedemption => PeginSessionWaitingForRedemption
       case _: WaitingForClaim      => PeginSessionWaitingForClaim
-      case _: WaitingForEscrowBTCConfirmation => PeginSessionWaitingForEscrowBTCConfirmation
-      case _: WaitingForClaimBTCConfirmation => PeginSessionWaitingForClaimBTCConfirmation
+      case _: WaitingForEscrowBTCConfirmation =>
+        PeginSessionWaitingForEscrowBTCConfirmation
+      case _: WaitingForClaimBTCConfirmation =>
+        PeginSessionWaitingForClaimBTCConfirmation
     }
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =

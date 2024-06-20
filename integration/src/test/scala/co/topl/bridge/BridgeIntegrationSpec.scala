@@ -65,6 +65,47 @@ class BridgeIntegrationSpec
 
       override def beforeAll() = {
         (for {
+          cwd <- process
+            .ProcessBuilder("pwd")
+            .spawn[IO]
+            .use { getText }
+          _ <- IO.println("cwd: " + cwd)
+          currentAddress <- process
+            .ProcessBuilder(
+              CS_CMD,
+              csParams ++ Seq(
+                "wallet",
+                "current-address",
+                "--walletdb",
+                toplWalletDb
+              ): _*
+            )
+            .spawn[IO]
+            .use { getText }
+          utxo <- process
+            .ProcessBuilder(
+              CS_CMD,
+              csParams ++ Seq(
+                "genus-query",
+                "utxo-by-address",
+                "--host",
+                "localhost",
+                "--port",
+                "9084",
+                "--secure",
+                "false",
+                "--walletdb",
+                toplWalletDb,
+                "--from-address",
+                currentAddress
+              ): _*
+            )
+            .spawn[IO]
+            .use(
+              getText
+            )
+          _ <- IO.println("utxo: " + utxo)
+          (groupId, seriesId) = extractIds(utxo)
           _ <- IO.asyncForIO
             .both(
               IO.asyncForIO
@@ -82,7 +123,11 @@ class BridgeIntegrationSpec
                       "--btc-url",
                       "http://localhost",
                       "--topl-blocks-to-recover",
-                      "10"
+                      "15",
+                      "--abtc-group-id",
+                      groupId,
+                      "--abtc-series-id",
+                      seriesId
                     )
                   )
                 ),

@@ -6,11 +6,14 @@ import co.topl.shared.ToplNetworkIdentifiers
 import co.topl.shared.ToplPrivatenet
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
 
 case class ToplBTCBridgeParamConfig(
     btcWaitExpirationTime: Int =
       100, // the number of blocks to wait before the user can reclaim their funds
-    btcConfirmationThreshold: Int = 6, // the number of confirmations required for a peg-in transaction
+    btcConfirmationThreshold: Int =
+      6, // the number of confirmations required for a peg-in transaction
     toplWaitExpirationTime: Int =
       2000, // the number of blocks to wait before the user can reclaim their funds
     btcPegInSeedFile: String = "pegin-wallet.json",
@@ -31,5 +34,7 @@ case class ToplBTCBridgeParamConfig(
     toplPort: Int = 9084,
     mintingFee: Long = 10,
     feePerByte: CurrencyUnit = 2.satoshis,
+    groupId: GroupId,
+    seriesId: SeriesId,
     toplSecureConnection: Boolean = false
 )

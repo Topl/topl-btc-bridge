@@ -20,6 +20,10 @@ import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import quivr.models.KeyPair
 import co.topl.bridge.ToplWaitExpirationTime
 import co.topl.bridge.BTCConfirmationThreshold
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
+import co.topl.bridge.AssetToken
+import co.topl.brambl.utils.Encoding
 
 object PeginTransitionRelation {
 
@@ -97,7 +101,9 @@ object PeginTransitionRelation {
   )(implicit
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
-      btcConfirmationThreshold: BTCConfirmationThreshold
+      btcConfirmationThreshold: BTCConfirmationThreshold,
+      groupId: GroupId,
+      seriesId: SeriesId
   ): Option[FSMTransition] =
     (currentState, blockchainEvent) match {
       case (
@@ -109,7 +115,18 @@ object PeginTransitionRelation {
         )
           Some(
             EndTransition[F](
-              Async[F].unit
+              Async[F].delay(
+                println(
+                  "cs.currentTolpBlockHeight: " + cs.currentTolpBlockHeight
+                )
+              ) >>
+                Async[F].delay(println("ev.height: " + ev.height)) >>
+                Async[F].delay(
+                  println(
+                    "toplWaitExpirationTime: " + toplWaitExpirationTime.underlying
+                  )
+                ) >>
+                Async[F].unit
             )
           )
         else
@@ -206,7 +223,11 @@ object PeginTransitionRelation {
                 depositBTCBlockHeight,
                 claimAddress
               ),
-              t2E(currentState, blockchainEvent)
+              // FIXME: Remove this println
+              Async[F].delay(println("claimAddress: " + claimAddress)) >> t2E(
+                currentState,
+                blockchainEvent
+              )
             )
           )
         } else None
@@ -242,7 +263,26 @@ object PeginTransitionRelation {
             cs: MintingTBTC,
             be: BifrostFundsDeposited
           ) =>
-        if (cs.redeemAddress == be.address) {
+        import co.topl.brambl.syntax._
+        // FIXME: Remove this println
+        println("groupId existing: " + Encoding.encodeToBase58(groupId.value.toByteArray))
+        println("seriesId existing: " + Encoding.encodeToBase58(seriesId.value.toByteArray))
+        be.amount match {
+          case AssetToken(groupId, seriesId, amount) => 
+            println("be.amount.groupId: " +  groupId)
+            println("be.amount.seriedId: " + seriesId)
+          case _ =>
+            println("be.amount is not AssetToken")
+        }
+
+        if (
+          cs.redeemAddress == be.address &&
+          AssetToken(
+            Encoding.encodeToBase58(groupId.value.toByteArray),
+            Encoding.encodeToBase58(seriesId.value.toByteArray),
+            cs.amount
+          ) == be.amount
+        ) {
           Some(
             FSMTransitionTo(
               currentState,
@@ -257,7 +297,10 @@ object PeginTransitionRelation {
                 be.utxoTxId,
                 be.utxoIndex
               ),
-              Sync[F].unit
+              // FIXME: Remove this println
+              Sync[F].delay(
+                println("cs.redeemAddress: " + cs.redeemAddress)
+              ) >> Sync[F].unit
             )
           )
         } else None

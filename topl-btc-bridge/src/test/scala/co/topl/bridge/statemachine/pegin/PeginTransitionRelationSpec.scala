@@ -6,6 +6,7 @@ import co.topl.bridge.AssetToken
 import munit.CatsEffectSuite
 import org.bitcoins.core.protocol.Bech32Address
 import scala.annotation.nowarn
+import co.topl.brambl.utils.Encoding
 import co.topl.bridge.controllers.SharedData
 
 class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
@@ -410,8 +411,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             utxoTxId = "utxoTxId",
             utxoIndex = 0,
             amount = AssetToken(
-              "groupId",
-              "seriesId",
+              Encoding.encodeToHex(groupId.value.toByteArray),
+              Encoding.encodeToHex(seriesId.value.toByteArray),
               100L
             ) // Assuming AssetToken is a valid BifrostCurrencyUnit
           )

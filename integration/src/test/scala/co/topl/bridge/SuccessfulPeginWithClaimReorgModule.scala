@@ -26,6 +26,10 @@ trait SuccessfulPeginWithClaimReorgModule {
 
   def successfulPeginWithClaimError(): IO[Unit] = {
     import co.topl.bridge.implicits._
+    import org.typelevel.log4cats.syntax._
+    val logger =
+      org.typelevel.log4cats.slf4j.Slf4jLogger
+        .getLoggerFromName[IO]("successfulPeginWithClaimError")
 
     assertIO(
       for {
@@ -159,7 +163,9 @@ trait SuccessfulPeginWithClaimReorgModule {
           .default[IO]
           .build
           .use({ client =>
-            (IO.println("Requesting..") >> client
+            (IO.println(
+              "Requesting 1.. " + "sessionId: " + startSessionResponse.sessionID
+            ) >> client
               .expect[MintingStatusResponse](
                 Request[IO](
                   method = Method.POST,
@@ -217,10 +223,14 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- IO.println(
           "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
         )
-        utxo <- getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
+        utxo <- (getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
           .use(
             getText
           )
+          .flatMap(x =>
+            info"waiting for 2 seconds" (logger) >> IO.sleep(2.second) >> IO
+              .pure(x)
+          ))
           .iterateUntil(_.contains("LVL"))
         _ <- IO.println("utxos: " + utxo)
         groupId = utxo
@@ -269,21 +279,21 @@ trait SuccessfulPeginWithClaimReorgModule {
           .spawn[IO]
           .use { getText }
         // broadcast
-        _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
-          getText
+        redeemTxProved <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
+          getError
         }
+        _ <- IO.println("redeemTxProved: " + redeemTxProved)
         utxo <- getCurrentUtxosFromAddress(2, currentAddress)
           .use(
             getText
           )
           .iterateUntil(_.contains("Asset"))
         _ <- IO.println("utxos: " + utxo)
-        _ <- IO.sleep(5.second)
         _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
-            (IO.println("Requesting..") >> client
+            ((IO.println("Requesting 2..") >> client
               .expect[MintingStatusResponse](
                 Request[IO](
                   method = Method.POST,
@@ -308,7 +318,7 @@ trait SuccessfulPeginWithClaimReorgModule {
                   .spawn[IO]
                   .use(_.exitValue) >>
                   IO.sleep(5.second) >> IO.pure(x)
-              )
+              ))
               .iterateUntil(
                 _.mintingStatus == "PeginSessionWaitingForClaimBTCConfirmation"
               )
@@ -345,7 +355,7 @@ trait SuccessfulPeginWithClaimReorgModule {
           .default[IO]
           .build
           .use({ client =>
-            (IO.println("Requesting..") >> client
+            (IO.println("Requesting 3..") >> client
               .expect[MintingStatusResponse](
                 Request[IO](
                   method = Method.POST,
