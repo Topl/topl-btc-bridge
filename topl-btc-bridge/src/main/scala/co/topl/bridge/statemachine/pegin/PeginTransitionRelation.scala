@@ -223,8 +223,7 @@ object PeginTransitionRelation {
                 depositBTCBlockHeight,
                 claimAddress
               ),
-              // FIXME: Remove this println
-              Async[F].delay(println("claimAddress: " + claimAddress)) >> t2E(
+              t2E(
                 currentState,
                 blockchainEvent
               )
@@ -264,16 +263,6 @@ object PeginTransitionRelation {
             be: BifrostFundsDeposited
           ) =>
         import co.topl.brambl.syntax._
-        // FIXME: Remove this println
-        println("groupId existing: " + Encoding.encodeToBase58(groupId.value.toByteArray))
-        println("seriesId existing: " + Encoding.encodeToBase58(seriesId.value.toByteArray))
-        be.amount match {
-          case AssetToken(groupId, seriesId, amount) => 
-            println("be.amount.groupId: " +  groupId)
-            println("be.amount.seriedId: " + seriesId)
-          case _ =>
-            println("be.amount is not AssetToken")
-        }
 
         if (
           cs.redeemAddress == be.address &&
@@ -297,10 +286,7 @@ object PeginTransitionRelation {
                 be.utxoTxId,
                 be.utxoIndex
               ),
-              // FIXME: Remove this println
-              Sync[F].delay(
-                println("cs.redeemAddress: " + cs.redeemAddress)
-              ) >> Sync[F].unit
+              Sync[F].unit
             )
           )
         } else None

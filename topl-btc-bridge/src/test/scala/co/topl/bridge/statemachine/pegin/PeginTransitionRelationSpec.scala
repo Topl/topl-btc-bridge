@@ -411,8 +411,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             utxoTxId = "utxoTxId",
             utxoIndex = 0,
             amount = AssetToken(
-              Encoding.encodeToHex(groupId.value.toByteArray),
-              Encoding.encodeToHex(seriesId.value.toByteArray),
+              Encoding.encodeToBase58(groupId.value.toByteArray),
+              Encoding.encodeToBase58(seriesId.value.toByteArray),
               100L
             ) // Assuming AssetToken is a valid BifrostCurrencyUnit
           )
