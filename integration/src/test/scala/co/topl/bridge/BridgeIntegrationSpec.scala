@@ -123,7 +123,7 @@ class BridgeIntegrationSpec
                       "--btc-url",
                       "http://localhost",
                       "--topl-blocks-to-recover",
-                      "15",
+                      "10",
                       "--abtc-group-id",
                       groupId,
                       "--abtc-series-id",
