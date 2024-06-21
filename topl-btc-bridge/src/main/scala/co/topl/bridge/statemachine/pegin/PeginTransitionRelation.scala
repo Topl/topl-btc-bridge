@@ -115,17 +115,6 @@ object PeginTransitionRelation {
         )
           Some(
             EndTransition[F](
-              Async[F].delay(
-                println(
-                  "cs.currentTolpBlockHeight: " + cs.currentTolpBlockHeight
-                )
-              ) >>
-                Async[F].delay(println("ev.height: " + ev.height)) >>
-                Async[F].delay(
-                  println(
-                    "toplWaitExpirationTime: " + toplWaitExpirationTime.underlying
-                  )
-                ) >>
                 Async[F].unit
             )
           )
