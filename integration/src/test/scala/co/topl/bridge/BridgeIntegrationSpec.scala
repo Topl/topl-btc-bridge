@@ -20,7 +20,8 @@ class BridgeIntegrationSpec
     with FailedPeginNoMintModule
     with FailedRedemptionModule
     with FailedPeginNoDepositWithReorgModule
-    with SuccessfulPeginWithClaimReorgModule {
+    with SuccessfulPeginWithClaimReorgModule
+    with SuccessfulPeginWithClaimReorgRetryModule {
 
   val DOCKER_CMD = "docker"
 
@@ -287,6 +288,13 @@ class BridgeIntegrationSpec
     IO.println(
       "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
     ) >> successfulPeginWithClaimError()
+  }
+  cleanupDir.test(
+    "Bridge should correctly retry if claim does not succeed"
+  ) { _ =>
+    IO.println(
+      "Bridge should correctly retry if claim does not succeed"
+    ) >> successfulPeginWithClaimErrorRetry()
   }
 
 }

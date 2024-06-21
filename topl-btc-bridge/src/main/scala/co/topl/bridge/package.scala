@@ -4,6 +4,7 @@ import _root_.quivr.models.Int128
 
 package object bridge {
 
+  class BTCRetryThreshold(val underlying: Int) extends AnyVal
   class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
   class ToplWaitExpirationTime(val underlying: Int) extends AnyVal
   class BTCConfirmationThreshold(val underlying: Int) extends AnyVal

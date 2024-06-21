@@ -8,6 +8,7 @@ import org.bitcoins.core.protocol.Bech32Address
 import scala.annotation.nowarn
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.controllers.SharedData
+import co.topl.brambl.syntax._
 
 class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
 
@@ -124,7 +125,6 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   test(
     "PeginTransitionRelation should transition from WaitingForRedemption to BifrostFundsWithdrawn"
   ) {
-    import co.topl.brambl.syntax._
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
@@ -137,7 +137,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             btcTxId = "txId",
             btcVout = 0L,
             utxoTxId = "bifrostTxId",
-            utxoIndex = 0 // Added missing utxoIndex parameter
+            utxoIndex = 0, // Added missing utxoIndex parameter
+            amount = AssetToken("groupId", "seriesId", 100L)
           ),
           BifrostFundsWithdrawn(
             "bifrostTxId",
@@ -168,7 +169,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             btcTxId = "txId",
             btcVout = 0L,
             utxoTxId = "bifrostTxId",
-            utxoIndex = 0 // Added missing utxoIndex parameter
+            utxoIndex = 0,
+            amount = AssetToken("groupId", "seriesId", 100L)
           ),
           NewToplBlock(2002)
         )(transitionToEffect[IO](_, _))
@@ -193,7 +195,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             btcTxId = "txId",
             btcVout = 0L,
             utxoTxId = "bifrostTxId",
-            utxoIndex = 0 // Added missing utxoIndex parameter
+            utxoIndex = 0,
+            amount = AssetToken("groupId", "seriesId", 100L)
           ),
           BifrostFundsWithdrawn(
             "bifrostTxIdDifferent",
@@ -214,7 +217,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
               btcTxId = "txId",
               btcVout = 0L,
               utxoTxId = "bifrostTxId",
-              utxoIndex = 0 // Added missing utxoIndex parameter
+              utxoIndex = 0,
+              amount = AssetToken("groupId", "seriesId", 100L)
             ),
             BifrostFundsWithdrawn(
               "bifrostTxId",
@@ -243,7 +247,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             btcTxId = "txId",
             btcVout = 0L,
             utxoTxId = "bifrostTxId",
-            utxoIndex = 0 // Added missing utxoIndex parameter
+            utxoIndex = 0,
+            amount = AssetToken("groupId", "seriesId", 100L)
           ),
           BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
@@ -259,7 +264,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
               btcTxId = "txId",
               btcVout = 0L,
               utxoTxId = "bifrostTxId",
-              utxoIndex = 0 // Added missing utxoIndex parameter
+              utxoIndex = 0,
+              amount = AssetToken("groupId", "seriesId", 100L)
             ),
             BTCFundsWithdrawn("txId", 0)
           )(transitionToEffect[IO](_, _))
@@ -273,7 +279,22 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaim(claimAddress),
+          WaitingForClaim(
+            someStartBtcBlockHeight =
+              None, // Assuming None if not specified, adjust as necessary
+            secret = "yourSecretHere", // Replace with actual secret
+            currentWalletIdx = 0, // Adjust according to your logic
+            btcTxId =
+              "yourBtcTxIdHere", // Replace with actual BTC transaction ID
+            btcVout = 0L, // Adjust as necessary
+            scriptAsm = "yourScriptAsmHere", // Replace with actual script ASM
+            amount = AssetToken(
+              "groupId",
+              "seriesId",
+              100L
+            ), // Adjust amount as necessary
+            claimAddress = claimAddress
+          ),
           BTCFundsDeposited(2, claimAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
@@ -283,7 +304,23 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         &&
           PeginTransitionRelation
             .handleBlockchainEvent[IO](
-              WaitingForClaim(claimAddress),
+              WaitingForClaim(
+                someStartBtcBlockHeight =
+                  None, // Assuming None if not specified, adjust as necessary
+                secret = "yourSecretHere", // Replace with actual secret
+                currentWalletIdx = 0, // Adjust according to your logic
+                btcTxId =
+                  "yourBtcTxIdHere", // Replace with actual BTC transaction ID
+                btcVout = 0L, // Adjust as necessary
+                scriptAsm =
+                  "yourScriptAsmHere", // Replace with actual script ASM
+                amount = AssetToken(
+                  "groupId",
+                  "seriesId",
+                  100L
+                ), // Adjust amount as necessary
+                claimAddress = claimAddress
+              ),
               BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
             )(transitionToEffect[IO](_, _))
             .isEmpty
@@ -297,14 +334,32 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       (PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaimBTCConfirmation(1, claimAddress),
+          WaitingForClaimBTCConfirmation(
+            1,
+            "secret",
+            1,
+            "btcTxId",
+            0,
+            "scriptAsm",
+            AssetToken("groupId", "seriesId", 100L),
+            claimAddress
+          ),
           NewBTCBlock(8)
         )(transitionToEffect[IO](_, _))
         .get
         .isInstanceOf[EndTransition[IO]]: @nowarn) &&
         PeginTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForClaimBTCConfirmation(1, claimAddress),
+            WaitingForClaimBTCConfirmation(
+              1,
+              "secret",
+              1,
+              "btcTxId",
+              0,
+              "scriptAsm",
+              AssetToken("groupId", "seriesId", 100L),
+              claimAddress
+            ),
             NewBTCBlock(7)
           )(transitionToEffect[IO](_, _))
           .isEmpty
@@ -317,7 +372,22 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaim(claimAddress),
+          WaitingForClaim(
+            someStartBtcBlockHeight =
+              None, // Assuming None if not specified, adjust as necessary
+            secret = "yourSecretHere", // Replace with actual secret
+            currentWalletIdx = 0, // Adjust according to your logic
+            btcTxId =
+              "yourBtcTxIdHere", // Replace with actual BTC transaction ID
+            btcVout = 0L, // Adjust as necessary
+            scriptAsm = "yourScriptAsmHere", // Replace with actual script ASM
+            amount = AssetToken(
+              "groupId",
+              "seriesId",
+              100L
+            ), // Adjust amount as necessary
+            claimAddress = claimAddress
+          ),
           BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .isEmpty
@@ -332,7 +402,22 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaim(claimAddress),
+          WaitingForClaim(
+            someStartBtcBlockHeight =
+              None, // Assuming None if not specified, adjust as necessary
+            secret = "yourSecretHere", // Replace with actual secret
+            currentWalletIdx = 0, // Adjust according to your logic
+            btcTxId =
+              "yourBtcTxIdHere", // Replace with actual BTC transaction ID
+            btcVout = 0L, // Adjust as necessary
+            scriptAsm = "yourScriptAsmHere", // Replace with actual script ASM
+            amount = AssetToken(
+              "groupId",
+              "seriesId",
+              100L
+            ), // Adjust amount as necessary
+            claimAddress = claimAddress
+          ),
           BifrostFundsDeposited(
             currentToplBlockHeight =
               0L, // Assuming a missing parameter needs to be added
@@ -349,7 +434,22 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .isEmpty &&
         PeginTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForClaim(claimAddress),
+            WaitingForClaim(
+              someStartBtcBlockHeight =
+                None, // Assuming None if not specified, adjust as necessary
+              secret = "yourSecretHere", // Replace with actual secret
+              currentWalletIdx = 0, // Adjust according to your logic
+              btcTxId =
+                "yourBtcTxIdHere", // Replace with actual BTC transaction ID
+              btcVout = 0L, // Adjust as necessary
+              scriptAsm = "yourScriptAsmHere", // Replace with actual script ASM
+              amount = AssetToken(
+                "groupId",
+                "seriesId",
+                100L
+              ), // Adjust amount as necessary
+              claimAddress = claimAddress
+            ),
             BifrostFundsWithdrawn(
               "bifrostTxId",
               0,

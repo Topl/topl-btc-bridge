@@ -16,6 +16,7 @@ import org.bitcoins.rpc.config.BitcoindAuthCredentials
 import org.http4s.ember.server.EmberServerBuilder
 import scopt.OParser
 import cats.effect.std.Queue
+import co.topl.bridge.BTCRetryThreshold
 import co.topl.bridge.managers.SessionEvent
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
@@ -113,6 +114,9 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
     )
     implicit val groupId = params.groupId
     implicit val seriesId = params.seriesId
+    implicit val btcRetryThreshold: BTCRetryThreshold = new BTCRetryThreshold(
+      params.btcRetryThreshold
+    )
     (for {
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
@@ -201,12 +205,17 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
             .drain
         )
         .allocated
+      currentToplHeightVal <- currentToplHeight.get
+      currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
       _ <- IO.asyncForIO
         .background(
           monitor
             .monitorBlocks()
             .either(bifrostMonitor.monitorBlocks())
-            .flatMap(BlockProcessor.process)
+            .flatMap(
+              BlockProcessor
+                .process(currentBitcoinNetworkHeightVal, currentToplHeightVal)
+            )
             .flatMap(
               // this handles each event in the context of the state machine
               peginStateMachine.handleBlockchainEventInContext
@@ -225,7 +234,14 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .withLogger(logger)
         .build
         .allocated
-        .both(init.setupWallet(defaultFromFellowship, defaultFromTemplate, params.groupId, params.seriesId))
+        .both(
+          init.setupWallet(
+            defaultFromFellowship,
+            defaultFromTemplate,
+            params.groupId,
+            params.seriesId
+          )
+        )
     } yield {
       Right(
         s"Server started on ${ServerConfig.host}:${ServerConfig.port}"

@@ -9,6 +9,8 @@ case class BTCFundsWithdrawn(txId: String, vout: Long) extends BlockchainEvent
 
 case class NewBTCBlock(height: Int) extends BlockchainEvent
 
+case class SkippedBTCBlock(height: Int) extends BlockchainEvent
+
 case class NewToplBlock(height: Long) extends BlockchainEvent
 
 case class BTCFundsDeposited(
@@ -76,13 +78,31 @@ case class WaitingForRedemption(
     btcTxId: String,
     btcVout: Long,
     utxoTxId: String,
-    utxoIndex: Int
+    utxoIndex: Int,
+    amount: BifrostCurrencyUnit
 ) extends PeginStateMachineState
 
-case class WaitingForClaim(claimAddress: String) extends PeginStateMachineState
+case class WaitingForClaim(
+    someStartBtcBlockHeight: Option[Int],
+    secret: String,
+    currentWalletIdx: Int,
+    btcTxId: String,
+    btcVout: Long,
+    scriptAsm: String,
+    amount: BifrostCurrencyUnit,
+    claimAddress: String
+) extends PeginStateMachineState
 
-case class WaitingForClaimBTCConfirmation(claimBTCBlockHeight: Int, claimAddress: String)
-    extends PeginStateMachineState
+case class WaitingForClaimBTCConfirmation(
+    claimBTCBlockHeight: Int,
+    secret: String,
+    currentWalletIdx: Int,
+    btcTxId: String,
+    btcVout: Long,
+    scriptAsm: String,
+    amount: BifrostCurrencyUnit,
+    claimAddress: String
+) extends PeginStateMachineState
 
 sealed trait FSMTransition
 

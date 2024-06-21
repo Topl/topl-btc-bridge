@@ -49,6 +49,9 @@ trait FailedPeginNoMintModule {
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
+        btcAmount <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
+        )
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
           .default[IO]
@@ -79,7 +82,8 @@ trait FailedPeginNoMintModule {
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
-            createTx(txId, startSessionResponse.escrowAddress, BigDecimal("24.99")): _*
+            createTx(txId, startSessionResponse.escrowAddress, 
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")): _*
           )
           .spawn[IO]
           .use(getText)

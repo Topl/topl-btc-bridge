@@ -4,13 +4,19 @@ import co.topl.shared.ToplPrivatenet
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
 import co.topl.bridge.BTCConfirmationThreshold
+import co.topl.bridge.BTCRetryThreshold
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
 import com.google.protobuf.ByteString
 import co.topl.brambl.utils.Encoding
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import cats.effect.IO
 
 trait SharedData {
 
+  implicit val logger: SelfAwareStructuredLogger[IO] =
+    org.typelevel.log4cats.slf4j.Slf4jLogger
+      .getLoggerFromName[IO]("test-logger")
   val testKey =
     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a"
 
@@ -50,6 +56,9 @@ trait SharedData {
 
   implicit val btcConfirmationThreshold: BTCConfirmationThreshold =
     new BTCConfirmationThreshold(6)
+
+  implicit val btcRetryThreshold: BTCRetryThreshold =
+    new BTCRetryThreshold(6)
 
   val testToplNetworkId = ToplPrivatenet
 

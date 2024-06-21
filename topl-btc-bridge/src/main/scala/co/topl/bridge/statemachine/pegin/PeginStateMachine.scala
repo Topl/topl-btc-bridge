@@ -21,6 +21,7 @@ import co.topl.bridge.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmat
 import co.topl.bridge.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 import co.topl.bridge.Template
 import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.BTCRetryThreshold
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
@@ -74,6 +75,7 @@ object PeginStateMachine {
       defaultMintingFee: Lvl,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
+      btcRetryThreshold: BTCRetryThreshold,
       btcConfirmationThreshold: BTCConfirmationThreshold,
       channelResource: Resource[F, ManagedChannel],
       groupIdIdentifier: GroupId,

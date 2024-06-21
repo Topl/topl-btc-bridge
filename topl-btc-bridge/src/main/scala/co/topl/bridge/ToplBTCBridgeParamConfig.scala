@@ -32,6 +32,7 @@ case class ToplBTCBridgeParamConfig(
     toplNetwork: ToplNetworkIdentifiers = ToplPrivatenet,
     toplHost: String = "localhost",
     toplPort: Int = 9084,
+    btcRetryThreshold: Int = 6,
     mintingFee: Long = 10,
     feePerByte: CurrencyUnit = 2.satoshis,
     groupId: GroupId,

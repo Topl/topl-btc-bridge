@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
 import co.topl.bridge.BTCConfirmationThreshold
+import co.topl.bridge.BTCRetryThreshold
 
 trait AppModule
     extends WalletStateResource
@@ -63,6 +64,7 @@ trait AppModule
       fromFellowship: Fellowship,
       fromTemplate: Template,
       bitcoindInstance: BitcoindRpcClient,
+      btcRetryThreshold: BTCRetryThreshold,
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId
   ) = {

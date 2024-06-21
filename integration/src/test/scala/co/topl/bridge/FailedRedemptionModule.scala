@@ -55,6 +55,9 @@ trait FailedRedemptionModule {
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
         _ <- IO.println("txId: " + txId)
+        btcAmount <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
+        )
         startSessionResponse <- EmberClientBuilder
           .default[IO]
           .build
@@ -87,7 +90,7 @@ trait FailedRedemptionModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal("49.99")
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")
             ): _*
           )
           .spawn[IO]
