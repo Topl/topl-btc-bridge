@@ -141,10 +141,12 @@ trait BridgeParamsDescriptor {
         .text("The fee per byte in satoshis. (optional)"),
       opt[GroupId]("abtc-group-id")
         .action((x, c) => c.copy(groupId = x))
-        .text("Group id of ."),
+        .text("Group id of the aBTC asset.")
+        .required(),
       opt[SeriesId]("abtc-series-id")
         .action((x, c) => c.copy(seriesId = x))
-        .text("Series id."),
+        .text("Series id of the aBTC asset.")
+        .required(),
       opt[Int]("btc-confirmation-threshold")
         .action((x, c) => c.copy(btcConfirmationThreshold = x))
         .text(

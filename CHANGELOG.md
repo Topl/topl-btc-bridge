@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add new parameter `--btc-confirmation-threshold` to specify the number of confirmations needed for the deposit.
 - Add two new fields to the `StartPeginSessionResponse` message: `minHeight` and `maxHeight`.
 This is needed to know the range of blocks to wait for the redemption.
+- Added parameters `--abtc-group-id` and `--abtc-series-id` to specify the group and series of the asset to mint.
 
 
 ### Changed
@@ -38,6 +39,8 @@ This is needed to know the range of blocks to wait for the redemption.
 - Rename `--blocks-to-recover` to `--btc-blocks-to-recover`.
 - Update the contract for the redemption to include the height. The new contract
 `threshold(1, sha256($sha256) and height($min, $max))`.
+- We now require the asset minted to be present at start time.
+
 
 ### Removed
 

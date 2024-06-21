@@ -19,6 +19,8 @@ import co.topl.genus.services.Txo
 import org.typelevel.log4cats.Logger
 import quivr.models.Int128
 import quivr.models.KeyPair
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
 
 import scala.concurrent.duration._
 import cats.effect.kernel.Resource
@@ -29,7 +31,9 @@ trait InitializationModuleAlgebra[F[_]] {
 
   def setupWallet(
       fromFellowship: Fellowship,
-      fromTemplate: Template
+      fromTemplate: Template,
+      groupId: GroupId,
+      seriesId: SeriesId
   ): F[Unit]
 
 }
@@ -186,170 +190,23 @@ object InitializationModule {
         }
     } yield ()
 
-    private def mintGroupToken(
-        fromFellowship: Fellowship,
-        fromTemplate: Template
-    ): F[Unit] = (for {
-      _ <- info"Minting Group Token"
-      txos <- getTxos(fromFellowship, fromTemplate)
-      lockAddress <- wsa.getCurrentAddress
-      someLock <- wsa.getLockByAddress(lockAddress)
-      _ = assert(
-        someLock.isDefined,
-        "Indices not found while minting group token"
-      )
-      _ = assert(
-        txos.filter(_.transactionOutput.value.value.isLvl).nonEmpty,
-        "No LVLs found while minting group token"
-      )
-      someChangeIdx <- wsa.getNextIndicesForFunds(
-        fromFellowship.underlying,
-        fromTemplate.underlying
-      )
-      _ = assert(
-        someChangeIdx.isDefined,
-        "Change lock not found while minting group token"
-      )
-      someChangeLock <- getChangeLockPredicate[F](
-        someChangeIdx,
-        fromFellowship,
-        fromTemplate
-      )
-      ioTx <- buildGroupTx(
-        txos.filter(_.transactionOutput.value.value.isLvl),
-        txos.filterNot(_.transactionOutput.value.value.isLvl),
-        someLock.get,
-        1,
-        10,
-        someChangeIdx,
-        keyPair,
-        Event.GroupPolicy(
-          "tBTC",
-          txos
-            .filter(_.transactionOutput.value.value.isLvl)
-            .map(x =>
-              TransactionOutputAddress(
-                x.outputAddress.network,
-                x.outputAddress.ledger,
-                x.outputAddress.index,
-                x.outputAddress.id
-              )
-            )
-            .head,
-          None
-        ),
-        someChangeLock
-      )
-      provedTx <- proveSimpleTransactionFromParams(
-        ioTx,
-        keyPair
-      )
-      _ = assert(
-        provedTx.isRight,
-        "Error proving transaction while minting group token"
-      )
-      eitherSentTx <- broadcastSimpleTransactionFromParams(
-        provedTx.toOption.get
-      )
-      _ <- Async[F].fromEither(eitherSentTx) // if this fails we should retry
-      _ <- checkIfGroupTokenMinted(fromFellowship, fromTemplate)
-
-    } yield ()).handleErrorWith { e =>
-      e.printStackTrace()
-      error"Error setting up wallet: ${e}" >>
-        error"Retrying in 5 seconds" >>
-        Async[F].sleep(
-          5.second
-        ) >> mintGroupToken(fromFellowship, fromTemplate)
-    }
-
-    private def mintSeriesToken(
-        fromFellowship: Fellowship,
-        fromTemplate: Template
-    ): F[Unit] = (for {
-      _ <- info"Minting Series Token"
-      txos <- getTxos(fromFellowship, fromTemplate)
-      lockAddress <- wsa.getCurrentAddress
-      someLock <- wsa.getLockByAddress(lockAddress)
-      _ = assert(
-        someLock.isDefined,
-        "Indices not found while minting series token"
-      )
-      _ = assert(
-        txos.filter(_.transactionOutput.value.value.isGroup).nonEmpty,
-        "No Group Tokens found while minting series token"
-      )
-      someChangeIdx <- wsa.getNextIndicesForFunds(
-        fromFellowship.underlying,
-        fromTemplate.underlying
-      )
-      _ = assert(
-        someChangeIdx.isDefined,
-        "Change lock not found while minting series token"
-      )
-      someChangeLock <- getChangeLockPredicate[F](
-        someChangeIdx,
-        fromFellowship,
-        fromTemplate
-      )
-      ioTx <- buildSeriesTx(
-        txos.filter(_.transactionOutput.value.value.isGroup),
-        txos.filterNot(_.transactionOutput.value.value.isGroup),
-        someLock.get,
-        1L,
-        10L,
-        someChangeIdx,
-        keyPair,
-        Event.SeriesPolicy(
-          "tBTC Series",
-          None,
-          txos
-            .filter(_.transactionOutput.value.value.isLvl)
-            .map(x =>
-              TransactionOutputAddress(
-                x.outputAddress.network,
-                x.outputAddress.ledger,
-                x.outputAddress.index,
-                x.outputAddress.id
-              )
-            )
-            .head
-        ),
-        someChangeLock
-      )
-      provedTx <- proveSimpleTransactionFromParams(
-        ioTx,
-        keyPair
-      )
-      _ = assert(
-        provedTx.isRight,
-        "Error proving transaction while minting series token"
-      )
-      eitherSentTx <- broadcastSimpleTransactionFromParams(
-        provedTx.toOption.get
-      )
-      _ <- Async[F].fromEither(eitherSentTx) // if this fails we should retry
-      _ <- checkIfSeriesTokenMinted(fromFellowship, fromTemplate)
-
-    } yield ()).handleErrorWith { e =>
-      e.printStackTrace
-      error"Error setting up wallet: ${e}" >>
-        error"Retrying in 5 seconds" >>
-        Async[F].sleep(
-          5.second
-        ) >> mintSeriesToken(fromFellowship, fromTemplate)
-    }
-
     private def checkForGroupToken(
         fromFellowship: Fellowship,
-        fromTemplate: Template
+        fromTemplate: Template,
+        groupId: GroupId
     ): F[Boolean] = (
       for {
         _ <- info"Checking for Group Tokens"
         txos <- getTxos(fromFellowship, fromTemplate)
         groupTxos = txos.filter(_.transactionOutput.value.value.isGroup)
         hasGroupToken <-
-          if (groupTxos.nonEmpty) {
+          if (
+            groupTxos
+              .filter(
+                _.transactionOutput.value.value.group.get.groupId == groupId
+              )
+              .nonEmpty
+          ) {
             (info"Found Group Tokens" >> currentState
               .update(
                 _.copy(
@@ -383,13 +240,21 @@ object InitializationModule {
 
     private def checkForSeriesToken(
         fromFellowship: Fellowship,
-        fromTemplate: Template
+        fromTemplate: Template,
+        seriesId: SeriesId
     ): F[Boolean] = (
       for {
         _ <- info"Checking for Series Tokens"
         txos <- getTxos(fromFellowship, fromTemplate)
+        seriesTxos = txos.filter(_.transactionOutput.value.value.isSeries)
         hasSeriesToken <-
-          if (txos.filter(_.transactionOutput.value.value.isSeries).nonEmpty) {
+          if (
+            seriesTxos
+              .filter(
+                _.transactionOutput.value.value.series.get.seriesId == seriesId
+              )
+              .nonEmpty
+          ) {
             (info"Found Series Tokens: ${int128AsBigInt(sumLvls(txos))}" >> currentState
               .update(
                 _.copy(
@@ -415,17 +280,28 @@ object InitializationModule {
 
     def setupWallet(
         fromFellowship: Fellowship,
-        fromTemplate: Template
+        fromTemplate: Template,
+        groupId: GroupId,
+        seriesId: SeriesId
     ): F[Unit] = {
       (for {
         _ <- checkForLvls(fromFellowship, fromTemplate)
-        hasGroupToken <- checkForGroupToken(fromFellowship, fromTemplate)
+        hasGroupToken <- checkForGroupToken(
+          fromFellowship,
+          fromTemplate,
+          groupId
+        )
         _ <-
-          if (!hasGroupToken) mintGroupToken(fromFellowship, fromTemplate)
+          if (!hasGroupToken)
+            error"There is no group token"
           else Async[F].unit
-        hasSeriesToken <- checkForSeriesToken(fromFellowship, fromTemplate)
+        hasSeriesToken <- checkForSeriesToken(
+          fromFellowship,
+          fromTemplate,
+          seriesId
+        )
         _ <-
-          if (!hasSeriesToken) mintSeriesToken(fromFellowship, fromTemplate)
+          if (!hasSeriesToken) error"There is no series token"
           else Async[F].unit
         _ <- setBlochainHeight()
       } yield ()).handleErrorWith { e =>
