@@ -95,6 +95,9 @@ trait SuccessfulPeginWithClaimReorgModule {
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
+        btcAmount <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "amount").head.asString.get)
+        )
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
           .default[IO]
@@ -136,7 +139,7 @@ trait SuccessfulPeginWithClaimReorgModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal("49.99")
+              BigDecimal(btcAmount)
             ): _*
           )
           .spawn[IO]
