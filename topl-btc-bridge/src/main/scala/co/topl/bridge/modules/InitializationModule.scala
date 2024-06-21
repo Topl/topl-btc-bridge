@@ -5,27 +5,20 @@ import cats.effect.kernel.Ref
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
-import co.topl.brambl.models.Event
-import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.SeriesId
 import co.topl.brambl.syntax._
 import co.topl.brambl.utils.Encoding
-import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.Fellowship
 import co.topl.bridge.SystemGlobalState
 import co.topl.bridge.Template
-import co.topl.bridge.managers.TransactionAlgebra
 import co.topl.bridge.managers.WalletApiHelpers
 import co.topl.genus.services.Txo
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import quivr.models.Int128
-import quivr.models.KeyPair
-import co.topl.brambl.models.SeriesId
-import co.topl.brambl.models.GroupId
 
 import scala.concurrent.duration._
-import cats.effect.kernel.Resource
-import io.grpc.ManagedChannel
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
 
 trait InitializationModuleAlgebra[F[_]] {
 
@@ -45,18 +38,12 @@ object InitializationModule {
       currentState: Ref[F, SystemGlobalState]
   )(implicit
       bitcoind: BitcoindRpcClient,
-      keyPair: KeyPair,
       tba: TransactionBuilderApi[F],
       wsa: WalletStateAlgebra[F],
-      wa: WalletApi[F],
-      genusQueryAlgebra: GenusQueryAlgebra[F],
-      channelResource: Resource[F, ManagedChannel]
+      genusQueryAlgebra: GenusQueryAlgebra[F]
   ) = new InitializationModuleAlgebra[F] {
 
     import WalletApiHelpers._
-    import SeriesMintingOps._
-    import GroupMintingOps._
-    import TransactionAlgebra._
 
     import org.typelevel.log4cats.syntax._
 
@@ -310,7 +297,7 @@ object InitializationModule {
           error"Retrying in 5 seconds" >>
           Async[F].sleep(
             5.second
-          ) >> setupWallet(fromFellowship, fromTemplate)
+          ) >> setupWallet(fromFellowship, fromTemplate, groupId, seriesId)
       }
     }
 
