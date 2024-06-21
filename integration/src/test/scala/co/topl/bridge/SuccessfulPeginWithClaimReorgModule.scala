@@ -139,7 +139,7 @@ trait SuccessfulPeginWithClaimReorgModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal(btcAmount)
+              BigDecimal(btcAmount) - BigDecimal("0.01")
             ): _*
           )
           .spawn[IO]
@@ -282,9 +282,10 @@ trait SuccessfulPeginWithClaimReorgModule {
           .spawn[IO]
           .use { getText }
         // broadcast
-        redeemTxProved <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
-          getError
-        }
+        redeemTxProved <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
+          .use {
+            getError
+          }
         _ <- IO.println("redeemTxProved: " + redeemTxProved)
         utxo <- getCurrentUtxosFromAddress(2, currentAddress)
           .use(
