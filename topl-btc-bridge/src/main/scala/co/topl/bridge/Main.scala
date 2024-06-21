@@ -225,7 +225,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .withLogger(logger)
         .build
         .allocated
-        .both(init.setupWallet(defaultFromFellowship, defaultFromTemplate))
+        .both(init.setupWallet(defaultFromFellowship, defaultFromTemplate, params.groupId, params.seriesId))
     } yield {
       Right(
         s"Server started on ${ServerConfig.host}:${ServerConfig.port}"
