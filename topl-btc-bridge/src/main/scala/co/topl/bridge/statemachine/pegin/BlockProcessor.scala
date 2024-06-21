@@ -27,7 +27,7 @@ object BlockProcessor {
     BlockchainEvent
   ] = {
     var btcHeight = initialBTCHeight
-    var toplHeight = initialToplHeight
+    var toplHeight = initialToplHeight // FIXME: This will be used for the topl reorgs
     var ascending = false
     def processAux[F[_]](
         block: Either[BitcoinBlockSync, BifrostMonitor.BifrostBlockSync]
