@@ -257,7 +257,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         redeemAddressTx <- redeemAddressTx(
           2,
           currentAddress,
-          BigDecimal(btcAmount.toString + "99000000").toLong,
+          BigDecimal((btcAmount.toInt.get - 1).toString + "99000000").toLong,
           groupId,
           seriesId
         ).use { getText }
