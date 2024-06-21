@@ -96,7 +96,7 @@ trait SuccessfulPeginWithClaimReorgModule {
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
         btcAmount <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "amount").head.asString.get)
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
         )
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
@@ -139,7 +139,7 @@ trait SuccessfulPeginWithClaimReorgModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal(btcAmount) - BigDecimal("0.01")
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")
             ): _*
           )
           .spawn[IO]
@@ -253,10 +253,11 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- IO.println("groupId: " + groupId)
         _ <- IO.println("seriesId: " + seriesId)
         currentAddress <- currentAddress(2).use { getText }
+        _ <- IO.println("btcAmount.toString: " + btcAmount.toString)
         redeemAddressTx <- redeemAddressTx(
           2,
           currentAddress,
-          BigDecimal(btcAmount + "99000000").toLong,
+          BigDecimal(btcAmount.toString + "99000000").toLong,
           groupId,
           seriesId
         ).use { getText }

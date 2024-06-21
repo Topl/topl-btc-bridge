@@ -53,7 +53,7 @@ trait FailedPeginNoDepositWithReorgModule {
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
         btcAmount <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "amount").head.asString.get)
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
         )
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
@@ -126,7 +126,7 @@ trait FailedPeginNoDepositWithReorgModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal(btcAmount) - BigDecimal("0.01")
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")
             ): _*
           )
           .spawn[IO]
@@ -193,7 +193,7 @@ trait FailedPeginNoDepositWithReorgModule {
           .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, true): _*)
           .spawn[IO]
           .use { getText }
-          // force connection
+        // force connection
         _ <- process
           .ProcessBuilder(
             DOCKER_CMD,
