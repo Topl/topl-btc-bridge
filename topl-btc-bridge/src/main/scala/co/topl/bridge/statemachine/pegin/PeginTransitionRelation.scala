@@ -149,7 +149,7 @@ object PeginTransitionRelation {
       groupId: GroupId,
       seriesId: SeriesId
   ): Option[FSMTransition] =
-    (currentState, blockchainEvent) match {
+    ((currentState, blockchainEvent) match {
       case (
             cs: WaitingForRedemption,
             ev: NewToplBlock
@@ -449,5 +449,13 @@ object PeginTransitionRelation {
             _
           ) =>
         None // No transition
-    }
+    }).orElse(
+      Some(
+        FSMTransitionTo(
+          currentState,
+          currentState,
+          t2E(currentState, blockchainEvent)
+        )
+      )
+    )
 }

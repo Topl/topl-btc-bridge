@@ -29,7 +29,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
     import org.typelevel.log4cats.syntax._
     val logger =
       org.typelevel.log4cats.slf4j.Slf4jLogger
-        .getLoggerFromName[IO]("successfulPeginWithClaimError")
+        .getLoggerFromName[IO]("successfulPeginWithClaimErrorRetry")
 
     assertIO(
       for {
