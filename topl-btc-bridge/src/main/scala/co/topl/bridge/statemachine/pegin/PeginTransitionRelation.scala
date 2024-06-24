@@ -186,7 +186,7 @@ object PeginTransitionRelation {
               t2E(currentState, blockchainEvent)
             )
           )
-        else if (ev.height <= cs.depositBTCBlockHeight)
+        else if (ev.height <= cs.depositBTCBlockHeight) {
           // we are seeing the block where the transaction was found again
           // this can only mean that block is being unapplied
           Some(
@@ -203,8 +203,7 @@ object PeginTransitionRelation {
               t2E(currentState, blockchainEvent)
             )
           )
-        else
-          None
+        } else None
       case (
             cs: WaitingForClaimBTCConfirmation,
             ev: NewBTCBlock
@@ -449,13 +448,5 @@ object PeginTransitionRelation {
             _
           ) =>
         None // No transition
-    }).orElse(
-      Some(
-        FSMTransitionTo(
-          currentState,
-          currentState,
-          t2E(currentState, blockchainEvent)
-        )
-      )
-    )
+    })
 }

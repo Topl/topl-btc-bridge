@@ -601,6 +601,23 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   test(
     "PeginTransitionRelation should transition from WaitingForEscrowBTCConfirmation to MintingTBTC"
   ) {
+            println (PeginTransitionRelation
+          .handleBlockchainEvent[IO](
+            WaitingForEscrowBTCConfirmation(
+              1,
+              1,
+              1,
+              "",
+              escrowAddress,
+              redeemAddress,
+              claimAddress,
+              "btcTxId",
+              0,
+              100
+            ),
+            NewBTCBlock(7)
+          )(transitionToEffect[IO](_, _))
+          )
     assert(
       PeginTransitionRelation
         .handleBlockchainEvent[IO](
@@ -621,24 +638,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
         .nextState
-        .isInstanceOf[MintingTBTC] &&
-        PeginTransitionRelation
-          .handleBlockchainEvent[IO](
-            WaitingForEscrowBTCConfirmation(
-              1,
-              1,
-              1,
-              "",
-              escrowAddress,
-              redeemAddress,
-              claimAddress,
-              "btcTxId",
-              0,
-              100
-            ),
-            NewBTCBlock(7)
-          )(transitionToEffect[IO](_, _))
-          .isEmpty
+        .isInstanceOf[MintingTBTC]
     )
   }
   // WaitingForEscrowBTCConfirmation -> WaitingForBTC

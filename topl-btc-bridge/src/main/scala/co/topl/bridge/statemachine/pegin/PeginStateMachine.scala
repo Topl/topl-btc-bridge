@@ -136,6 +136,15 @@ object PeginStateMachine {
           currentState,
           blockchainEvent
         )(transitionToEffect[F])
+          .orElse(
+            Some(
+              FSMTransitionTo(
+                currentState,
+                currentState,
+                transitionToEffect(currentState, blockchainEvent)
+              )
+            )
+          )
           .map(x =>
             x match {
               case EndTransition(effect) =>
