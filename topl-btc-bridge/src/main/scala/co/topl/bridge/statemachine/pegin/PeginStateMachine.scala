@@ -170,7 +170,7 @@ object PeginStateMachine {
                 Sync[F].unit
             }
           )).collect({ case Some(value) =>
-          info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
+          debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
         })
 
     }
