@@ -153,7 +153,8 @@ object PeginStateMachine {
                   sessionManager
                     .removeSession(sessionId)
                     .flatMap(_ => effect.asInstanceOf[F[Unit]])
-              case FSMTransitionTo(prevState, nextState, effect) =>
+              case FSMTransitionTo(prevState, nextState, effect)
+                  if (prevState != nextState) =>
                 info"Transitioning session $sessionId from ${currentState
                     .getClass()
                     .getSimpleName()} to ${nextState.getClass().getSimpleName()}" >>
@@ -165,6 +166,8 @@ object PeginStateMachine {
                       effect.asInstanceOf[F[Unit]]
                     )
                   )
+              case FSMTransitionTo(_, _, _) =>
+                Sync[F].unit
             }
           )).collect({ case Some(value) =>
           info"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value

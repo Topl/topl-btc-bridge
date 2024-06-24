@@ -62,9 +62,9 @@ object PeginTransitionRelation {
       case SkippedBTCBlock(height) =>
         error"Error the processor skipped block $height"
       case NewToplBlock(height) =>
-        info"New Topl block $height"
+        debug"New Topl block $height"
       case NewBTCBlock(height) =>
-        info"New BTC block $height"
+        debug"New BTC block $height"
       case _ =>
         Async[F].unit
     }) >>
