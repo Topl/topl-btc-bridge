@@ -262,11 +262,11 @@ class BridgeIntegrationSpec
   cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
     info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
   }
-  // cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-  //   IO.println(
-  //     "Bridge should fail correctly when tBTC not redeemed"
-  //   ) >> failedRedemption()
-  // }
+  cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
+    IO.println(
+      "Bridge should fail correctly when tBTC not redeemed"
+    ) >> failedRedemption()
+  }
 
   cleanupDir.test(
     "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
