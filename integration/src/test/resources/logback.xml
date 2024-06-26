@@ -14,7 +14,8 @@
 
   <logger class="io.grpc.netty.shaded.io.grpc.netty.NettyClientHandler" level="WARN" />
   <logger name="Bifrost.P2P" level="WARN" />
-  <logger name="btc-bridge" level="INFO" />
+  <logger name="it-test" level="DEBUG" />
+  <logger name="btc-bridge" level="TRACE" />
   <root level="ERROR">
       <appender-ref ref="STDOUT" />
   </root>

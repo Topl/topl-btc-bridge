@@ -40,6 +40,7 @@ import java.util.UUID
 import co.topl.bridge.BTCWaitExpirationTime
 import cats.effect.kernel.Ref
 import co.topl.bridge.ToplWaitExpirationTime
+import org.typelevel.log4cats.Logger
 
 object StartSessionController {
 
@@ -116,7 +117,7 @@ object StartSessionController {
     )
   }
 
-  def startPeginSession[F[_]: Async](
+  def startPeginSession[F[_]: Async: Logger](
       req: StartPeginSessionRequest,
       pegInWalletManager: BTCWalletAlgebra[F],
       bridgeWalletManager: BTCWalletAlgebra[F],
@@ -135,6 +136,9 @@ object StartSessionController {
   ): F[Either[BridgeError, StartPeginSessionResponse]] = {
     import cats.implicits._
     import ToplWalletAlgebra._
+
+    import org.typelevel.log4cats.syntax._
+
     (for {
       idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
       (btcPeginCurrentWalletIdx, btcPeginBridgePKey) = idxAndnewKey
@@ -143,6 +147,10 @@ object StartSessionController {
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
       minToplHeight <- currentToplHeight.get
+      _ <-
+        if (minToplHeight == 0)
+          Sync[F].raiseError(new IllegalStateException("Topl height is 0"))
+        else Sync[F].unit
       maxToplHeight = minToplHeight + toplWaitExpirationTime.underlying
       someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,

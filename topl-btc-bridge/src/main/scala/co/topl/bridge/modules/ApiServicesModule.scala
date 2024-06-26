@@ -42,6 +42,7 @@ import quivr.models.KeyPair
 import quivr.models.VerificationKey
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
+import org.typelevel.log4cats.Logger
 
 trait ApiServicesModule {
 
@@ -143,7 +144,8 @@ trait ApiServicesModule {
       wsa: WalletStateAlgebra[IO],
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
-      genusQueryAlgebra: GenusQueryAlgebra[IO]
+      genusQueryAlgebra: GenusQueryAlgebra[IO],
+      logger: Logger[IO]
   ) = {
     import io.circe.syntax._
     implicit val bridgeErrorEncoder: Encoder[BridgeError] =

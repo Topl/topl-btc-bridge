@@ -111,6 +111,8 @@ object PeginStateMachine {
           fs2.Stream(
             for {
               x <- currentToplNetworkHeight.get
+              _ <- trace"current topl height is $x"
+              _ <- trace"Updating topl height to $height"
               _ <-
                 if (height > x) // TODO: handle reorgs
                   currentToplNetworkHeight.set(height)

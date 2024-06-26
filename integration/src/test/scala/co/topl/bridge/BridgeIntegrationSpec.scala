@@ -66,11 +66,7 @@ class BridgeIntegrationSpec
 
       override def beforeAll() = {
         (for {
-          cwd <- process
-            .ProcessBuilder("pwd")
-            .spawn[IO]
-            .use { getText }
-          _ <- IO.println("cwd: " + cwd)
+          _ <- pwd
           currentAddress <- process
             .ProcessBuilder(
               CS_CMD,

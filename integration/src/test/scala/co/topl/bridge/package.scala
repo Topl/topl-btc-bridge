@@ -26,6 +26,246 @@ package object bridge {
       FixedSeries: Option[String]
   )
 
+  def withLogging(
+      res: Resource[IO, process.Process[IO]]
+  )(implicit l: Logger[IO]) =
+    for {
+      pair <- res.use(x => getText(x).product(getError(x)))
+      (output, error) = pair
+      _ <-
+        if (error.trim().nonEmpty) {
+          error"$error"
+        } else {
+          info"$output"
+        }
+    } yield pair
+
+  def withTrace(
+      res: Resource[IO, process.Process[IO]]
+  )(implicit l: Logger[IO]) =
+    for {
+      pair <- res.use(x => getText(x).product(getError(x)))
+      (output, error) = pair
+      _ <-
+        if (error.trim().nonEmpty) {
+          error"$error"
+        } else {
+          trace"$output"
+        }
+    } yield pair
+
+  def withLoggingReturn(
+      res: Resource[IO, process.Process[IO]]
+  )(implicit l: Logger[IO]) =
+    for {
+      pair <- res.use(x => getText(x).product(getError(x)))
+      (output, error) = pair
+      _ <-
+        if (error.trim().nonEmpty) {
+          error"$error"
+        } else {
+          info"$output"
+        }
+    } yield output
+
+  def withTracingReturn(
+      res: Resource[IO, process.Process[IO]]
+  )(implicit l: Logger[IO]) =
+    for {
+      pair <- res.use(x => getText(x).product(getError(x)))
+      (output, error) = pair
+      _ <-
+        if (error.trim().nonEmpty) {
+          error"$error"
+        } else {
+          trace"$output"
+        }
+    } yield output
+
+  def mintToplBlock(nbBlocks: Int)(implicit l: Logger[IO]) =
+    withLogging(mintBlockP(nbBlocks))
+
+  def initToplWallet(id: Int)(implicit l: Logger[IO]) =
+    withLogging(initUserWalletP(id))
+
+  def pwd(implicit l: Logger[IO]) =
+    withLogging(pwdP)
+
+  def addSecret(id: Int)(implicit l: Logger[IO]) =
+    withLogging(addSecretP(id))
+
+  def createTx(txId: String, address: String, amount: BigDecimal)(implicit
+      l: Logger[IO]
+  ) =
+    withLoggingReturn(createTxP(txId, address, amount))
+
+  def initUserBitcoinWallet(implicit l: Logger[IO]) =
+    withLogging(initUserBitcoinWalletP)
+
+  def getNewAddress(implicit l: Logger[IO]) =
+    withLoggingReturn(getNewaddressP)
+
+  def generateToAddress(id: Int, amount: Int, address: String)(implicit
+      l: Logger[IO]
+  ) =
+    withTrace(generateToAddressP(id, amount, address))
+
+  def addTemplate(id: Int, sha256: String, min: Long, max: Long)(implicit
+      l: Logger[IO]
+  ) =
+    withLogging(addTemplateP(id, sha256, min, max))
+
+  def importVks(id: Int)(implicit l: Logger[IO]) =
+    withLogging(importVksP(id))
+
+  def fundRedeemAddressTx(id: Int, redeemAddress: String)(implicit
+      l: Logger[IO]
+  ) =
+    withLogging(fundRedeemAddressTxP(id, redeemAddress))
+
+  def proveFundRedeemAddressTx(
+      id: Int,
+      fileToProve: String,
+      provedFile: String
+  )(implicit
+      l: Logger[IO]
+  ) =
+    withLogging(proveFundRedeemAddressTxP(id, fileToProve, provedFile))
+
+  def broadcastFundRedeemAddressTx(txFile: String)(implicit l: Logger[IO]) =
+    withLogging(broadcastFundRedeemAddressTxP(txFile))
+
+  def currentAddress(id: Int)(implicit l: Logger[IO]) =
+    withLoggingReturn(currentAddressP(id))
+
+  def getCurrentUtxosFromAddress(id: Int, address: String)(implicit
+      l: Logger[IO]
+  ) = for {
+    utxo <- withTracingReturn(getCurrentUtxosFromAddressP(id, address))
+  } yield utxo
+
+  def redeemAddressTx(
+      id: Int,
+      redeemAddress: String,
+      amount: Long,
+      groupId: String,
+      seriesId: String
+  )(implicit l: Logger[IO]) =
+    withLogging(redeemAddressTxP(id, redeemAddress, amount, groupId, seriesId))
+
+  def extractGroupId(utxo: String) =
+    utxo
+      .split("\n")
+      .filter(_.contains("GroupId"))
+      .head
+      .split(":")
+      .last
+      .trim()
+
+  def extractSeriesId(utxo: String) =
+    utxo
+      .split("\n")
+      .filter(_.contains("SeriesId"))
+      .head
+      .split(":")
+      .last
+      .trim()
+
+  def startSession = EmberClientBuilder
+    .default[IO]
+    .build
+    .use({ client =>
+      client.expect[StartPeginSessionResponse](
+        Request[IO](
+          method = Method.POST,
+          Uri
+            .fromString(
+              "http://127.0.0.1:4000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
+            )
+            .toOption
+            .get
+        ).withContentType(
+          `Content-Type`.apply(MediaType.application.json)
+        ).withEntity(
+          StartPeginSessionRequest(
+            pkey =
+              "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
+            sha256 = shaSecretMap(1)
+          )
+        )
+      )
+    })
+
+  def checkMintingStatus(sessionId: String) = EmberClientBuilder
+    .default[IO]
+    .build
+    .use({ client =>
+      client.expect[MintingStatusResponse](
+        Request[IO](
+          method = Method.POST,
+          Uri
+            .fromString(
+              "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+            )
+            .toOption
+            .get
+        ).withContentType(
+          `Content-Type`.apply(MediaType.application.json)
+        ).withEntity(
+          MintingStatusRequest(sessionId)
+        )
+      )
+    })
+
+  def checkStatus(sessionId: String) = EmberClientBuilder
+    .default[IO]
+    .build
+    .use({ client =>
+      client
+        .status(
+          Request[IO](
+            method = Method.POST,
+            Uri
+              .fromString(
+                "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+              )
+              .toOption
+              .get
+          ).withContentType(
+            `Content-Type`.apply(MediaType.application.json)
+          ).withEntity(
+            MintingStatusRequest(sessionId)
+          )
+        )
+    })
+
+  def extractGetTxIdAndAmount(implicit l: Logger[IO]) = for {
+    unxpentTx <- withTracingReturn(extractGetTxIdP)
+    txId <- IO.fromEither(
+      parse(unxpentTx).map(x => (x \\ "txid").head.asString.get)
+    )
+    btcAmount <- IO.fromEither(
+      parse(unxpentTx).map(x => (x \\ "amount").head.asNumber.get)
+    )
+  } yield (
+    txId,
+    btcAmount.toBigDecimal.get - BigDecimal("0.01"),
+    ((btcAmount.toBigDecimal.get - BigDecimal("0.01")) * 100000000L).toLong
+  )
+
+  def createVkFile(vkFile: String) = fs2.io
+    .readInputStream[IO](
+      IO(
+        new ByteArrayInputStream(
+          "".getBytes()
+        )
+      ),
+      10
+    )
+    .through(Files[IO].writeAll(fs2.io.file.Path(vkFile)))
+    .compile
+    .drain
+
   def parseInput(input: String): List[InputData] = {
     val blocks = input.split("\n\n").toList // Split input into blocks
     blocks.map { block =>
@@ -87,7 +327,7 @@ package object bridge {
     "launch",
     "-r",
     "https://s01.oss.sonatype.org/content/repositories/releases",
-    "co.topl:brambl-cli_2.13:2.0.0-beta5",
+    "co.topl:brambl-cli_2.13:2.0.0-beta5+2-4f603d9d-SNAPSHOT",
     "--"
   )
 
@@ -98,40 +338,6 @@ package object bridge {
   def userWalletJson(id: Int) = "user-wallet" + f"$id%02d" + ".json"
 
   val vkFile = "key.txt"
-
-  val getCurrentUtxos = process
-    .ProcessBuilder(
-      CS_CMD,
-      csParams ++ Seq(
-        "genus-query",
-        "utxo-by-address",
-        "--host",
-        "localhost",
-        "--port",
-        "9084",
-        "--secure",
-        "false",
-        "--walletdb",
-        "data/topl-wallet.db"
-      ): _*
-    )
-    .spawn[IO]
-
-  def addSecret(id: Int) = process
-    .ProcessBuilder(
-      CS_CMD,
-      csParams ++ Seq(
-        "wallet",
-        "add-secret",
-        "--walletdb",
-        userWalletDb(id),
-        "--secret",
-        secretMap(id),
-        "--digest",
-        "sha256"
-      ): _*
-    )
-    .spawn[IO]
 
   // brambl-cli wallet init --network private --password password --newwalletdb user-wallet.db --mnemonicfile user-wallet-mnemonic.txt --output user-wallet.json
   def initUserWallet(id: Int) = process
