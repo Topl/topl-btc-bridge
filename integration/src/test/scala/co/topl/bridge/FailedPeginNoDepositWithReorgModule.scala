@@ -26,35 +26,11 @@ trait FailedPeginNoDepositWithReorgModule {
 
     assertIO(
       for {
-        cwd <- process
-          .ProcessBuilder("pwd")
-          .spawn[IO]
-          .use { getText }
-        _ <- IO.println("cwd: " + cwd)
-        createWalletOut <- process
-          .ProcessBuilder(DOCKER_CMD, createWallet: _*)
-          .spawn[IO]
-          .use { getText }
-        _ <- IO.println("createWalletOut: " + createWalletOut)
-        newAddress <- process // we get the new address
-          .ProcessBuilder(DOCKER_CMD, getNewaddress: _*)
-          .spawn[IO]
-          .use(getText)
-        _ <- IO.println("newAddress: " + newAddress)
-        _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 1, newAddress): _*)
-          .spawn[IO]
-          .use(_.exitValue)
-        unspent <- process
-          .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
-          .spawn[IO]
-          .use(getText)
-        txId <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "txid").head.asString.get)
-        )
-        btcAmount <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
-        )
+        _ <- initUserBitcoinWallet
+        newAddress <- getNewAddress
+        _ <- generateToAddress(1, 1, newAddress)
+        txIdAndBTCAmount <- extractGetTxIdAndAmount
+        (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
           .default[IO]

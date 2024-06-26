@@ -5,8 +5,6 @@ import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
-import fs2.io.process
-import io.circe.parser._
 import org.http4s.Method
 import org.http4s.Request
 import org.http4s.Uri
@@ -19,7 +17,6 @@ import scala.io.Source
 
 trait FailedRedemptionModule {
 
-  // self BridgeIntegrationSpec
   self: BridgeIntegrationSpec =>
 
   def failedRedemption(): IO[Unit] = {
@@ -27,37 +24,11 @@ trait FailedRedemptionModule {
 
     assertIO(
       for {
-        cwd <- process
-          .ProcessBuilder("pwd")
-          .spawn[IO]
-          .use { getText }
-        _ <- IO.println("cwd: " + cwd)
-        createWalletOut <- process
-          .ProcessBuilder(DOCKER_CMD, createWallet: _*)
-          .spawn[IO]
-          .use { getText }
-        _ <- IO.println("createWalletOut: " + createWalletOut)
-        newAddress <- process // we get the new address
-          .ProcessBuilder(DOCKER_CMD, getNewaddress: _*)
-          .spawn[IO]
-          .use(getText)
-        _ <- IO.println("newAddress: " + newAddress)
-        _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 1, newAddress): _*)
-          .spawn[IO]
-          .use(_.exitValue)
-        unspent <- process
-          .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
-          .spawn[IO]
-          .use(getText)
-        // _ <- IO.println("unspent: " + unspent)
-        txId <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "txid").head.asString.get)
-        )
-        _ <- IO.println("txId: " + txId)
-        btcAmount <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
-        )
+        _ <- initUserBitcoinWallet
+        newAddress <- getNewAddress
+        _ <- generateToAddress(1, 1, newAddress)
+        txIdAndBTCAmount <- extractGetTxIdAndAmount
+        (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount
         startSessionResponse <- EmberClientBuilder
           .default[IO]
           .build

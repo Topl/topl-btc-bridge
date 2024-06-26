@@ -63,42 +63,15 @@ trait SuccessfulPeginWithClaimReorgModule {
         )
         // print IP BTC 01
         _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
-        cwd <- process
-          .ProcessBuilder("pwd")
-          .spawn[IO]
-          .use { getText }
-        _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet(2).use { getText }
-        _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship(2).use { getText }
-        _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret(2).use { getText }
-        _ <- IO.println("addSecretResult: " + addSecretResult)
-        createWalletOut <- process
-          .ProcessBuilder(DOCKER_CMD, createWallet: _*)
-          .spawn[IO]
-          .use { getText }
-        _ <- IO.println("createWalletOut: " + createWalletOut)
-        newAddress <- process // we get the new address
-          .ProcessBuilder(DOCKER_CMD, getNewaddress: _*)
-          .spawn[IO]
-          .use(getText)
-        _ <- IO.println("newAddress: " + newAddress)
-        _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 1, newAddress): _*)
-          .spawn[IO]
-          .use(_.exitValue)
-        unspent <- process
-          .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
-          .spawn[IO]
-          .use(getText)
-        txId <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "txid").head.asString.get)
-        )
-        btcAmount <- IO.fromEither(
-          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
-        )
-        _ <- IO.println("txId: " + txId)
+        _ <- pwd
+        _ <- initToplWallet(1)
+        _ <- addFellowship(2)
+        _ <- addSecret(2)
+        _ <- initUserBitcoinWallet
+        newAddress <- getNewAddress
+        _ <- generateToAddress(1, 1, newAddress)
+        txIdAndBTCAmount <- extractGetTxIdAndAmount
+        (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount
         startSessionResponse <- EmberClientBuilder
           .default[IO]
           .build

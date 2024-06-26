@@ -25,7 +25,6 @@ trait SuccessfulPeginModule {
   self: BridgeIntegrationSpec =>
 
   def successfulPegin(): IO[Unit] = {
-    import co.topl.bridge.implicits._
 
     assertIO(
       for {
@@ -34,7 +33,6 @@ trait SuccessfulPeginModule {
         _ <- initToplWallet(1)
         _ <- addFellowship(1)
         _ <- addSecret(1)
-        _ <- initUserBitcoinWallet
         newAddress <- getNewAddress
         _ <- generateToAddress(1, 101, newAddress)
         txIdAndBTCAmount <- extractGetTxIdAndAmount
@@ -61,8 +59,6 @@ trait SuccessfulPeginModule {
             _ <- IO.sleep(1.second)
           } yield status)
             .iterateUntil(_.mintingStatus == "PeginSessionWaitingForRedemption")
-        _ <-
-          info"min: ${startSessionResponse.minHeight}, max: ${startSessionResponse.maxHeight}"
         _ <- createVkFile(vkFile)
         _ <- importVks(1)
         _ <- fundRedeemAddressTx(1, mintingStatusResponse.address)
