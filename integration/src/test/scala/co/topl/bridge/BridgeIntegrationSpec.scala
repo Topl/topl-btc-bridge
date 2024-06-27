@@ -43,8 +43,6 @@ class BridgeIntegrationSpec
         m.group(1) // Extract the first group matching the pattern
       case None => "bridge"
     }
-    // print network name
-    _ <- IO.println("networkName: " + networkName)
     // inspect bridge
     bridgeNetwork <- process
       .ProcessBuilder(DOCKER_CMD, inspectBridge(networkName): _*)
@@ -178,6 +176,9 @@ class BridgeIntegrationSpec
             .spawn[IO]
             .use { getText }
           _ <- initUserBitcoinWallet
+          newAddress <- getNewAddress
+          _ <- generateToAddress(1, 101, newAddress)
+          _ <- mintToplBlock(1)
         } yield ()).unsafeToFuture()
       }
 
@@ -263,31 +264,25 @@ class BridgeIntegrationSpec
     info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
   }
   cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-    IO.println(
-      "Bridge should fail correctly when tBTC not redeemed"
-    ) >> failedRedemption()
+    info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
   }
 
   cleanupDir.test(
     "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
   ) { _ =>
-    IO.println(
-      "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
-    ) >> failedPeginNoDepositWithReorg()
+    info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
   }
+
   cleanupDir.test(
     "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
   ) { _ =>
-    IO.println(
-      "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
-    ) >> successfulPeginWithClaimError()
+    info"Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation" >> successfulPeginWithClaimError()
   }
+
   cleanupDir.test(
     "Bridge should correctly retry if claim does not succeed"
   ) { _ =>
-    IO.println(
-      "Bridge should correctly retry if claim does not succeed"
-    ) >> successfulPeginWithClaimErrorRetry()
+    info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
   }
 
 }

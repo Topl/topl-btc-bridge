@@ -14,7 +14,7 @@ trait FailedPeginNoDepositModule {
     assertIO(
       for {
         newAddress <- getNewAddress
-        startSessionResponse <- startSession
+        startSessionResponse <- startSession(1)
         _ <- generateToAddress(1, 102, newAddress)
         _ <- checkStatus(startSessionResponse.sessionID)
           .flatMap(x =>

@@ -171,7 +171,21 @@ package object bridge {
       .last
       .trim()
 
-  def startSession = EmberClientBuilder
+  def extractIp(id: Int, bridgeNetwork: String) = IO.fromEither(
+    parse(bridgeNetwork)
+      .map(x =>
+        (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+          x.filter(x =>
+            (x._2 \\ "Name").head.asString.get == "bitcoin" + f"${id}%02d"
+          ).values
+            .head
+        }).get \\ "IPv4Address").head.asString.get
+          .split("/")
+          .head
+      )
+  )
+
+  def startSession(id: Int) = EmberClientBuilder
     .default[IO]
     .build
     .use({ client =>
@@ -190,7 +204,7 @@ package object bridge {
           StartPeginSessionRequest(
             pkey =
               "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
-            sha256 = shaSecretMap(1)
+            sha256 = shaSecretMap(id)
           )
         )
       )
@@ -578,49 +592,11 @@ package object bridge {
     )
     .spawn[IO]
 
-  val createWallet = Seq(
-    "exec",
-    "bitcoin01",
-    "bitcoin-cli",
-    "-regtest",
-    "-named",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "createwallet",
-    "wallet_name=testwallet"
-  )
-  val getNewaddress = Seq(
-    "exec",
-    "bitcoin01",
-    "bitcoin-cli",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "-regtest",
-    "-rpcwallet=testwallet",
-    "getnewaddress"
-  )
-  def generateToAddress(nodeId: Int, blocks: Int, address: String) = Seq(
-    "exec",
-    "bitcoin" + f"$nodeId%02d",
-    "bitcoin-cli",
-    "-regtest",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "generatetoaddress",
-    blocks.toString,
-    address
-  )
+  def forceConnection(id: Int, ip: String, port: Int)(implicit l: Logger[IO]) =
+    withLogging(forceConnectionP(id, ip, port))
 
-  def setNetworkActive(nodeId: Int, state: Boolean) = Seq(
-    "exec",
-    "bitcoin" + f"${nodeId}%02d",
-    "bitcoin-cli",
-    "-regtest",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "setnetworkactive",
-    state.toString
-  )
+  def setNetworkActive(nodeId: Int, state: Boolean)(implicit l: Logger[IO]) =
+    withLogging(setNetworkActiveP(nodeId, state))
 
   // exec bitcoin01 bitcoin-cli -regtest -rpcuser=bitcoin -rpcpassword=password addnode <ip>:<port> add
   def addNode(nodeId: Int, ip: String, port: Int) = Seq(
@@ -633,17 +609,6 @@ package object bridge {
     "addnode",
     s"$ip:$port",
     "add"
-  )
-  def forceConnection(nodeId: Int, ip: String, port: Int) = Seq(
-    "exec",
-    "bitcoin" + f"${nodeId}%02d",
-    "bitcoin-cli",
-    "-regtest",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "addnode",
-    s"$ip:$port",
-    "onetry"
   )
 
   // network inspect bridge

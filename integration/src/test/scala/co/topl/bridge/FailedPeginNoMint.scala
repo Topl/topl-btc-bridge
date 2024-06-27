@@ -16,7 +16,7 @@ trait FailedPeginNoMintModule {
         newAddress <- getNewAddress
         txIdAndBTCAmount <- extractGetTxIdAndAmount
         (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount
-        startSessionResponse <- startSession
+        startSessionResponse <- startSession(1)
         bitcoinTx <- createTx(
           txId,
           startSessionResponse.escrowAddress,

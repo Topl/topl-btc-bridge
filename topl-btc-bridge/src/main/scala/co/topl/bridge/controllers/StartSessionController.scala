@@ -1,13 +1,16 @@
 package co.topl.bridge.controllers
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.FellowshipStorageAlgebra
 import co.topl.brambl.dataApi.TemplateStorageAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.PeginSessionState
+import co.topl.bridge.ToplWaitExpirationTime
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.PegoutSessionInfo
@@ -33,14 +36,12 @@ import org.bitcoins.core.util.BitcoinScriptUtil
 import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
+import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
-import co.topl.bridge.BTCWaitExpirationTime
-import cats.effect.kernel.Ref
-import co.topl.bridge.ToplWaitExpirationTime
-import org.typelevel.log4cats.Logger
+import co.topl.shared.InvalidInput
 
 object StartSessionController {
 
@@ -190,8 +191,14 @@ object StartSessionController {
         .createDescriptor(btcPeginBridgePKey.hex, req.pkey, req.sha256),
       minToplHeight,
       maxToplHeight
-    ).asRight[BridgeError]).handleError { case e: BridgeError =>
-      Left(e)
+    ).asRight[BridgeError]).handleErrorWith {
+      case e: BridgeError =>
+        error"Error handling start pegin session request: $e"
+        Sync[F].delay(Left(e))
+      case t: Throwable =>
+        error"Error handling start pegin session request $t" >> Sync[F].delay(
+          Left(InvalidInput("Unknown error"))
+        )
     }
   }
 
