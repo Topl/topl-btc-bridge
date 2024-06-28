@@ -21,6 +21,8 @@ import co.topl.bridge.managers.SessionEvent
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.bridge.statemachine.pegin.BlockProcessor
+import org.http4s.server.middleware.CORS
+import org.http4s.implicits._
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.utils.Encoding
@@ -230,7 +232,10 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .withIdleTimeout(ServerConfig.idleTimeOut)
         .withHost(ServerConfig.host)
         .withPort(ServerConfig.port)
-        .withHttpApp(app)
+        .withHttpApp(
+          CORS.policy.withAllowOriginAll.withAllowMethodsAll
+            .withAllowHeadersAll(app)
+        )
         .withLogger(logger)
         .build
         .allocated
