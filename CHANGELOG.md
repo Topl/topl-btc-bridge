@@ -39,7 +39,7 @@ This is needed to know the range of blocks to wait for the redemption.
 - Rename `--blocks-to-recover` to `--btc-blocks-to-recover`.
 - Update the contract for the redemption to include the height. The new contract
 `threshold(1, sha256($sha256) and height($min, $max))`.
-- We now require the asset minted to be present at start time.
+- We now require the group and series tokens to be present at start time.
 
 
 ### Removed
