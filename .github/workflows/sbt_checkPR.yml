@@ -37,7 +37,7 @@ jobs:
         #
         ports:
            - 9084:9084
-      bitcoin:
+      bitcoin01:
         # Docker Hub image
         image: toplprotocol/bitcoin-zmq:v25-regtest
         #
@@ -45,7 +45,16 @@ jobs:
           - 18444:18444
           - 18443:18443
           - 28332:28332
-        options: --name bitcoin
+        options: --name bitcoin01
+      bitcoin02:
+        # Docker Hub image
+        image: toplprotocol/bitcoin-zmq:v25-regtest
+        #
+        ports:
+          - 18446:18444
+          - 18445:18443
+          - 28333:28332
+        options: --name bitcoin02
     steps:
       - name: Checkout code
         uses: actions/checkout@v3.0.2

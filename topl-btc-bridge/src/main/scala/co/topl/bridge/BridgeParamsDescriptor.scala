@@ -5,6 +5,8 @@ import scopt.OParser
 import co.topl.shared.ToplNetworkIdentifiers
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
 
 trait BridgeParamsDescriptor {
 
@@ -136,7 +138,25 @@ trait BridgeParamsDescriptor {
           if (x > 0.satoshis) success
           else failure("Fee per byte must be stricly greater than 0")
         )
-        .text("The fee per byte in satoshis. (optional)")
+        .text("The fee per byte in satoshis. (optional)"),
+      opt[GroupId]("abtc-group-id")
+        .action((x, c) => c.copy(groupId = x))
+        .text("Group id of the aBTC asset.")
+        .required(),
+      opt[SeriesId]("abtc-series-id")
+        .action((x, c) => c.copy(seriesId = x))
+        .text("Series id of the aBTC asset.")
+        .required(),
+      opt[Int]("btc-confirmation-threshold")
+        .action((x, c) => c.copy(btcConfirmationThreshold = x))
+        .text(
+          "The number of confirmations required for a peg-in transaction. (mandatory)"
+        )
+        .validate( // check that it is a positive number
+          x =>
+            if (x > 0) success
+            else failure("Confirmation threshold must be a positive number")
+        )
     )
   }
 

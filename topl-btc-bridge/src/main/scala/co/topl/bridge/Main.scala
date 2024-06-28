@@ -16,12 +16,17 @@ import org.bitcoins.rpc.config.BitcoindAuthCredentials
 import org.http4s.ember.server.EmberServerBuilder
 import scopt.OParser
 import cats.effect.std.Queue
+import co.topl.bridge.BTCRetryThreshold
 import co.topl.bridge.managers.SessionEvent
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.bridge.statemachine.pegin.BlockProcessor
 import org.http4s.server.middleware.CORS
 import org.http4s.implicits._
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.utils.Encoding
+import com.google.protobuf.ByteString
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -36,6 +41,10 @@ case object PeginSessionState {
   case object PeginSessionStateMintingTBTC extends PeginSessionState
   case object PeginSessionWaitingForRedemption extends PeginSessionState
   case object PeginSessionWaitingForClaim extends PeginSessionState
+  case object PeginSessionWaitingForEscrowBTCConfirmation
+      extends PeginSessionState
+  case object PeginSessionWaitingForClaimBTCConfirmation
+      extends PeginSessionState
 }
 
 object Main extends IOApp with BridgeParamsDescriptor with AppModule {
@@ -52,6 +61,16 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
           Option(System.getenv("ZMQ_PORT")).map(_.toInt).getOrElse(28332),
         btcUrl = Option(System.getenv("BTC_URL")).getOrElse("http://localhost"),
         btcUser = Option(System.getenv("BTC_USER")).getOrElse("bitcoin"),
+        groupId = Option(System.getenv("ABTC_GROUP_ID"))
+          .map(Encoding.decodeFromHex(_).toOption)
+          .flatten
+          .map(x => GroupId(ByteString.copyFrom(x)))
+          .getOrElse(GroupId(ByteString.copyFrom(Array.fill(32)(0.toByte)))),
+        seriesId = Option(System.getenv("ABTC_SERIES_ID"))
+          .map(Encoding.decodeFromHex(_).toOption)
+          .flatten
+          .map(x => SeriesId(ByteString.copyFrom(x)))
+          .getOrElse(SeriesId(ByteString.copyFrom(Array.fill(32)(0.toByte)))),
         btcPassword =
           Option(System.getenv("BTC_PASSWORD")).getOrElse("password")
       )
@@ -95,6 +114,11 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       params.btcUrl,
       credentials
     )
+    implicit val groupId = params.groupId
+    implicit val seriesId = params.seriesId
+    implicit val btcRetryThreshold: BTCRetryThreshold = new BTCRetryThreshold(
+      params.btcRetryThreshold
+    )
     (for {
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
@@ -111,6 +135,10 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       _ <- info"topl-blocks-to-recover : ${params.toplWaitExpirationTime}" (
         logger
       )
+      _ <-
+        info"btc-confirmation-threshold : ${params.btcConfirmationThreshold}" (
+          logger
+        )
       _ <- info"btc-peg-in-seed-file   : ${params.btcPegInSeedFile}" (logger)
       _ <- info"btc-peg-in-password    : ******" (logger)
       _ <- info"wallet-seed-file       : ${params.btcWalletSeedFile}" (logger)
@@ -127,9 +155,17 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
       _ <- info"topl-network           : ${params.toplNetwork}" (logger)
       _ <- info"topl-host              : ${params.toplHost}" (logger)
       _ <- info"topl-port              : ${params.toplPort}" (logger)
-      _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (logger)
+      _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (
+        logger
+      )
       _ <- info"minting-fee            : ${params.mintingFee}" (logger)
       _ <- info"fee-per-byte           : ${params.feePerByte}" (logger)
+      _ <- info"abtc-group-id          : ${Encoding.encodeToHex(params.groupId.value.toByteArray)}" (
+        logger
+      )
+      _ <- info"abtc-series-id         : ${Encoding.encodeToHex(params.seriesId.value.toByteArray)}" (
+        logger
+      )
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
@@ -171,12 +207,17 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
             .drain
         )
         .allocated
+      currentToplHeightVal <- currentToplHeight.get
+      currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
       _ <- IO.asyncForIO
         .background(
           monitor
             .monitorBlocks()
             .either(bifrostMonitor.monitorBlocks())
-            .flatMap(BlockProcessor.process)
+            .flatMap(
+              BlockProcessor
+                .process(currentBitcoinNetworkHeightVal, currentToplHeightVal)
+            )
             .flatMap(
               // this handles each event in the context of the state machine
               peginStateMachine.handleBlockchainEventInContext
@@ -198,7 +239,14 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .withLogger(logger)
         .build
         .allocated
-        .both(init.setupWallet(defaultFromFellowship, defaultFromTemplate))
+        .both(
+          init.setupWallet(
+            defaultFromFellowship,
+            defaultFromTemplate,
+            params.groupId,
+            params.seriesId
+          )
+        )
     } yield {
       Right(
         s"Server started on ${ServerConfig.host}:${ServerConfig.port}"

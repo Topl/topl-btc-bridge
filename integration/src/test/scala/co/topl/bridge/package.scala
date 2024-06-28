@@ -14,6 +14,51 @@ import org.http4s.circe._
 
 package object bridge {
 
+  case class InputData(
+      LockAddress: String,
+      Type: String,
+      Id: Option[String],
+      Fungibility: Option[String],
+      TokenSupply: Option[String],
+      QuantDescr: Option[String],
+      Value: Int,
+      TxoAddress: Option[String],
+      FixedSeries: Option[String]
+  )
+
+  def parseInput(input: String): List[InputData] = {
+    val blocks = input.split("\n\n").toList // Split input into blocks
+    blocks.map { block =>
+      val lines = block.split("\n").map(_.trim).toList
+      val dataMap = lines.map { line =>
+        val Array(key, value) = line.split(":", 2).map(_.trim)
+        key -> value
+      }.toMap
+
+      InputData(
+        LockAddress = dataMap("LockAddress"),
+        Type = dataMap("Type"),
+        Id = dataMap.get("Id"),
+        Fungibility = dataMap.get("Fungibility"),
+        TokenSupply = dataMap.get("Token-Supply"),
+        QuantDescr = dataMap.get("Quant-Descr."),
+        Value = dataMap("Value").toInt,
+        TxoAddress = dataMap.get("TxoAddress"),
+        FixedSeries = dataMap.get("Fixed-Series")
+      )
+    }
+  }
+
+  def extractIds(input: String): (String, String) = {
+    val dataList = parseInput(input)
+    val seriesConstructorId =
+      dataList.filter(_.Type == "Series Constructor").flatMap(_.Id)
+    val groupConstructorId =
+      dataList.filter(_.Type == "Group Constructor").flatMap(_.Id)
+
+    (groupConstructorId.mkString, seriesConstructorId.mkString)
+  }
+
   object implicits {
 
     implicit val startSessionRequestDecoder
@@ -46,11 +91,11 @@ package object bridge {
     "--"
   )
 
-  val userWalletDb = "user-wallet.db"
+  def userWalletDb(id: Int) = "user-wallet" + f"$id%02d" + ".db"
 
-  val userWalletMnemonic = "user-wallet-mnemonic.txt"
+  def userWalletMnemonic(id: Int) = "user-wallet-mnemonic" + f"$id%02d" + ".txt"
 
-  val userWalletJson = "user-wallet.json"
+  def userWalletJson(id: Int) = "user-wallet" + f"$id%02d" + ".json"
 
   val vkFile = "key.txt"
 
@@ -72,16 +117,16 @@ package object bridge {
     )
     .spawn[IO]
 
-  val addSecret = process
+  def addSecret(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
         "wallet",
         "add-secret",
         "--walletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--secret",
-        "topl-secret",
+        secretMap(id),
         "--digest",
         "sha256"
       ): _*
@@ -89,7 +134,7 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli wallet init --network private --password password --newwalletdb user-wallet.db --mnemonicfile user-wallet-mnemonic.txt --output user-wallet.json
-  val initUserWallet = process
+  def initUserWallet(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -100,16 +145,16 @@ package object bridge {
         "--password",
         "password",
         "--newwalletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--mnemonicfile",
-        userWalletMnemonic,
+        userWalletMnemonic(id),
         "--output",
-        userWalletJson
+        userWalletJson(id)
       ): _*
     )
     .spawn[IO]
 
-  def getCurrentUtxosFromAddress(address: String) = process
+  def getCurrentUtxosFromAddress(id: Int, address: String) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -122,31 +167,34 @@ package object bridge {
         "--secure",
         "false",
         "--walletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--from-address",
         address
       ): _*
     )
     .spawn[IO]
 
-  def templateFromSha(sha256: String,  min: Long, max: Long) =
+  def templateFromSha(sha256: String, min: Long, max: Long) =
     s"""threshold(1, sha256($sha256) and height($min, $max))"""
-  val secret = "topl-secret"
 
-  val sha256ToplSecret =
-    "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df"
+  val secretMap = Map(1 -> "topl-secret", 2 -> "topl-secret01")
+
+  val shaSecretMap = Map(
+    1 -> "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df",
+    2 -> "b46478c2553d2972c4a79172f7b468b422c6c516a980340acf83508d478504c3"
+  )
 
   // brambl-cli templates add --walletdb user-wallet.db --template-name redeemBridge --lock-template
-  def addTemplate(sha256: String, min: Long, max: Long) = process
+  def addTemplate(id: Int, sha256: String, min: Long, max: Long) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
         "templates",
         "add",
         "--walletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--template-name",
-        "redeemBridge",
+        "redeemBridge" + f"$id%02d",
         "--lock-template",
         templateFromSha(sha256, min, max)
       ): _*
@@ -154,43 +202,43 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli wallet import-vks --walletdb user-wallet.db --input-vks key.txt --fellowship-name bridge --template-name redeemBridge -w password -k user-wallet.json
-  val importVks = process
+  def importVks(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
         "wallet",
         "import-vks",
         "--walletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--input-vks",
         vkFile,
         "--fellowship-name",
         "bridge",
         "--template-name",
-        "redeemBridge",
+        "redeemBridge" + f"$id%02d",
         "-w",
         "password",
         "-k",
-        userWalletJson
+        userWalletJson(id)
       ): _*
     )
     .spawn[IO]
 
   // brambl-cli wallet current-address --walletdb user-wallet.db
-  val currentAddress = process
+  def currentAddress(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
         "wallet",
         "current-address",
         "--walletdb",
-        userWalletDb
+        userWalletDb(id)
       ): _*
     )
     .spawn[IO]
 
   // brambl-cli simple-transaction create --from-fellowship nofellowship --from-template genesis --from-interaction 1 -t ptetP7jshHTzLLp81RbPkeHKWFJWeE3ijH94TAmiBRPTUTj2htC31NyEWU8p -w password -o genesisTx.pbuf -n private -a 10 -h  localhost --port 9084  --keyfile user-keyfile.json --walletdb user-wallet.db --fee 10 --transfer-token lvl
-  def fundRedeemAddressTx(redeemAddress: String) = process
+  def fundRedeemAddressTx(id: Int, redeemAddress: String) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -223,9 +271,9 @@ package object bridge {
         "--port",
         "9084",
         "--keyfile",
-        userWalletJson,
+        userWalletJson(id),
         "--walletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--fee",
         "10",
         "--transfer-token",
@@ -236,6 +284,7 @@ package object bridge {
 
   // brambl-cli simple-transaction create --from-fellowship bridge --from-template redeemBridge -t ptetP7jshHTzLLp81RbPkeHKWFJWeE3ijH94TAmiBRPTUTj2htC31NyEWU8p -w password -o redeemTx.pbuf -n private -a 10 -h  localhost --port 9084  --keyfile user-keyfile.json --walletdb user-wallet.db --fee 10 --transfer-token asset
   def redeemAddressTx(
+      id: Int,
       redeemAddress: String,
       amount: Long,
       groupId: String,
@@ -249,7 +298,7 @@ package object bridge {
         "--from-fellowship",
         "bridge",
         "--from-template",
-        "redeemBridge",
+        "redeemBridge" + f"$id%02d",
         "-t",
         redeemAddress,
         "-w",
@@ -265,9 +314,9 @@ package object bridge {
         "--port",
         "9084",
         "--keyfile",
-        userWalletJson,
+        userWalletJson(id),
         "--walletdb",
-        userWalletDb,
+        userWalletDb(id),
         "--fee",
         "10",
         "--transfer-token",
@@ -281,7 +330,11 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli tx prove -i fundRedeemTx.pbuf --walletdb user-wallet.db --keyfile user-keyfile.json -w password -o fundRedeemTxProved.pbuf
-  def proveFundRedeemAddressTx(fileToProve: String, provedFile: String) =
+  def proveFundRedeemAddressTx(
+      id: Int,
+      fileToProve: String,
+      provedFile: String
+  ) =
     process
       .ProcessBuilder(
         CS_CMD,
@@ -291,9 +344,9 @@ package object bridge {
           "-i",
           fileToProve, // "fundRedeemTx.pbuf",
           "--walletdb",
-          userWalletDb,
+          userWalletDb(id),
           "--keyfile",
-          userWalletJson,
+          userWalletJson(id),
           "-w",
           "password",
           "-o",
@@ -321,7 +374,7 @@ package object bridge {
 
   val createWallet = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-named",
@@ -332,7 +385,7 @@ package object bridge {
   )
   val getNewaddress = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-rpcuser=bitcoin",
     "-rpcpassword=password",
@@ -340,9 +393,9 @@ package object bridge {
     "-rpcwallet=testwallet",
     "getnewaddress"
   )
-  def generateToAddress(blocks: Int, address: String) = Seq(
+  def generateToAddress(nodeId: Int, blocks: Int, address: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin" + f"$nodeId%02d",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -352,20 +405,51 @@ package object bridge {
     address
   )
 
-  def createTransaction(address: String) = Seq(
+  def setNetworkActive(nodeId: Int, state: Boolean) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin" + f"${nodeId}%02d",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
     "-rpcpassword=password",
-    "generatetoaddress",
-    "101",
-    address
+    "setnetworkactive",
+    state.toString
   )
+
+  // exec bitcoin01 bitcoin-cli -regtest -rpcuser=bitcoin -rpcpassword=password addnode <ip>:<port> add
+  def addNode(nodeId: Int, ip: String, port: Int) = Seq(
+    "exec",
+    "bitcoin" + f"${nodeId}%02d",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "addnode",
+    s"$ip:$port",
+    "add"
+  )
+  def forceConnection(nodeId: Int, ip: String, port: Int) = Seq(
+    "exec",
+    "bitcoin" + f"${nodeId}%02d",
+    "bitcoin-cli",
+    "-regtest",
+    "-rpcuser=bitcoin",
+    "-rpcpassword=password",
+    "addnode",
+    s"$ip:$port",
+    "onetry"
+  )
+
+  // network inspect bridge
+  def inspectBridge(networkName: String) =
+    Seq("network", "inspect", networkName)
+
+  // docker network ls
+  val networkLs = Seq("network", "ls")
+
   def signTransaction(tx: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -376,7 +460,7 @@ package object bridge {
   )
   def sendTransaction(signedTx: String) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-regtest",
     "-rpcuser=bitcoin",
@@ -387,7 +471,7 @@ package object bridge {
 
   val extractGetTxId = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-cli",
     "-rpcuser=bitcoin",
     "-rpcpassword=password",
@@ -398,7 +482,7 @@ package object bridge {
 
   def createTx(txId: String, address: String, amount: BigDecimal) = Seq(
     "exec",
-    "bitcoin",
+    "bitcoin01",
     "bitcoin-tx",
     "-regtest",
     "-create",
@@ -419,7 +503,7 @@ package object bridge {
       .foldMonoid
 
   // brambl-cli fellowships add --walletdb user-wallet.db --fellowship-name bridge
-  val addFellowship = process
+  def addFellowship(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       Seq(
@@ -431,7 +515,7 @@ package object bridge {
         "fellowships",
         "add",
         "--walletdb",
-        "user-wallet.db",
+        userWalletDb(id),
         "--fellowship-name",
         "bridge"
       ): _*

@@ -6,6 +6,10 @@ import org.bitcoins.core.currency.SatoshisLong
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import co.topl.brambl.utils.Encoding
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.SeriesId
+import com.google.protobuf.ByteString
 
 object ParamParser {
 
@@ -40,5 +44,25 @@ object ParamParser {
             "Could not conver value to satoshi"
           )
       })
+
+  implicit val groupIdRead: scopt.Read[GroupId] =
+    scopt.Read.reads { x =>
+      val array = Encoding.decodeFromHex(x).toOption match {
+        case Some(value) => value
+        case None =>
+          throw new IllegalArgumentException("Invalid group id")
+      }
+      GroupId(ByteString.copyFrom(array))
+    }
+
+  implicit val seriesIdRead: scopt.Read[SeriesId] =
+    scopt.Read.reads { x =>
+      val array = Encoding.decodeFromHex(x).toOption match {
+        case Some(value) => value
+        case None =>
+          throw new IllegalArgumentException("Invalid series id")
+      }
+      SeriesId(ByteString.copyFrom(array))
+    }
 
 }

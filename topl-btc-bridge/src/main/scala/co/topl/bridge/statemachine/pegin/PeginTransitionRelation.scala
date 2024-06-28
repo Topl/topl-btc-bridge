@@ -19,13 +19,27 @@ import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import quivr.models.KeyPair
 import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.BTCRetryThreshold
+import co.topl.bridge.BTCConfirmationThreshold
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
+import co.topl.bridge.AssetToken
+import co.topl.brambl.utils.Encoding
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.syntax._
 
 object PeginTransitionRelation {
 
   import WaitingBTCOps._
   import WaitingForRedemptionOps._
 
-  def transitionToEffect[F[_]: Async](
+  private def isAboveThreshold(
+      currentHeight: Int,
+      startHeight: Int
+  )(implicit btcConfirmationThreshold: BTCConfirmationThreshold) =
+    currentHeight - startHeight > btcConfirmationThreshold.underlying
+
+  def transitionToEffect[F[_]: Async: Logger](
       currentState: PeginStateMachineState,
       blockchainEvent: BlockchainEvent
   )(implicit
@@ -40,62 +54,192 @@ object PeginTransitionRelation {
       defaultFromTemplate: Template,
       utxoAlgebra: GenusQueryAlgebra[F],
       defaultFeePerByte: BitcoinCurrencyUnit,
-      defaultMintingFee: Lvl
+      defaultMintingFee: Lvl,
+      btcRetryThreshold: BTCRetryThreshold,
+      btcConfirmationThreshold: BTCConfirmationThreshold
   ) =
-    (currentState, blockchainEvent) match {
-      case (
-            cs: WaitingForRedemption,
-            BifrostFundsWithdrawn(_, _, secret, amount)
-          ) =>
-        import co.topl.brambl.syntax._
-        Async[F]
-          .start(
-            startClaimingProcess(
-              secret,
-              cs.claimAddress,
-              cs.currentWalletIdx,
-              cs.btcTxId,
-              cs.btcVout,
-              cs.scriptAsm, // scriptAsm,
-              amount.amount.toLong // amount,
+    (blockchainEvent match {
+      case SkippedBTCBlock(height) =>
+        error"Error the processor skipped block $height"
+      case NewToplBlock(height) =>
+        debug"New Topl block $height"
+      case NewBTCBlock(height) =>
+        debug"New BTC block $height"
+      case _ =>
+        Async[F].unit
+    }) >>
+      ((currentState, blockchainEvent) match {
+        case (
+              cs: WaitingForRedemption,
+              BifrostFundsWithdrawn(_, _, secret, amount)
+            ) =>
+          import co.topl.brambl.syntax._
+          Async[F]
+            .start(
+              startClaimingProcess(
+                secret,
+                cs.claimAddress,
+                cs.currentWalletIdx,
+                cs.btcTxId,
+                cs.btcVout,
+                cs.scriptAsm, // scriptAsm,
+                amount.amount.toLong // amount,
+              )
             )
-          )
-          .void
-      case (
-            cs: WaitingForBTC,
-            BTCFundsDeposited(_, _, _, amount)
-          ) =>
-        Async[F]
-          .start(
-            startMintingProcess[F](
-              defaultFromFellowship,
-              defaultFromTemplate,
-              cs.redeemAddress,
-              amount.satoshis.toLong
-            )
-          )
-          .void
-      case (_, _) => Async[F].unit
-    }
+            .void
+        case (
+              cs: WaitingForEscrowBTCConfirmation,
+              newBTCBLock: NewBTCBlock
+            ) =>
+          if (isAboveThreshold(newBTCBLock.height, cs.depositBTCBlockHeight))
+            Async[F]
+              .start(
+                startMintingProcess[F](
+                  defaultFromFellowship,
+                  defaultFromTemplate,
+                  cs.redeemAddress,
+                  cs.amount
+                )
+              )
+              .void
+          else Async[F].unit
+        case (
+              cs: WaitingForClaim,
+              ev: NewBTCBlock
+            ) =>
+          // if we the someStartBtcBlockHeight is empty, we need to set it
+          // if it is not empty, we need to check if the number of blocks since waiting is bigger than the threshold
+          cs.someStartBtcBlockHeight match {
+            case None =>
+              Async[F].unit
+            case Some(startBtcBlockHeight) =>
+              import co.topl.brambl.syntax._
+              if (
+                btcRetryThreshold.underlying < (ev.height - startBtcBlockHeight)
+              )
+                Async[F]
+                  .start(
+                    startClaimingProcess(
+                      cs.secret,
+                      cs.claimAddress,
+                      cs.currentWalletIdx,
+                      cs.btcTxId,
+                      cs.btcVout,
+                      cs.scriptAsm, // scriptAsm,
+                      cs.amount.amount.toLong
+                    )
+                  )
+                  .void
+              else
+                Async[F].unit
+          }
+        case (_, _) => Async[F].unit
+      })
 
-  def handleBlockchainEvent[F[_]: Async](
+  def handleBlockchainEvent[F[_]: Async: Logger](
       currentState: PeginStateMachineState,
       blockchainEvent: BlockchainEvent
   )(
       t2E: (PeginStateMachineState, BlockchainEvent) => F[Unit]
   )(implicit
+      btcRetryThreshold: BTCRetryThreshold,
       btcWaitExpirationTime: BTCWaitExpirationTime,
-      toplWaitExpirationTime: ToplWaitExpirationTime
+      toplWaitExpirationTime: ToplWaitExpirationTime,
+      btcConfirmationThreshold: BTCConfirmationThreshold,
+      groupId: GroupId,
+      seriesId: SeriesId
   ): Option[FSMTransition] =
-    (currentState, blockchainEvent) match {
+    ((currentState, blockchainEvent) match {
       case (
             cs: WaitingForRedemption,
             ev: NewToplBlock
           ) =>
-        if (toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight))
+        if (
+          toplWaitExpirationTime.underlying < (ev.height - cs.currentTolpBlockHeight)
+        )
           Some(
-            EndTrasition[F](
-              Async[F].unit
+            EndTransition[F](
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        else
+          None
+      case (
+            cs: WaitingForEscrowBTCConfirmation,
+            ev: NewBTCBlock
+          ) =>
+        // check that the confirmation threshold has been passed
+        if (isAboveThreshold(ev.height, cs.depositBTCBlockHeight))
+          Some(
+            FSMTransitionTo(
+              currentState,
+              MintingTBTC(
+                ev.height,
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.redeemAddress,
+                cs.claimAddress,
+                cs.btcTxId,
+                cs.btcVout,
+                cs.amount
+              ),
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        else if (ev.height <= cs.depositBTCBlockHeight) {
+          // we are seeing the block where the transaction was found again
+          // this can only mean that block is being unapplied
+          Some(
+            FSMTransitionTo(
+              currentState,
+              WaitingForBTC(
+                cs.startBTCBlockHeight,
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.escrowAddress,
+                cs.redeemAddress,
+                cs.claimAddress
+              ),
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        } else None
+      case (
+            cs: WaitingForClaimBTCConfirmation,
+            ev: NewBTCBlock
+          ) =>
+        // check that the confirmation threshold has been passed
+        if (isAboveThreshold(ev.height, cs.claimBTCBlockHeight))
+          // we have successfully claimed the BTC
+          Some(
+            EndTransition[F](
+              info"Successfully confirmed claim transaction" >> t2E(
+                currentState,
+                blockchainEvent
+              )
+            )
+          )
+        else if (ev.height <= cs.claimBTCBlockHeight)
+          // we are seeing the block where the transaction was found again
+          // this can only mean that block is being unapplied
+          // we need to go back to waiting for claim
+          Some(
+            FSMTransitionTo(
+              currentState,
+              WaitingForClaim(
+                None,
+                cs.secret,
+                cs.currentWalletIdx,
+                cs.btcTxId,
+                cs.btcVout,
+                cs.scriptAsm,
+                cs.amount,
+                cs.claimAddress
+              ),
+              warn"Backtracking we are seeing block ${ev.height}, which is smaller or equal to the block where the BTC was claimed (${cs.claimBTCBlockHeight})" >> t2E(
+                currentState,
+                blockchainEvent
+              )
             )
           )
         else
@@ -108,20 +252,91 @@ object PeginTransitionRelation {
           Some(
             FSMTransitionTo(
               currentState,
-              WaitingForClaim(cs.claimAddress),
+              WaitingForClaim(
+                None, // we don't know here in which BTC block we are
+                be.secret,
+                cs.currentWalletIdx,
+                cs.btcTxId,
+                cs.btcVout,
+                cs.scriptAsm,
+                cs.amount,
+                cs.claimAddress
+              ),
               t2E(currentState, blockchainEvent)
             )
           )
         } else None
       case (
-            WaitingForClaim(claimAddress),
-            BTCFundsDeposited(scriptPubKey, _, _, _)
+            cs: WaitingForClaim,
+            ev: NewBTCBlock
           ) =>
-        val bech32Address = Bech32Address.fromString(claimAddress)
+        // if we the someStartBtcBlockHeight is empty, we need to set it
+        // if it is not empty, we need to check if the number of blocks since waiting is bigger than the threshold
+        cs.someStartBtcBlockHeight match {
+          case None =>
+            Some(
+              FSMTransitionTo(
+                currentState,
+                WaitingForClaim(
+                  Some(ev.height),
+                  cs.secret,
+                  cs.currentWalletIdx,
+                  cs.btcTxId,
+                  cs.btcVout,
+                  cs.scriptAsm,
+                  cs.amount,
+                  cs.claimAddress
+                ),
+                t2E(currentState, blockchainEvent)
+              )
+            )
+          case Some(startBtcBlockHeight) =>
+            if (
+              btcRetryThreshold.underlying < (ev.height - startBtcBlockHeight)
+            )
+              Some(
+                FSMTransitionTo(
+                  currentState,
+                  WaitingForClaim(
+                    Some(ev.height), // this will reset the counter
+                    cs.secret,
+                    cs.currentWalletIdx,
+                    cs.btcTxId,
+                    cs.btcVout,
+                    cs.scriptAsm,
+                    cs.amount,
+                    cs.claimAddress
+                  ),
+                  t2E(currentState, blockchainEvent)
+                )
+              )
+            else
+              None
+        }
+      case (
+            cs: WaitingForClaim,
+            BTCFundsDeposited(depositBTCBlockHeight, scriptPubKey, _, _, _)
+          ) =>
+        val bech32Address = Bech32Address.fromString(cs.claimAddress)
         if (scriptPubKey == bech32Address.scriptPubKey) {
+          // the funds were successfully deposited to the claim address
           Some(
-            EndTrasition[F](
-              Async[F].unit
+            FSMTransitionTo(
+              currentState,
+              WaitingForClaimBTCConfirmation(
+                depositBTCBlockHeight,
+                cs.secret,
+                cs.currentWalletIdx,
+                cs.btcTxId,
+                cs.btcVout,
+                cs.scriptAsm,
+                cs.amount,
+                cs.claimAddress
+              ),
+              t2E(
+                currentState,
+                blockchainEvent
+              )
             )
           )
         } else None
@@ -129,10 +344,12 @@ object PeginTransitionRelation {
             cs: WaitingForBTC,
             ev: NewBTCBlock
           ) =>
-        if (btcWaitExpirationTime.underlying < (ev.height - cs.currentBTCBlockHeight))
+        if (
+          btcWaitExpirationTime.underlying < (ev.height - cs.currentBTCBlockHeight)
+        )
           Some(
-            EndTrasition[F](
-              Async[F].unit
+            EndTransition[F](
+              t2E(currentState, blockchainEvent)
             )
           )
         else
@@ -145,8 +362,8 @@ object PeginTransitionRelation {
           ev.height - cs.startBTCBlockHeight > btcWaitExpirationTime.underlying
         )
           Some(
-            EndTrasition[F](
-              Async[F].unit
+            EndTransition[F](
+              t2E(currentState, blockchainEvent)
             )
           )
         else
@@ -155,7 +372,16 @@ object PeginTransitionRelation {
             cs: MintingTBTC,
             be: BifrostFundsDeposited
           ) =>
-        if (cs.redeemAddress == be.address) {
+        import co.topl.brambl.syntax._
+
+        if (
+          cs.redeemAddress == be.address &&
+          AssetToken(
+            Encoding.encodeToBase58(groupId.value.toByteArray),
+            Encoding.encodeToBase58(seriesId.value.toByteArray),
+            cs.amount
+          ) == be.amount
+        ) {
           Some(
             FSMTransitionTo(
               currentState,
@@ -168,7 +394,8 @@ object PeginTransitionRelation {
                 cs.btcTxId,
                 cs.btcVout,
                 be.utxoTxId,
-                be.utxoIndex
+                be.utxoIndex,
+                be.amount
               ),
               Sync[F].unit
             )
@@ -183,10 +410,12 @@ object PeginTransitionRelation {
           Some(
             FSMTransitionTo(
               currentState,
-              MintingTBTC(
+              WaitingForEscrowBTCConfirmation(
                 cs.currentBTCBlockHeight,
+                ev.fundsDepositedHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
+                cs.escrowAddress,
                 cs.redeemAddress,
                 cs.claimAddress,
                 ev.txId,
@@ -210,10 +439,14 @@ object PeginTransitionRelation {
         None // No transition
       case (_: MintingTBTC, _) =>
         None // No transition
+      case (_: WaitingForEscrowBTCConfirmation, _) =>
+        None // No transition
+      case (_: WaitingForClaimBTCConfirmation, _) =>
+        None // No transition
       case (
             _: WaitingForBTC,
             _
           ) =>
         None // No transition
-    }
+    })
 }

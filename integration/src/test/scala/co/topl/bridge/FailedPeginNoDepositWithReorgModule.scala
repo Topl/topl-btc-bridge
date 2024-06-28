@@ -1,11 +1,11 @@
 package co.topl.bridge
+
 import cats.effect.IO
 import co.topl.shared.BridgeContants
 import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
-import fs2.io.file.Files
 import fs2.io.process
 import io.circe.parser._
 import org.http4s.Method
@@ -15,16 +15,13 @@ import org.http4s._
 import org.http4s.ember.client._
 import org.http4s.headers.`Content-Type`
 
-import java.io.ByteArrayInputStream
 import scala.concurrent.duration._
-import scala.io.Source
 
-trait SuccessfulPeginModule {
+trait FailedPeginNoDepositWithReorgModule {
 
-  // self BridgeIntegrationSpec
   self: BridgeIntegrationSpec =>
 
-  def successfulPegin(): IO[Unit] = {
+  def failedPeginNoDepositWithReorg(): IO[Unit] = {
     import co.topl.bridge.implicits._
 
     assertIO(
@@ -34,12 +31,6 @@ trait SuccessfulPeginModule {
           .spawn[IO]
           .use { getText }
         _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet(1).use { getText }
-        _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship(1).use { getText }
-        _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret(1).use { getText }
-        _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
@@ -51,16 +42,18 @@ trait SuccessfulPeginModule {
           .use(getText)
         _ <- IO.println("newAddress: " + newAddress)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 101, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 1, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         unspent <- process
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
           .use(getText)
-        // _ <- IO.println("unspent: " + unspent)
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
+        )
+        btcAmount <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
         )
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
@@ -87,23 +80,53 @@ trait SuccessfulPeginModule {
               )
             )
           })
-        _ <- IO.println("script: " + startSessionResponse.script)
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
-        addTemplateResult <- addTemplate(
-          1,
-          shaSecretMap(1),
-          startSessionResponse.minHeight,
-          startSessionResponse.maxHeight
-        ).use { getText }
-        _ <- IO.println("addTemplateResult: " + addTemplateResult)
-        _ <- IO(Source.fromString(startSessionResponse.descriptor))
+        bridgeNetwork <- computeBridgeNetworkName
+        // parse
+        ipBitcoin02 <- IO.fromEither(
+          parse(bridgeNetwork)
+            .map(x =>
+              (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+                x.filter(x => (x._2 \\ "Name").head.asString.get == "bitcoin02")
+                  .values
+                  .head
+              }).get \\ "IPv4Address").head.asString.get
+                .split("/")
+                .head
+            )
+        )
+        // print IP BTC 02
+        _ <- IO.println("ipBitcoin02: " + ipBitcoin02)
+        // parse
+        ipBitcoin01 <- IO.fromEither(
+          parse(bridgeNetwork)
+            .map(x =>
+              (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+                x.filter(x => (x._2 \\ "Name").head.asString.get == "bitcoin01")
+                  .values
+                  .head
+              }).get \\ "IPv4Address").head.asString.get
+                .split("/")
+                .head
+            )
+        )
+        // print IP BTC 01
+        _ <- IO.println("ipBitcoin01: " + ipBitcoin01)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, false): _*)
+          .spawn[IO]
+          .use { getText }
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, false): _*)
+          .spawn[IO]
+          .use { getText }
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal("49.99")
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")
             ): _*
           )
           .spawn[IO]
@@ -116,17 +139,17 @@ trait SuccessfulPeginModule {
         signedTxHex <- IO.fromEither(
           parse(signedTx).map(x => (x \\ "hex").head.asString.get)
         )
+        _ <- IO.println("Generating blocks..")
         sentTxId <- process
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
-          .use(getText)
-        _ <- IO.println("Generating blocks..")
+          .use(getError)
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 2, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
-        mintingStatusResponse <- EmberClientBuilder
+        _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
@@ -150,105 +173,47 @@ trait SuccessfulPeginModule {
                 IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)
               ))
               .iterateUntil(
-                _.mintingStatus == "PeginSessionWaitingForRedemption"
+                _.mintingStatus == "PeginSessionWaitingForEscrowBTCConfirmation"
               )
           })
-        _ <- fs2.io
-          .readInputStream[IO](
-            IO(
-              new ByteArrayInputStream(
-                "".getBytes()
-              )
-            ),
-            10
-          )
-          .through(Files[IO].writeAll(fs2.io.file.Path(vkFile)))
-          .compile
-          .drain
-        importVkResult <- importVks(1).use { getError }
-        _ <- IO.println("importVkResult: " + importVkResult)
-        fundRedeemAddressTx <- fundRedeemAddressTx(1, 
-          mintingStatusResponse.address
-        ).use { getError }
-        _ <- IO.println("fundRedeemAddressTx: " + fundRedeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
-          1,
-          "fundRedeemTx.pbuf",
-          "fundRedeemTxProved.pbuf"
-        ).use { getText }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
-        )
-        broadcastFundRedeemAddressTxRes <- broadcastFundRedeemAddressTx(
-          "fundRedeemTxProved.pbuf"
-        ).use {
-          getText
-        }
-        _ <- IO.println(
-          "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
-        )
-        utxo <- getCurrentUtxosFromAddress(1, mintingStatusResponse.address)
-          .use(
-            getText
-          )
-          .iterateUntil(_.contains("LVL"))
-        _ <- IO.println("utxos: " + utxo)
-        groupId = utxo
-          .split("\n")
-          .filter(_.contains("GroupId"))
-          .head
-          .split(":")
-          .last
-          .trim()
-        seriesId = utxo
-          .split("\n")
-          .filter(_.contains("SeriesId"))
-          .head
-          .split(":")
-          .last
-          .trim()
-        _ <- IO.println("groupId: " + groupId)
-        _ <- IO.println("seriesId: " + seriesId)
-        currentAddress <- currentAddress(1).use { getText }
-        redeemAddressTx <- redeemAddressTx(
-          1,
-          currentAddress,
-          4999000000L,
-          groupId,
-          seriesId
-        ).use { getText }
-        _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
-          1,
-          "redeemTx.pbuf",
-          "redeemTxProved.pbuf"
-        )
-          .use {
-            getText
-          }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
-        )
-        _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf").use {
-          getText
-        }
-        utxo <- getCurrentUtxosFromAddress(1, currentAddress)
-          .use(
-            getText
-          )
-          .iterateUntil(_.contains("Asset"))
-        _ <- IO.println("utxos: " + utxo)
-        _ <- IO.sleep(5.second)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 2, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(2, 8, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
+        // reconnect network
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(2, true): _*)
+          .spawn[IO]
+          .use { getText }
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, setNetworkActive(1, true): _*)
+          .spawn[IO]
+          .use { getText }
+        // force connection
+        _ <- process
+          .ProcessBuilder(
+            DOCKER_CMD,
+            forceConnection(1, ipBitcoin02, 18444): _*
+          )
+          .spawn[IO]
+          .use { getText }
+        _ <- process
+          .ProcessBuilder(
+            DOCKER_CMD,
+            forceConnection(2, ipBitcoin01, 18444): _*
+          )
+          .spawn[IO]
+          .use { getText }
         _ <- EmberClientBuilder
           .default[IO]
           .build
           .use({ client =>
             (IO.println("Requesting..") >> client
-              .status(
+              .expect[MintingStatusResponse](
                 Request[IO](
                   method = Method.POST,
                   Uri
@@ -264,24 +229,21 @@ trait SuccessfulPeginModule {
                 )
               ))
               .flatMap(x =>
-                IO.println(x.code) >> process
-                  .ProcessBuilder(
-                    DOCKER_CMD,
-                    generateToAddress(1, 1, newAddress): _*
-                  )
-                  .spawn[IO]
-                  .use(_.exitValue) >> IO.sleep(5.second) >> IO.pure(x)
+                IO.println(x.mintingStatus) >> IO.sleep(5.second) >> IO.pure(x)
               )
               .iterateUntil(
-                _.code == 404
+                _.mintingStatus == "PeginSessionStateWaitingForBTC"
               )
           })
+        _ <- process
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
+          .spawn[IO]
+          .use(_.exitValue)
         _ <- IO.println(
-          s"Session ${startSessionResponse.sessionID} was successfully removed"
+          s"Session ${startSessionResponse.sessionID} went back to wait again"
         )
       } yield (),
       ()
     )
   }
-
 }

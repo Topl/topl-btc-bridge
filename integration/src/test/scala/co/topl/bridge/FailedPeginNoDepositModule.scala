@@ -52,7 +52,7 @@ trait FailedPeginNoDepositModule {
                 StartPeginSessionRequest(
                   pkey =
                     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
-                  sha256 = sha256ToplSecret
+                  sha256 = shaSecretMap(1)
                 )
               )
             )
@@ -60,7 +60,7 @@ trait FailedPeginNoDepositModule {
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
         _ <- IO.println("Generating blocks..")
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(102, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 102, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder

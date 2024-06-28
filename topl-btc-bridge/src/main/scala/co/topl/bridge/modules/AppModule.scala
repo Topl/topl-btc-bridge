@@ -31,10 +31,14 @@ import org.http4s.dsl.io._
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.models.GroupId
 
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
+import co.topl.bridge.BTCConfirmationThreshold
+import co.topl.bridge.BTCRetryThreshold
 
 trait AppModule
     extends WalletStateResource
@@ -59,7 +63,10 @@ trait AppModule
   )(implicit
       fromFellowship: Fellowship,
       fromTemplate: Template,
-      bitcoindInstance: BitcoindRpcClient
+      bitcoindInstance: BitcoindRpcClient,
+      btcRetryThreshold: BTCRetryThreshold,
+      groupIdIdentifier: GroupId,
+      seriesIdIdentifier: SeriesId
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val walletKeyApi = WalletKeyApi.make[IO]()
@@ -95,6 +102,9 @@ trait AppModule
     )
     implicit val toplWaitExpirationTime = new ToplWaitExpirationTime(
       params.toplWaitExpirationTime
+    )
+    implicit val btcConfirmationThreshold = new BTCConfirmationThreshold(
+      params.btcConfirmationThreshold
     )
     for {
       keyPair <- walletManagementUtils.loadKeys(

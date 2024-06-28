@@ -32,12 +32,6 @@ trait FailedRedemptionModule {
           .spawn[IO]
           .use { getText }
         _ <- IO.println("cwd: " + cwd)
-        initResult <- initUserWallet.use { getText }
-        _ <- IO.println("initResult: " + initResult)
-        addFellowshipResult <- addFellowship.use { getText }
-        _ <- IO.println("addFellowshipResult: " + addFellowshipResult)
-        addSecretResult <- addSecret.use { getText }
-        _ <- IO.println("addSecretResult: " + addSecretResult)
         createWalletOut <- process
           .ProcessBuilder(DOCKER_CMD, createWallet: _*)
           .spawn[IO]
@@ -49,18 +43,21 @@ trait FailedRedemptionModule {
           .use(getText)
         _ <- IO.println("newAddress: " + newAddress)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 1, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         unspent <- process
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
           .use(getText)
-        _ <- IO.println("unspent: " + unspent)
+        // _ <- IO.println("unspent: " + unspent)
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
         )
         _ <- IO.println("txId: " + txId)
+        btcAmount <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
+        )
         startSessionResponse <- EmberClientBuilder
           .default[IO]
           .build
@@ -80,18 +77,12 @@ trait FailedRedemptionModule {
                 StartPeginSessionRequest(
                   pkey =
                     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
-                  sha256 = sha256ToplSecret
+                  sha256 = shaSecretMap(1)
                 )
               )
             )
           })
         _ <- IO.println("Escrow address: " + startSessionResponse.escrowAddress)
-        addTemplateResult <- addTemplate(
-          sha256ToplSecret,
-          startSessionResponse.minHeight,
-          startSessionResponse.maxHeight
-        ).use { getText }
-        _ <- IO.println("addTemplateResult: " + addTemplateResult)
         _ <- IO(Source.fromString(startSessionResponse.descriptor))
         bitcoinTx <- process
           .ProcessBuilder(
@@ -99,7 +90,7 @@ trait FailedRedemptionModule {
             createTx(
               txId,
               startSessionResponse.escrowAddress,
-              BigDecimal("49.99")
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")
             ): _*
           )
           .spawn[IO]
@@ -115,11 +106,11 @@ trait FailedRedemptionModule {
         sentTxId <- process
           .ProcessBuilder(DOCKER_CMD, sendTransaction(signedTxHex): _*)
           .spawn[IO]
-          .use(getText)
+          .use(getError)
         _ <- IO.println("Generating blocks..")
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(6, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 8, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder

@@ -45,9 +45,12 @@ trait FailedPeginNoMintModule {
           .ProcessBuilder(DOCKER_CMD, extractGetTxId: _*)
           .spawn[IO]
           .use(getText)
-        _ <- IO.println("unspent: " + unspent)
+        // _ <- IO.println("unspent: " + unspent)
         txId <- IO.fromEither(
           parse(unspent).map(x => (x \\ "txid").head.asString.get)
+        )
+        btcAmount <- IO.fromEither(
+          parse(unspent).map(x => (x \\ "amount").head.asNumber.get)
         )
         _ <- IO.println("txId: " + txId)
         startSessionResponse <- EmberClientBuilder
@@ -69,7 +72,7 @@ trait FailedPeginNoMintModule {
                 StartPeginSessionRequest(
                   pkey =
                     "0295bb5a3b80eeccb1e38ab2cbac2545e9af6c7012cdc8d53bd276754c54fc2e4a",
-                  sha256 = sha256ToplSecret
+                  sha256 = shaSecretMap(1)
                 )
               )
             )
@@ -79,7 +82,8 @@ trait FailedPeginNoMintModule {
         bitcoinTx <- process
           .ProcessBuilder(
             DOCKER_CMD,
-            createTx(txId, startSessionResponse.escrowAddress, BigDecimal("12.49")): _*
+            createTx(txId, startSessionResponse.escrowAddress, 
+              btcAmount.toBigDecimal.get - BigDecimal("0.01")): _*
           )
           .spawn[IO]
           .use(getText)
@@ -98,7 +102,7 @@ trait FailedPeginNoMintModule {
         _ <- IO.println("Generating blocks..")
         _ <- IO.println("sentTxId: " + sentTxId)
         _ <- process
-          .ProcessBuilder(DOCKER_CMD, generateToAddress(102, newAddress): _*)
+          .ProcessBuilder(DOCKER_CMD, generateToAddress(1, 102, newAddress): _*)
           .spawn[IO]
           .use(_.exitValue)
         _ <- EmberClientBuilder

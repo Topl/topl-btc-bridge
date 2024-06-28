@@ -5,14 +5,16 @@ import org.bitcoins.core.protocol.script.ScriptPubKey
 
 sealed trait BlockchainEvent
 
-case class BTCFundsWithdrawn(txId: String, vout: Long)
-    extends BlockchainEvent
+case class BTCFundsWithdrawn(txId: String, vout: Long) extends BlockchainEvent
 
 case class NewBTCBlock(height: Int) extends BlockchainEvent
+
+case class SkippedBTCBlock(height: Int) extends BlockchainEvent
 
 case class NewToplBlock(height: Long) extends BlockchainEvent
 
 case class BTCFundsDeposited(
+    fundsDepositedHeight: Int,
     scriptPubKey: ScriptPubKey,
     txId: String,
     vout: Long,
@@ -43,6 +45,20 @@ case class WaitingForBTC(
     redeemAddress: String,
     claimAddress: String
 ) extends PeginStateMachineState
+
+case class WaitingForEscrowBTCConfirmation(
+    startBTCBlockHeight: Int,
+    depositBTCBlockHeight: Int,
+    currentWalletIdx: Int,
+    scriptAsm: String,
+    escrowAddress: String,
+    redeemAddress: String,
+    claimAddress: String,
+    btcTxId: String,
+    btcVout: Long,
+    amount: Long
+) extends PeginStateMachineState
+
 case class MintingTBTC(
     startBTCBlockHeight: Int,
     currentWalletIdx: Int,
@@ -62,9 +78,31 @@ case class WaitingForRedemption(
     btcTxId: String,
     btcVout: Long,
     utxoTxId: String,
-    utxoIndex: Int
+    utxoIndex: Int,
+    amount: BifrostCurrencyUnit
 ) extends PeginStateMachineState
-case class WaitingForClaim(claimAddress: String) extends PeginStateMachineState
+
+case class WaitingForClaim(
+    someStartBtcBlockHeight: Option[Int],
+    secret: String,
+    currentWalletIdx: Int,
+    btcTxId: String,
+    btcVout: Long,
+    scriptAsm: String,
+    amount: BifrostCurrencyUnit,
+    claimAddress: String
+) extends PeginStateMachineState
+
+case class WaitingForClaimBTCConfirmation(
+    claimBTCBlockHeight: Int,
+    secret: String,
+    currentWalletIdx: Int,
+    btcTxId: String,
+    btcVout: Long,
+    scriptAsm: String,
+    amount: BifrostCurrencyUnit,
+    claimAddress: String
+) extends PeginStateMachineState
 
 sealed trait FSMTransition
 
@@ -74,6 +112,6 @@ case class FSMTransitionTo[F[_]](
     effect: F[Unit]
 ) extends FSMTransition
 
-case class EndTrasition[F[_]](
+case class EndTransition[F[_]](
     effect: F[Unit]
 ) extends FSMTransition
