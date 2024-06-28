@@ -28,14 +28,14 @@ trait FailedRedemptionModule {
         _ <-
           (for {
             status <- checkMintingStatus(startSessionResponse.sessionID)
-            _ <- mintToplBlock(2)
+            _ <- mintToplBlock(1, 2)
             _ <- IO.sleep(1.second)
           } yield status)
             .iterateUntil(_.mintingStatus == "PeginSessionWaitingForRedemption")
         _ <- checkStatus(startSessionResponse.sessionID)
           .flatMap(x =>
             generateToAddress(1, 1, newAddress) >> IO
-              .sleep(5.second) >> IO.pure(x)
+              .sleep(1.second) >> IO.pure(x)
           )
           .iterateUntil(
             _.code == 404

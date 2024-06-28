@@ -15,9 +15,9 @@ trait SuccessfulPeginWithClaimReorgModule {
       for {
         bridgeNetwork <- computeBridgeNetworkName
         // parse
-        ipBitcoin02 <- extractIp(2, bridgeNetwork)
+        ipBitcoin02 <- extractIpBtc(2, bridgeNetwork._1)
         // parse
-        ipBitcoin01 <- extractIp(1, bridgeNetwork)
+        ipBitcoin01 <- extractIpBtc(1, bridgeNetwork._1)
         _ <- pwd
         _ <- initToplWallet(2)
         _ <- addFellowship(2)
@@ -43,7 +43,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- generateToAddress(1, 8, newAddress)
         mintingStatusResponse <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
-          _ <- mintToplBlock(2)
+          _ <- mintToplBlock(1, 2)
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(
@@ -72,7 +72,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- IO.println(
           "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
         )
-        _ <- mintToplBlock(2)
+        _ <- mintToplBlock(1, 2)
         utxo <- getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
           .iterateUntil(_.contains("LVL"))
         groupId = extractGroupId(utxo)
@@ -102,7 +102,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- mintToplBlock(8)
+        _ <- mintToplBlock(1, 8)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- (for {

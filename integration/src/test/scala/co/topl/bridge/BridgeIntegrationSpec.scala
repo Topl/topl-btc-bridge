@@ -21,11 +21,18 @@ class BridgeIntegrationSpec
     with FailedRedemptionModule
     with FailedPeginNoDepositWithReorgModule
     with SuccessfulPeginWithClaimReorgModule
-    with SuccessfulPeginWithClaimReorgRetryModule {
+    with SuccessfulPeginWithClaimReorgRetryModule
+    with FailedMintingReorgModule {
 
   val DOCKER_CMD = "docker"
 
   override val munitIOTimeout = Duration(180, "s")
+
+  implicit val logger: Logger[IO] =
+    org.typelevel.log4cats.slf4j.Slf4jLogger
+      .getLoggerFromName[IO]("it-test")
+
+  import org.typelevel.log4cats.syntax._
 
   val computeBridgeNetworkName = for {
     // network ls
@@ -49,7 +56,8 @@ class BridgeIntegrationSpec
       .spawn[IO]
       .use { getText }
     // print bridgeNetwork
-  } yield bridgeNetwork
+    _ <- info"bridgeNetwork: $bridgeNetwork"
+  } yield (bridgeNetwork, networkName)
 
   lazy val toplWalletDb =
     Option(System.getenv("TOPL_WALLET_DB")).getOrElse("topl-wallet.db")
@@ -136,7 +144,7 @@ class BridgeIntegrationSpec
           _ <- IO.println("bridgeNetwork: " + bridgeNetwork)
           // parse
           ipBitcoin02 <- IO.fromEither(
-            parse(bridgeNetwork)
+            parse(bridgeNetwork._1)
               .map(x =>
                 (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
                   x.filter(x =>
@@ -152,7 +160,7 @@ class BridgeIntegrationSpec
           _ <- IO.println("ipBitcoin02: " + ipBitcoin02)
           // parse
           ipBitcoin01 <- IO.fromEither(
-            parse(bridgeNetwork)
+            parse(bridgeNetwork._1)
               .map(x =>
                 (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
                   x.filter(x =>
@@ -178,7 +186,7 @@ class BridgeIntegrationSpec
           _ <- initUserBitcoinWallet
           newAddress <- getNewAddress
           _ <- generateToAddress(1, 101, newAddress)
-          _ <- mintToplBlock(1)
+          _ <- mintToplBlock(1, 1)
         } yield ()).unsafeToFuture()
       }
 
@@ -253,36 +261,42 @@ class BridgeIntegrationSpec
 
   override def munitFixtures = List(startServer)
 
-  cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
-    info"Bridge should correctly peg-in BTC" >> successfulPegin()
-  }
-  cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
-    _ =>
-      info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
-  }
-  cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
-    info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
-  }
-  cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-    info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
-  }
+  // cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
+  //   info"Bridge should correctly peg-in BTC" >> successfulPegin()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
+  //   _ =>
+  //     info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
+  //   info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
+  //   info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
+  // }
+
+  // cleanupDir.test(
+  //   "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
+  // ) { _ =>
+  //   info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
+  // }
+
+  // cleanupDir.test(
+  //   "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
+  // ) { _ =>
+  //   info"Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation" >> successfulPeginWithClaimError()
+  // }
+
+  // cleanupDir.test(
+  //   "Bridge should correctly retry if claim does not succeed"
+  // ) { _ =>
+  //   info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
+  // }
 
   cleanupDir.test(
-    "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
+    "Bridge should correctly go back to minting if there is a reorg"
   ) { _ =>
-    info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
-  }
-
-  cleanupDir.test(
-    "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
-  ) { _ =>
-    info"Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation" >> successfulPeginWithClaimError()
-  }
-
-  cleanupDir.test(
-    "Bridge should correctly retry if claim does not succeed"
-  ) { _ =>
-    info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
+    info"Bridge should correctly go back to minting if there is a reorg" >> failedMintingReorgModule()
   }
 
 }

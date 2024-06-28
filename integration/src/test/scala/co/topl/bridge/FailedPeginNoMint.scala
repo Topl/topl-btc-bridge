@@ -28,7 +28,7 @@ trait FailedPeginNoMintModule {
         _ <- checkStatus(startSessionResponse.sessionID)
           .flatMap(x =>
             generateToAddress(1, 1, newAddress) >> 
-            mintToplBlock(1) >>
+            mintToplBlock(1, 1) >>
             IO.sleep(1.second) >> 
             IO.pure(x)
           )

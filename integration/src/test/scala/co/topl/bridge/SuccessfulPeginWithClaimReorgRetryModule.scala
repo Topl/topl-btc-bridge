@@ -5,7 +5,6 @@ import scala.concurrent.duration._
 
 trait SuccessfulPeginWithClaimReorgRetryModule {
 
-  // self BridgeIntegrationSpec
   self: BridgeIntegrationSpec =>
 
   def successfulPeginWithClaimErrorRetry(): IO[Unit] = {
@@ -14,8 +13,8 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
     assertIO(
       for {
         bridgeNetwork <- computeBridgeNetworkName
-        ipBitcoin02 <- extractIp(2, bridgeNetwork)
-        ipBitcoin01 <- extractIp(1, bridgeNetwork)
+        ipBitcoin02 <- extractIpBtc(2, bridgeNetwork._1)
+        ipBitcoin01 <- extractIpBtc(1, bridgeNetwork._1)
         _ <- pwd
         _ <- initToplWallet(2)
         _ <- addFellowship(2)
@@ -41,7 +40,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- generateToAddress(1, 8, newAddress)
         mintingStatusResponse <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
-          _ <- mintToplBlock(2)
+          _ <- mintToplBlock(1, 2)
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(
@@ -63,7 +62,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
           "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
         )
         _ <- broadcastFundRedeemAddressTx("fundRedeemTxProved.pbuf")
-        _ <- mintToplBlock(1)
+        _ <- mintToplBlock(1, 1)
         utxo <- getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
           .iterateUntil(_.contains("LVL"))
         groupId = extractGroupId(utxo)
@@ -93,7 +92,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- mintToplBlock(8)
+        _ <- mintToplBlock(1, 8)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- (for {

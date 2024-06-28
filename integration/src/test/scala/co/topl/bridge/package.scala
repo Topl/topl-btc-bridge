@@ -82,8 +82,8 @@ package object bridge {
         }
     } yield output
 
-  def mintToplBlock(nbBlocks: Int)(implicit l: Logger[IO]) =
-    withLogging(mintBlockP(nbBlocks))
+  def mintToplBlock(node: Int, nbBlocks: Int)(implicit l: Logger[IO]) =
+    withLogging(mintBlockP(node, nbBlocks))
 
   def initToplWallet(id: Int)(implicit l: Logger[IO]) =
     withLogging(initUserWalletP(id))
@@ -171,12 +171,25 @@ package object bridge {
       .last
       .trim()
 
-  def extractIp(id: Int, bridgeNetwork: String) = IO.fromEither(
+  def extractIpBtc(id: Int, bridgeNetwork: String) = IO.fromEither(
     parse(bridgeNetwork)
       .map(x =>
         (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
           x.filter(x =>
             (x._2 \\ "Name").head.asString.get == "bitcoin" + f"${id}%02d"
+          ).values
+            .head
+        }).get \\ "IPv4Address").head.asString.get
+          .split("/")
+          .head
+      )
+  )
+  def extractIpBifrost(id: Int, bridgeNetwork: String) = IO.fromEither(
+    parse(bridgeNetwork)
+      .map(x =>
+        (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
+          x.filter(x =>
+            (x._2 \\ "Name").head.asString.get == "bifrost" + f"${id}%02d"
           ).values
             .head
         }).get \\ "IPv4Address").head.asString.get
@@ -399,6 +412,20 @@ package object bridge {
 
   val secretMap = Map(1 -> "topl-secret", 2 -> "topl-secret01")
 
+  val bifrostHostMap = 
+    if (Option(System.getenv("CI")).isDefined) {
+      Map(1 -> "bifrost01", 2 -> "bifrost02")
+    } else {
+      Map(1 -> "localhost", 2 -> "localhost")
+    }
+
+  val bifrostPortMap =
+    if (Option(System.getenv("CI")).isDefined) {
+      Map(1 -> 9084, 2 -> 9084)
+    } else {
+      Map(1 -> 9084, 2 -> 9086)
+    }
+
   val shaSecretMap = Map(
     1 -> "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df",
     2 -> "b46478c2553d2972c4a79172f7b468b422c6c516a980340acf83508d478504c3"
@@ -618,18 +645,40 @@ package object bridge {
   // docker network ls
   val networkLs = Seq("network", "ls")
 
-  def signTransaction(tx: String) = Seq(
-    "exec",
-    "bitcoin01",
-    "bitcoin-cli",
-    "-regtest",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "-rpcwallet=testwallet",
-    "signrawtransactionwithwallet",
-    tx
-  )
-  def sendTransaction(signedTx: String) = Seq(
+  // docker network disconnect bridge bitcoin02
+  def disconnectBridgeSeq(networkName: String, containerName: String) =
+    Seq("network", "disconnect", networkName, containerName)
+
+  def connectBridgeSeq(networkName: String, containerName: String) =
+    Seq("network", "connect", networkName, containerName)
+
+  def disconnectBridgeP(networkName: String, containerName: String) =
+    process
+      .ProcessBuilder(
+        DOCKER_CMD,
+        disconnectBridgeSeq(networkName, containerName): _*
+      )
+      .spawn[IO]
+
+  def connectBridgeP(networkName: String, containerName: String) =
+    process
+      .ProcessBuilder(
+        DOCKER_CMD,
+        connectBridgeSeq(networkName, containerName): _*
+      )
+      .spawn[IO]
+
+  def disconnectBridge(networkName: String, containerName: String)(implicit
+      l: Logger[IO]
+  ) =
+    withLogging(disconnectBridgeP(networkName, containerName))
+
+  def connectBridge(networkName: String, containerName: String)(implicit
+      l: Logger[IO]
+  ) =
+    withLogging(connectBridgeP(networkName, containerName))
+
+  def sendTransactionSeq(signedTx: String) = Seq(
     "exec",
     "bitcoin01",
     "bitcoin-cli",

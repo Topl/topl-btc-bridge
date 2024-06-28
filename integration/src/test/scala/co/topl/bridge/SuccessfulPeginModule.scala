@@ -29,7 +29,7 @@ trait SuccessfulPeginModule {
     assertIO(
       for {
         _ <- pwd
-        _ <- mintToplBlock(1) // this will update the current topl height on the node, node should not work without this
+        _ <- mintToplBlock(1, 1) // this will update the current topl height on the node, node should not work without this
         _ <- initToplWallet(1)
         _ <- addFellowship(1)
         _ <- addSecret(1)
@@ -54,7 +54,7 @@ trait SuccessfulPeginModule {
         mintingStatusResponse <-
           (for {
             status <- checkMintingStatus(startSessionResponse.sessionID)
-            _ <- mintToplBlock(2)
+            _ <- mintToplBlock(1, 2)
             _ <- IO.sleep(1.second)
           } yield status)
             .iterateUntil(_.mintingStatus == "PeginSessionWaitingForRedemption")
@@ -70,7 +70,7 @@ trait SuccessfulPeginModule {
           "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
         )
         _ <- broadcastFundRedeemAddressTx("fundRedeemTxProved.pbuf")
-        _ <- mintToplBlock(1)
+        _ <- mintToplBlock(1, 1)
         utxo <- getCurrentUtxosFromAddress(1, mintingStatusResponse.address)
           .use(
             getText
@@ -108,7 +108,7 @@ trait SuccessfulPeginModule {
           "redeemTxProved.pbuf"
         )
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- mintToplBlock(8)
+        _ <- mintToplBlock(1, 8)
         _ <- getCurrentUtxosFromAddress(1, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- generateToAddress(1, 3, newAddress)

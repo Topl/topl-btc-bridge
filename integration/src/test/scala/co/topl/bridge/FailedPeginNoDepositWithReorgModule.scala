@@ -20,9 +20,9 @@ trait FailedPeginNoDepositWithReorgModule {
         startSessionResponse <- startSession(1)
         bridgeNetwork <- computeBridgeNetworkName
         // parse
-        ipBitcoin02 <- extractIp(2, bridgeNetwork)
+        ipBitcoin02 <- extractIpBtc(2, bridgeNetwork._1)
         // parse
-        ipBitcoin01 <- extractIp(1, bridgeNetwork)
+        ipBitcoin01 <- extractIpBtc(1, bridgeNetwork._1)
         _ <- setNetworkActive(2, false)
         _ <- setNetworkActive(1, false)
         bitcoinTx <- createTx(
