@@ -13,7 +13,7 @@ trait FailedMintingReorgModule {
 
     assertIO(
       for {
-        _ <- mintToplBlock(1, 1) 
+        _ <- mintToplBlock(1, 1)
         bridgeNetworkAndName <- computeBridgeNetworkName
         _ <- pwd
         _ <- initToplWallet(2)
@@ -38,6 +38,7 @@ trait FailedMintingReorgModule {
         signedTxHex <- signTransaction(bitcoinTx)
         // disconnect
         _ <- disconnectBridge(bridgeNetworkAndName._2, "bifrost02")
+        _ <- info"Disconnected bridge"
         _ <- sendTransaction(signedTxHex)
         _ <- generateToAddress(1, 8, newAddress)
         // ref
@@ -45,12 +46,16 @@ trait FailedMintingReorgModule {
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
           nbTries <- mutableRef.updateAndGet(_ + 1)
-          _ <- if (nbTries < 5) mintToplBlock(1, 1) else IO.unit
+          _ <-
+            if (nbTries < 5)
+              mintToplBlock(1, 1)
+            else IO.unit
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(
             _.mintingStatus == "PeginSessionMintingTBTCConfirmation"
           )
+        _ <- info"Session ${startSessionResponse.sessionID} went to PeginSessionMintingTBTCConfirmation"	
         _ <- mintToplBlock(2, 10)
         _ <- connectBridge(bridgeNetworkAndName._2, "bifrost02")
         _ <- (for {

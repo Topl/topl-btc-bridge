@@ -9,7 +9,7 @@ object Dependencies {
   lazy val slf4jVersion = "2.0.12"
 
   val akkaSlf4j: Seq[ModuleID] = Seq(
-     "com.typesafe.akka" %% "akka-slf4j" % "2.6.20"
+     "org.apache.pekko" %% "pekko-actor-typed" % "1.0.2"
   )
 
   val logback: Seq[ModuleID] = Seq(
@@ -27,7 +27,7 @@ object Dependencies {
 
   lazy val toplOrg = "co.topl"
 
-  lazy val bramblVersion = "2.0.0-beta6+2-9048e9e1-SNAPSHOT"
+  lazy val bramblVersion = "2.0.0-beta6+8-e5a24485-SNAPSHOT"
 
   val bramblSdk = toplOrg %% "brambl-sdk" % bramblVersion
 
@@ -37,7 +37,9 @@ object Dependencies {
 
   val brambl: Seq[ModuleID] = Seq(bramblSdk, bramblCrypto, bramblServiceKit)
 
-  lazy val bitcoinsVersion = "1.9.7"
+  lazy val bitcoinsVersion = "1.9.9"
+  
+  lazy val btcVersionZmq = "1.9.8"
 
   lazy val monocleVersion = "3.1.0"
 
@@ -80,8 +82,8 @@ object Dependencies {
     "org.bitcoin-s" %% "bitcoin-s-lnd-rpc" % bitcoinsVersion,
     "org.bitcoin-s" %% "bitcoin-s-node" % bitcoinsVersion,
     "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % bitcoinsVersion,
-    "org.bitcoin-s" %% "bitcoin-s-wallet" % bitcoinsVersion,
-    "org.bitcoin-s" %% "bitcoin-s-zmq" % bitcoinsVersion
+    "org.bitcoin-s" %% "bitcoin-s-wallet" % btcVersionZmq,
+    "org.bitcoin-s" %% "bitcoin-s-zmq" % btcVersionZmq
   )
 
   lazy val optics: Seq[ModuleID] = Seq(
