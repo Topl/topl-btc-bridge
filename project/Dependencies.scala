@@ -93,7 +93,7 @@ object Dependencies {
 
   object toplBtcBridge {
 
-    lazy val main: Seq[ModuleID] =
+    lazy val consensus: Seq[ModuleID] =
       brambl ++
         scopt ++
         cats ++

@@ -118,11 +118,11 @@ lazy val shared = (project in file("shared"))
     commonSettings,
     name := "topl-btc-bridge-shared",
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.consensus ++
         Dependencies.toplBtcBridge.test
   )
 
-lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
+lazy val toplBtcBridgeConsensus = (project in file("topl-btc-bridge-consensus"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
       dockerPublishSettingsBroker
@@ -132,7 +132,7 @@ lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
     commonSettings,
     name := "topl-btc-bridge",
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.consensus ++
         Dependencies.toplBtcBridge.test
   )
   .enablePlugins(DockerPlugin, JavaAppPackaging)
@@ -166,7 +166,7 @@ buildClient := {
   IO.copyDirectory(
     source = (root / baseDirectory).value / "bridge-ui" / "dist",
     target =
-      (toplBtcBridge / baseDirectory).value / "src" / "main" / "resources" / "static"
+      (toplBtcBridgeConsensus / baseDirectory).value / "src" / "main" / "resources" / "static"
   )
 }
 
@@ -176,18 +176,18 @@ lazy val toplBtcCli = (project in file("topl-btc-cli"))
     commonSettings,
     name := "topl-btc-cli",
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.consensus ++
         Dependencies.toplBtcBridge.test
   )
   .enablePlugins(JavaAppPackaging)
   .dependsOn(shared)
 
 lazy val integration = (project in file("integration"))
-  .dependsOn(toplBtcBridge, toplBtcCli) // your current subproject
+  .dependsOn(toplBtcBridgeConsensus, toplBtcCli) // your current subproject
   .settings(
     publish / skip := true,
     commonSettings,
-    libraryDependencies ++= Dependencies.toplBtcBridge.main ++ Dependencies.toplBtcBridge.test
+    libraryDependencies ++= Dependencies.toplBtcBridge.consensus ++ Dependencies.toplBtcBridge.test
   )
 
 lazy val root = project
@@ -197,4 +197,4 @@ lazy val root = project
     name := "topl-btc-bridge-umbrella"
   )
   .settings(noPublish)
-  .aggregate(toplBtcBridge, toplBtcCli)
+  .aggregate(toplBtcBridgeConsensus, toplBtcCli)
