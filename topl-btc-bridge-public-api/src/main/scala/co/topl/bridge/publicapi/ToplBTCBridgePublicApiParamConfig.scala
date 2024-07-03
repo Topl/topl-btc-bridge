@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.publicapi
 
 
 case class ToplBTCBridgePublicApiParamConfig(

@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.publicapi
 
 import com.comcast.ip4s.{Host, Port}
 import scala.concurrent.duration._

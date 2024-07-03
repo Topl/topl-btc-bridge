@@ -1,4 +1,4 @@
-package co.topl.bridge
+package co.topl.bridge.publicapi
 
 import cats.effect.ExitCode
 import cats.effect.IO
