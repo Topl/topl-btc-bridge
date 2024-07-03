@@ -1,6 +1,6 @@
 package co.topl.bridge.controllers
 
-import co.topl.shared.ToplPrivatenet
+import co.topl.bridge.ToplPrivatenet
 import co.topl.bridge.BTCWaitExpirationTime
 import co.topl.bridge.ToplWaitExpirationTime
 import co.topl.bridge.BTCConfirmationThreshold

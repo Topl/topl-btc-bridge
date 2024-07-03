@@ -21,8 +21,6 @@ import co.topl.bridge.managers.SessionEvent
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.bridge.statemachine.pegin.BlockProcessor
-import org.http4s.server.middleware.CORS
-import org.http4s.implicits._
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.utils.Encoding
@@ -41,6 +39,7 @@ case object PeginSessionState {
   case object PeginSessionStateMintingTBTC extends PeginSessionState
   case object PeginSessionWaitingForRedemption extends PeginSessionState
   case object PeginSessionWaitingForClaim extends PeginSessionState
+  case object PeginSessionMintingTBTCConfirmation extends PeginSessionState
   case object PeginSessionWaitingForEscrowBTCConfirmation
       extends PeginSessionState
   case object PeginSessionWaitingForClaimBTCConfirmation
@@ -232,10 +231,7 @@ object Main extends IOApp with BridgeParamsDescriptor with AppModule {
         .withIdleTimeout(ServerConfig.idleTimeOut)
         .withHost(ServerConfig.host)
         .withPort(ServerConfig.port)
-        .withHttpApp(
-          CORS.policy.withAllowOriginAll.withAllowMethodsAll
-            .withAllowHeadersAll(app)
-        )
+        .withHttpApp(app)
         .withLogger(logger)
         .build
         .allocated

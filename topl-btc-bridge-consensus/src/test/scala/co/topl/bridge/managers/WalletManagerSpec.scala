@@ -1,9 +1,9 @@
 package co.topl.bridge.managers
 
 import cats.effect.IO
-import co.topl.shared.RegTest
-import co.topl.shared.utils.KeyGenerationUtils
+import co.topl.bridge.RegTest
 import munit.CatsEffectSuite
+import co.topl.bridge.utils.KeyGenerationUtils
 
 class WalletManagerSpec extends CatsEffectSuite {
 

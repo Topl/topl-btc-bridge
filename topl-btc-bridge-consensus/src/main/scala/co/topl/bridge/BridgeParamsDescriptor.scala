@@ -1,8 +1,6 @@
 package co.topl.bridge
 
-import co.topl.shared.BitcoinNetworkIdentifiers
 import scopt.OParser
-import co.topl.shared.ToplNetworkIdentifiers
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
 import co.topl.brambl.models.SeriesId
@@ -10,16 +8,16 @@ import co.topl.brambl.models.GroupId
 
 trait BridgeParamsDescriptor {
 
-  import co.topl.shared.ParamParser._
+  import ParamParser._
 
-  val builder = OParser.builder[ToplBTCBridgeParamConfig]
+  val builder = OParser.builder[ToplBTCBridgeConsensusParamConfig]
 
   val parser = {
     import builder._
 
     OParser.sequence(
-      programName("topl-btc-bridge"),
-      head("topl-btc-bridge", "0.1"),
+      programName("topl-btc-bridge-consensus"),
+      head("topl-btc-bridge-consensus", "0.1"),
       opt[BitcoinNetworkIdentifiers]("btc-network")
         .action((x, c) => c.copy(btcNetwork = x))
         .text(

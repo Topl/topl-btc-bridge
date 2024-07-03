@@ -2,7 +2,7 @@ package co.topl.bridge.managers
 
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
-import co.topl.shared.utils.KeyGenerationUtils
+import co.topl.bridge.utils.KeyGenerationUtils
 import org.bitcoins.core.hd.HDPath
 import org.bitcoins.crypto.ECDigitalSignature
 import org.bitcoins.crypto.ECPublicKey

@@ -24,7 +24,7 @@ import co.topl.genus.services.Txo
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
-import co.topl.shared.ToplNetworkIdentifiers
+import co.topl.bridge.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json
 import quivr.models.KeyPair

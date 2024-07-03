@@ -67,9 +67,14 @@ lazy val commonDockerSettings = List(
   dockerUpdateLatest := true
 )
 
-lazy val dockerPublishSettingsBroker = List(
+lazy val dockerPublishSettingsConsensus = List(
   dockerExposedPorts ++= Seq(4000),
-  Docker / packageName := "topl-btc-bridge"
+  Docker / packageName := "topl-btc-bridge-consensus"
+) ++ commonDockerSettings
+
+lazy val dockerPublishSettingsPublicApi = List(
+  dockerExposedPorts ++= Seq(5000),
+  Docker / packageName := "topl-btc-bridge-public-api"
 ) ++ commonDockerSettings
 
 def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
@@ -125,14 +130,30 @@ lazy val shared = (project in file("shared"))
 lazy val toplBtcBridgeConsensus = (project in file("topl-btc-bridge-consensus"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
-      dockerPublishSettingsBroker
+      dockerPublishSettingsConsensus
     else mavenPublishSettings
   )
   .settings(
     commonSettings,
-    name := "topl-btc-bridge",
+    name := "topl-btc-bridge-consensus",
     libraryDependencies ++=
       Dependencies.toplBtcBridge.consensus ++
+        Dependencies.toplBtcBridge.test
+  )
+  .enablePlugins(DockerPlugin, JavaAppPackaging)
+  .dependsOn(shared)
+
+lazy val toplBtcBridgePublicApi = (project in file("topl-btc-bridge-public-api"))
+  .settings(
+    if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
+      dockerPublishSettingsPublicApi
+    else mavenPublishSettings
+  )
+  .settings(
+    commonSettings,
+    name := "topl-btc-bridge-public-api",
+    libraryDependencies ++=
+      Dependencies.toplBtcBridge.publicApi ++
         Dependencies.toplBtcBridge.test
   )
   .enablePlugins(DockerPlugin, JavaAppPackaging)
@@ -197,4 +218,4 @@ lazy val root = project
     name := "topl-btc-bridge-umbrella"
   )
   .settings(noPublish)
-  .aggregate(toplBtcBridgeConsensus, toplBtcCli)
+  .aggregate(toplBtcBridgeConsensus, toplBtcBridgePublicApi, toplBtcCli)

@@ -1,4 +1,4 @@
-package co.topl.shared
+package co.topl.bridge
 
 import co.topl.brambl.constants.NetworkConstants
 

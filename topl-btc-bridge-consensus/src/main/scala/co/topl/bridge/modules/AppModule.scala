@@ -18,7 +18,7 @@ import co.topl.bridge.Fellowship
 import co.topl.bridge.Lvl
 import co.topl.bridge.SystemGlobalState
 import co.topl.bridge.Template
-import co.topl.bridge.ToplBTCBridgeParamConfig
+import co.topl.bridge.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.managers.BTCWalletAlgebra
 import co.topl.bridge.managers.SessionEvent
 import co.topl.bridge.managers.SessionManagerImpl
@@ -52,7 +52,7 @@ trait AppModule
   }
 
   def createApp(
-      params: ToplBTCBridgeParamConfig,
+      params: ToplBTCBridgeConsensusParamConfig,
       queue: Queue[IO, SessionEvent],
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],

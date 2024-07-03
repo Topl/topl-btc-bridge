@@ -1,15 +1,11 @@
 package co.topl.bridge
 
-import co.topl.shared.RegTest
-import co.topl.shared.BitcoinNetworkIdentifiers
-import co.topl.shared.ToplNetworkIdentifiers
-import co.topl.shared.ToplPrivatenet
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
 
-case class ToplBTCBridgeParamConfig(
+case class ToplBTCBridgeConsensusParamConfig(
     btcWaitExpirationTime: Int =
       100, // the number of blocks to wait before the user can reclaim their funds
     btcConfirmationThreshold: Int =

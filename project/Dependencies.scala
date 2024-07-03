@@ -47,6 +47,10 @@ object Dependencies {
     "org.scalameta" %% "munit" % "1.0.0-M10"
   )
 
+  lazy val ip4score: Seq[ModuleID] = Seq(
+    "com.comcast" %% "ip4s-core" % "3.6.0"
+  )
+
   lazy val munitCatsEffects: Seq[ModuleID] = Seq(
     "org.typelevel" %% "munit-cats-effect" % "2.0.0-M4"
   )
@@ -104,6 +108,17 @@ object Dependencies {
         grpcNetty ++
         grpcRuntime ++
         akkaSlf4j ++
+        slf4j
+
+    lazy val publicApi: Seq[ModuleID] =
+        scopt ++
+        ip4score ++
+        cats ++
+        log4cats ++
+        http4s ++
+        optics ++
+        grpcNetty ++
+        grpcRuntime ++
         slf4j
 
     lazy val test: Seq[ModuleID] =

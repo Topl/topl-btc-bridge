@@ -21,7 +21,7 @@ import co.topl.bridge.managers.PeginSessionInfo
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.genus.services.Txo
 import co.topl.genus.services.TxoState
-import co.topl.shared.BitcoinNetworkIdentifiers
+import co.topl.bridge.BitcoinNetworkIdentifiers
 import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
 import co.topl.shared.MintingStatusRequest
@@ -29,7 +29,7 @@ import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPegoutSessionRequest
 import co.topl.shared.SyncWalletRequest
-import co.topl.shared.ToplNetworkIdentifiers
+import co.topl.bridge.ToplNetworkIdentifiers
 import io.circe.Encoder
 import io.circe.Json
 import io.circe.generic.auto._

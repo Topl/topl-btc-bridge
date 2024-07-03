@@ -21,11 +21,10 @@ import co.topl.bridge.managers.WalletManagementUtils
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
-import co.topl.shared.RegTest
+import co.topl.bridge.RegTest
 import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPegoutSessionRequest
-import co.topl.shared.ToplPrivatenet
-import co.topl.shared.utils.KeyGenerationUtils
+import co.topl.bridge.ToplPrivatenet
 import munit.CatsEffectSuite
 
 import java.nio.file.Files
@@ -33,6 +32,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import cats.effect.kernel.Ref
+import co.topl.bridge.utils.KeyGenerationUtils
 
 class StartSessionControllerSpec
     extends CatsEffectSuite

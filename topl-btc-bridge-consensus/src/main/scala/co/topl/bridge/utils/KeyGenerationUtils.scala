@@ -1,7 +1,6 @@
-package co.topl.shared.utils
+package co.topl.bridge.utils
 
 import cats.effect.kernel.Sync
-import co.topl.shared.BitcoinNetworkIdentifiers
 import org.bitcoins.core.crypto.MnemonicCode
 import org.bitcoins.core.hd.BIP32Path
 import org.bitcoins.core.hd.HDAccount
@@ -14,6 +13,7 @@ import scodec.bits.ByteVector
 import org.bitcoins.crypto.ECDigitalSignature
 import org.bitcoins.crypto.HashType
 import org.bitcoins.crypto.ECPublicKey
+import co.topl.bridge.BitcoinNetworkIdentifiers
 
 object KeyGenerationUtils {
 

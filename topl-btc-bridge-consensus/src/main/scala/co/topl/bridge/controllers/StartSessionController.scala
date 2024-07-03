@@ -17,7 +17,7 @@ import co.topl.bridge.managers.PegoutSessionInfo
 import co.topl.bridge.managers.SessionManagerAlgebra
 import co.topl.bridge.managers.ToplWalletAlgebra
 import co.topl.bridge.utils.BitcoinUtils
-import co.topl.shared.BitcoinNetworkIdentifiers
+import co.topl.bridge.BitcoinNetworkIdentifiers
 import co.topl.shared.BridgeError
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidKey
@@ -25,7 +25,7 @@ import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPeginSessionResponse
 import co.topl.shared.StartPegoutSessionRequest
 import co.topl.shared.StartPegoutSessionResponse
-import co.topl.shared.ToplNetworkIdentifiers
+import co.topl.bridge.ToplNetworkIdentifiers
 import co.topl.shared.WalletSetupError
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0

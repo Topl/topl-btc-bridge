@@ -1,4 +1,4 @@
-package co.topl.shared
+package co.topl.bridge
 
 import org.bitcoins.core.currency.CurrencyUnit
 
