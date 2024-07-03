@@ -113,7 +113,7 @@ class BridgeIntegrationSpec
             .both(
               IO.asyncForIO
                 .start(
-                  Main.run(
+                  consensus.Main.run(
                     List(
                       "--btc-wallet-seed-file",
                       "src/test/resources/wallet.json",
