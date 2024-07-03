@@ -13,6 +13,7 @@ trait FailedPeginNoMintModule {
 
     assertIO(
       for {
+        _ <- mintToplBlock(1, 1)
         newAddress <- getNewAddress
         txIdAndBTCAmount <- extractGetTxIdAndAmount
         (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount

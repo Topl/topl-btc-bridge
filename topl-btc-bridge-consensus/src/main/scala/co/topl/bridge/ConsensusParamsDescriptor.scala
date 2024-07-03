@@ -6,7 +6,7 @@ import org.bitcoins.core.currency.SatoshisLong
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
 
-trait BridgeParamsDescriptor {
+trait ConsensusParamsDescriptor {
 
   import ParamParser._
 

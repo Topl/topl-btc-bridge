@@ -12,6 +12,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
 
     assertIO(
       for {
+        _ <- mintToplBlock(1, 1)
         bridgeNetwork <- computeBridgeNetworkName
         ipBitcoin02 <- extractIpBtc(2, bridgeNetwork._1)
         ipBitcoin01 <- extractIpBtc(1, bridgeNetwork._1)

@@ -41,7 +41,7 @@ lazy val commonSettings = Seq(
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Sonatype Releases" at "https://s01.oss.sonatype.org/content/repositories/releases/",
     "Sonatype Releases s01" at "https://s01.oss.sonatype.org/content/repositories/releases/",
-    "Maven Repo" at  "https://repo1.maven.org/maven2/" ,
+    "Maven Repo" at "https://repo1.maven.org/maven2/",
     "Bintray" at "https://jcenter.bintray.com/"
   ),
   testFrameworks += TestFrameworks.MUnit
@@ -119,11 +119,15 @@ lazy val shared = (project in file("shared"))
   .settings(
     mavenPublishSettings
   )
+  .enablePlugins(Fs2Grpc)
   .settings(
     commonSettings,
+    Compile / PB.targets := Seq(
+      scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+    ),
     name := "topl-btc-bridge-shared",
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.consensus ++
+      Dependencies.toplBtcBridge.shared ++
         Dependencies.toplBtcBridge.test
   )
 
@@ -143,21 +147,22 @@ lazy val toplBtcBridgeConsensus = (project in file("topl-btc-bridge-consensus"))
   .enablePlugins(DockerPlugin, JavaAppPackaging)
   .dependsOn(shared)
 
-lazy val toplBtcBridgePublicApi = (project in file("topl-btc-bridge-public-api"))
-  .settings(
-    if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
-      dockerPublishSettingsPublicApi
-    else mavenPublishSettings
-  )
-  .settings(
-    commonSettings,
-    name := "topl-btc-bridge-public-api",
-    libraryDependencies ++=
-      Dependencies.toplBtcBridge.publicApi ++
-        Dependencies.toplBtcBridge.test
-  )
-  .enablePlugins(DockerPlugin, JavaAppPackaging)
-  .dependsOn(shared)
+lazy val toplBtcBridgePublicApi =
+  (project in file("topl-btc-bridge-public-api"))
+    .settings(
+      if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
+        dockerPublishSettingsPublicApi
+      else mavenPublishSettings
+    )
+    .settings(
+      commonSettings,
+      name := "topl-btc-bridge-public-api",
+      libraryDependencies ++=
+        Dependencies.toplBtcBridge.publicApi ++
+          Dependencies.toplBtcBridge.test
+    )
+    .enablePlugins(DockerPlugin, JavaAppPackaging)
+    .dependsOn(shared)
 
 val buildClient = taskKey[Unit]("Build client (frontend)")
 

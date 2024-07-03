@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.kernel.Ref
 import co.topl.brambl.monitoring.BitcoinMonitor
-import co.topl.bridge.BridgeParamsDescriptor
+import co.topl.bridge.ConsensusParamsDescriptor
 import co.topl.bridge.ServerConfig
 import co.topl.bridge.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.managers.BTCWalletImpl
@@ -47,7 +47,7 @@ case object PeginSessionState {
       extends PeginSessionState
 }
 
-object Main extends IOApp with BridgeParamsDescriptor with AppModule {
+object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
 
   override def run(args: List[String]): IO[ExitCode] = {
     OParser.parse(

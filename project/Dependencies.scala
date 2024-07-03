@@ -121,6 +121,10 @@ object Dependencies {
         grpcRuntime ++
         slf4j
 
+    lazy val shared: Seq[ModuleID] =
+        grpcNetty ++
+        grpcRuntime
+
     lazy val test: Seq[ModuleID] =
       (
         munit ++ munitCatsEffects
