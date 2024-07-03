@@ -220,7 +220,7 @@ object InitializationModule {
     )
 
     private def setBlochainHeight() = for {
-      tipHeight <- Async[F].fromFuture(Async[F].delay(bitcoind.getBlockCount))
+      tipHeight <- Async[F].fromFuture(Async[F].delay(bitcoind.getBlockCount()))
       _ <- info"Setting blockchain height to $tipHeight"
       _ <- currentBitcoinNetworkHeight.set(tipHeight)
     } yield ()
