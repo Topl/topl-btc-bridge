@@ -1,14 +1,17 @@
 package co.topl.bridge.publicapi
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
-import co.topl.bridge.consensus.service.servces.StartSessionOperation
-import co.topl.bridge.consensus.service.servces.StateMachineRequest
-import co.topl.bridge.consensus.service.servces.StateMachineServiceGrpc
+import co.topl.bridge.consensus.service.StartSessionOperation
+import co.topl.bridge.consensus.service.StateMachineRequest
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.shared.BridgeCryptoUtils
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Metadata
+import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.publicapi.Main.ConsensusClientMessageId
+import cats.effect.std.CountDownLatch
 
 trait ConsensusClientGrpc[F[_]] {
 
@@ -21,63 +24,53 @@ trait ConsensusClientGrpc[F[_]] {
 
 object ConsensusClientGrpcImpl {
 
-
   def make[F[_]: Async](
       privKeyFilePath: String,
+      messagesMap: ConcurrentHashMap[
+        ConsensusClientMessageId,
+        CountDownLatch[F]
+      ],
       address: String,
       port: Int,
       secureConnection: Boolean
   ) = {
 
-    import cats.implicits._
-
-    def channelResource[F[_]: Sync](
-        address: String,
-        port: Int,
-        secureConnection: Boolean
-    ) =
-      Resource
-        .make {
-          Sync[F].delay(
-            if (secureConnection)
-              ManagedChannelBuilder
-                .forAddress(address, port)
-                .build
-            else
-              ManagedChannelBuilder
-                .forAddress(address, port)
-                .usePlaintext()
-                .build
-          )
-        }(channel => Sync[F].delay(channel.shutdown()))
-
+    import fs2.grpc.syntax.all._
+    import scala.language.existentials
+    val channel = ManagedChannelBuilder
+      .forAddress(address, port)
     for {
-      channel <- channelResource(address, port, secureConnection).allocated
-      privKey <- BridgeCryptoUtils.getPrivateKeyFromPemFile(privKeyFilePath)
-      client = StateMachineServiceGrpc.stub(channel._1)
+      channel <-
+        (if (secureConnection) channel.useTransportSecurity()
+         else channel.usePlaintext()).resource[F]
+      client <- StateMachineServiceFs2Grpc.stubResource(
+        channel
+      )
     } yield new ConsensusClientGrpc[F] {
 
       import co.topl.bridge.publicapi.implicits._
+      import cats.implicits._
 
       private def prepareRequest(
           operation: StateMachineRequest.Operation
       )(implicit
           clientNumber: ClientNumber
-      ) = for {
-        timestamp <- Sync[F].delay(System.currentTimeMillis())
-        clientNumber <- Sync[F].delay(clientNumber.value)
-        request = StateMachineRequest(
-          timestamp = timestamp,
-          clientNumber = clientNumber,
-          operation = operation
-        )
-        signableBytes = request.signableBytes
-        signedBytes <- BridgeCryptoUtils.signBytes(privKey, signableBytes)
-        signedRequest = request.copy(signature =
-          ByteString.copyFrom(signableBytes)
-        )
-      } yield signedRequest
-
+      ) = {
+        for {
+          timestamp <- Sync[F].delay(System.currentTimeMillis())
+          privKey <- BridgeCryptoUtils.getPrivateKeyFromPemFile(privKeyFilePath)
+          request = StateMachineRequest(
+            timestamp = timestamp,
+            clientNumber = clientNumber.value,
+            operation = operation
+          )
+          signableBytes = request.signableBytes
+          signedBytes <- BridgeCryptoUtils.signBytes(privKey, signableBytes)
+          signedRequest = request.copy(signature =
+            ByteString.copyFrom(signableBytes)
+          )
+        } yield signedRequest
+      }
       override def startPegin(
           startSessionOperation: StartSessionOperation
       )(implicit
@@ -87,7 +80,16 @@ object ConsensusClientGrpcImpl {
           request <- prepareRequest(
             StateMachineRequest.Operation.StartSession(startSessionOperation)
           )
-          _ <- Sync[F].delay(client.executeRequest(request))
+          _ <- Sync[F].delay(
+            client.executeRequest(request, new Metadata())
+          )
+          latch <- CountDownLatch[F](1)
+          _ <- Sync[F].delay(
+            messagesMap.put(
+              ConsensusClientMessageId(request.timestamp),
+              latch
+            )
+          )
         } yield ()
       }
 

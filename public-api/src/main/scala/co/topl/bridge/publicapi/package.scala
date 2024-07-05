@@ -1,6 +1,7 @@
 package co.topl.bridge
 
-import co.topl.bridge.consensus.service.servces.StateMachineRequest
+import co.topl.bridge.consensus.service.StateMachineRequest
+
 
 package object publicapi {
   class ClientNumber(val value: Int) extends AnyVal

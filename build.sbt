@@ -119,17 +119,18 @@ lazy val shared = (project in file("shared"))
   .settings(
     mavenPublishSettings
   )
-  .enablePlugins(Fs2Grpc)
   .settings(
     commonSettings,
-    Compile / PB.targets := Seq(
-      scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
-    ),
+    // Compile / PB.targets := Seq(
+    //   scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+    // ),
     name := "topl-btc-bridge-shared",
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++=
       Dependencies.toplBtcBridge.shared ++
         Dependencies.toplBtcBridge.test
   )
+  .enablePlugins(Fs2Grpc)
 
 lazy val toplBtcBridgeConsensus = (project in file("consensus"))
   .settings(
