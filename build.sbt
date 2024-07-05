@@ -131,7 +131,7 @@ lazy val shared = (project in file("shared"))
         Dependencies.toplBtcBridge.test
   )
 
-lazy val toplBtcBridgeConsensus = (project in file("topl-btc-bridge-consensus"))
+lazy val toplBtcBridgeConsensus = (project in file("consensus"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
       dockerPublishSettingsConsensus
@@ -148,7 +148,7 @@ lazy val toplBtcBridgeConsensus = (project in file("topl-btc-bridge-consensus"))
   .dependsOn(shared)
 
 lazy val toplBtcBridgePublicApi =
-  (project in file("topl-btc-bridge-public-api"))
+  (project in file("public-api"))
     .settings(
       if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
         dockerPublishSettingsPublicApi
