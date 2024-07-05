@@ -1,6 +1,7 @@
 package co.topl.bridge.publicapi
 
 import scopt.OParser
+import java.io.File
 
 trait PublicApiParamsDescriptor {
 
@@ -12,10 +13,14 @@ trait PublicApiParamsDescriptor {
     OParser.sequence(
       programName("topl-btc-bridge-public-api"),
       head("topl-btc-bridge-public-api", "0.1"),
-      opt[String]("config-file")
+      opt[File]("config-file")
         .action((x, c) => c.copy(configurationFile = x))
+        .validate(x =>
+          if (x.exists) success
+          else failure("Configuration file does not exist")
+        )
         .text(
-          "Network name: Possible values: mainnet, testnet, regtest. (mandatory)"
+          "Configuration file for the topl-btc-bridge-public-api service"
         )
     )
   }

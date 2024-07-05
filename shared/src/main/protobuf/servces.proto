@@ -17,20 +17,23 @@ service ResponseService {
 
 message StateMachineRequest {
   uint64 timestamp = 1;
-  uint32  replicaNumber = 2;
+  uint32  clientNumber = 2;
+  bytes signature = 3;
   oneof operation {
-    StartSessionOperation startSession = 3;
-    MintingStatusOperation mintingStatus = 4;
+    StartSessionOperation startSession = 4;
+    MintingStatusOperation mintingStatus = 5;
   }
+  
 }
 
 message StateMachineReply {
   uint64 viewNumber = 1; // current view number
   uint64 timestamp = 2; // timestamp of the request
   uint32 replicaNumber = 3; // replica number of the request
+  bytes signature = 4; // signature of the request
   oneof result {
-    StartSessionRes startSession = 4;
-    MintingStatusRes mintingStatus = 5;
+    StartSessionRes startSession = 5;
+    MintingStatusRes mintingStatus = 6;
   }
 }
 

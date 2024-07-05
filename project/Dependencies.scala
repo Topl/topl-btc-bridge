@@ -25,6 +25,11 @@ object Dependencies {
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
   )
 
+  val bouncycastle: Seq[ModuleID] = Seq(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.68",
+    "org.bouncycastle" % "bcpkix-jdk15on" % "1.68"
+  )
+
   lazy val toplOrg = "co.topl"
 
   lazy val bramblVersion = "2.0.0-beta6+8-e5a24485-SNAPSHOT"
@@ -90,9 +95,17 @@ object Dependencies {
     "org.bitcoin-s" %% "bitcoin-s-zmq" % btcVersionZmq
   )
 
+  lazy val genericCirce: Seq[ModuleID] = Seq(
+    "io.circe" %% "circe-generic" % "0.14.9"
+  )
+
   lazy val optics: Seq[ModuleID] = Seq(
     "dev.optics" %% "monocle-core" % monocleVersion,
     "dev.optics" %% "monocle-macro" % monocleVersion
+  )
+
+  lazy val config: Seq[ModuleID] = Seq(
+    "com.typesafe" % "config" % "1.4.3"
   )
 
   object toplBtcBridge {
@@ -119,11 +132,16 @@ object Dependencies {
         optics ++
         grpcNetty ++
         grpcRuntime ++
-        slf4j
+        slf4j ++
+        config ++
+        logback ++
+        genericCirce
 
     lazy val shared: Seq[ModuleID] =
         grpcNetty ++
-        grpcRuntime
+        cats ++
+        grpcRuntime ++
+        bouncycastle
 
     lazy val test: Seq[ModuleID] =
       (

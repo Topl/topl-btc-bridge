@@ -124,7 +124,7 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       walletManager <- BTCWalletImpl.make[IO](walletKm)
       logger =
         org.typelevel.log4cats.slf4j.Slf4jLogger
-          .getLoggerFromName[IO]("btc-bridge")
+          .getLoggerFromName[IO]("consensus")
       // For each parameter, log its value to info
       _ <- info"Command line arguments" (logger)
       _ <- info"btc-blocks-to-recover  : ${params.btcWaitExpirationTime}" (
