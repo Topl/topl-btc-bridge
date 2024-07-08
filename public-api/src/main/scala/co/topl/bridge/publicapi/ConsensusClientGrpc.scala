@@ -12,6 +12,9 @@ import io.grpc.Metadata
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.publicapi.Main.ConsensusClientMessageId
 import cats.effect.std.CountDownLatch
+import java.security.KeyPair
+import cats.effect.kernel.Ref
+import co.topl.shared.StartPeginSessionResponse
 
 trait ConsensusClientGrpc[F[_]] {
 
@@ -19,16 +22,22 @@ trait ConsensusClientGrpc[F[_]] {
       startSessionOperation: StartSessionOperation
   )(implicit
       clientNumber: ClientNumber
-  ): F[Unit]
+  ): F[Option[StartPeginSessionResponse]]
 }
 
 object ConsensusClientGrpcImpl {
 
   def make[F[_]: Async](
-      privKeyFilePath: String,
+      keyPair: KeyPair,
       messagesMap: ConcurrentHashMap[
         ConsensusClientMessageId,
         CountDownLatch[F]
+      ],
+      messageResponseMap: ConcurrentHashMap[
+        ConsensusClientMessageId,
+        Ref[F, Option[
+          StartPeginSessionResponse
+        ]]
       ],
       address: String,
       port: Int,
@@ -58,14 +67,16 @@ object ConsensusClientGrpcImpl {
       ) = {
         for {
           timestamp <- Sync[F].delay(System.currentTimeMillis())
-          privKey <- BridgeCryptoUtils.getPrivateKeyFromPemFile(privKeyFilePath)
           request = StateMachineRequest(
             timestamp = timestamp,
             clientNumber = clientNumber.value,
             operation = operation
           )
           signableBytes = request.signableBytes
-          signedBytes <- BridgeCryptoUtils.signBytes(privKey, signableBytes)
+          signedBytes <- BridgeCryptoUtils.signBytes(
+            keyPair.getPrivate(),
+            signableBytes
+          )
           signedRequest = request.copy(signature =
             ByteString.copyFrom(signableBytes)
           )
@@ -75,7 +86,7 @@ object ConsensusClientGrpcImpl {
           startSessionOperation: StartSessionOperation
       )(implicit
           clientNumber: ClientNumber
-      ): F[Unit] = {
+      ): F[Option[StartPeginSessionResponse]] = {
         for {
           request <- prepareRequest(
             StateMachineRequest.Operation.StartSession(startSessionOperation)
@@ -90,7 +101,14 @@ object ConsensusClientGrpcImpl {
               latch
             )
           )
-        } yield ()
+          _ <- latch.await
+          someResponse <- Sync[F].delay(
+            messageResponseMap.get(
+              ConsensusClientMessageId(request.timestamp)
+            )
+          )
+          res <- someResponse.get
+        } yield res
       }
 
     }

@@ -43,13 +43,12 @@ message StartSessionOperation {
 }
 
 message StartSessionRes {
-  string messageId = 1;
-  string sessionId = 2;
-  string script = 3;
-  string escrowAddress = 4;
-  string descriptor = 5;
-  uint64 minHeight = 6;
-  uint64 maxHeight = 7;
+  string sessionId = 1;
+  string script = 2;
+  string escrowAddress = 3;
+  string descriptor = 4;
+  uint64 minHeight = 5;
+  uint64 maxHeight = 6;
 }
 
 

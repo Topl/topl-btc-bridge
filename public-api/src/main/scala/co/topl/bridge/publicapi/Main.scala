@@ -4,22 +4,21 @@ import cats.data.Kleisli
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
-import co.topl.bridge.consensus.service.Empty
-import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
-import co.topl.bridge.consensus.service.StartSessionOperation
-import co.topl.bridge.consensus.service.StateMachineReply
+import cats.effect.kernel.Ref
+import cats.effect.kernel.Sync
+import cats.effect.std.CountDownLatch
+import cats.implicits._
 import co.topl.bridge.publicapi.ClientNumber
-import co.topl.shared.BridgeContants
-import co.topl.shared.StartPeginSessionRequest
+import co.topl.bridge.publicapi.modules.ApiServicesModule
+import co.topl.bridge.publicapi.modules.ReplyServicesModule
+import co.topl.shared.BridgeCryptoUtils
+import co.topl.shared.StartPeginSessionResponse
+import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
-import io.circe.generic.auto._
-import io.grpc.Metadata
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.http4s.HttpRoutes
 import org.http4s._
-import org.http4s.circe._
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
@@ -27,12 +26,9 @@ import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
 import java.net.InetSocketAddress
+import java.security.PublicKey
 import java.security.Security
-import cats.effect.kernel.Resource
-import cats.effect.std.CountDownLatch
 import java.util.concurrent.ConcurrentHashMap
-import cats.effect.kernel.Sync
-import cats.effect.kernel.Async
 
 sealed trait PeginSessionState
 
@@ -48,40 +44,22 @@ case object PeginSessionState {
       extends PeginSessionState
 }
 
-object Main extends IOApp with PublicApiParamsDescriptor {
+object Main
+    extends IOApp
+    with PublicApiParamsDescriptor
+    with ApiServicesModule
+    with ReplyServicesModule {
 
-  def apiServices(consensusGrpc: ConsensusClientGrpc[IO])(implicit
-      clientNumber: ClientNumber
-  ) = {
-    import org.http4s.dsl.io._
-    HttpRoutes.of[IO] {
-      case req @ POST -> Root / BridgeContants.START_PEGIN_SESSION_PATH =>
-        implicit val startSessionRequestDecoder
-            : EntityDecoder[IO, StartPeginSessionRequest] =
-          jsonOf[IO, StartPeginSessionRequest]
-
-        for {
-          x <- req.as[StartPeginSessionRequest]
-          _ <- consensusGrpc.startPegin(
-            StartSessionOperation(
-              x.pkey,
-              x.sha256
-            )
-          )
-          res <- Ok("")
-        } yield res
-
-      case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
-        ???
-    }
-  }
-
-  def createApp(consensusGrpc: ConsensusClientGrpc[IO])(implicit
+  def createApp(
+      consensusGrpc: ConsensusClientGrpc[IO]
+  )(implicit
       clientNumber: ClientNumber
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val router = Router.define(
-      "/api" -> apiServices(consensusGrpc)
+      "/api" -> apiServices(
+        consensusGrpc
+      )
     )(default = staticAssetsService)
     Kleisli[IO, Request[IO], Response[IO]] { request =>
       router
@@ -105,23 +83,6 @@ object Main extends IOApp with PublicApiParamsDescriptor {
     }
   }
 
-  def replyService[F[_]: Async](
-      messagesMap: ConcurrentHashMap[
-        ConsensusClientMessageId,
-        CountDownLatch[F]
-      ]
-  ) =
-    ResponseServiceFs2Grpc.bindServiceResource(
-      serviceImpl = new ResponseServiceFs2Grpc[F, Metadata] {
-        def deliverResponse(
-            request: StateMachineReply,
-            ctx: Metadata
-        ): F[Empty] = {
-          ???
-        }
-      }
-    )
-
   case class ConsensusClientMessageId(
       timestamp: Long
   )
@@ -132,47 +93,73 @@ object Main extends IOApp with PublicApiParamsDescriptor {
       privateKeyFile: String,
       backendHost: String,
       backendPort: Int,
-      backendSecure: Boolean
+      backendSecure: Boolean,
+      replicaKeysMap: Map[Int, PublicKey],
+      messageResponseMap: ConcurrentHashMap[
+        ConsensusClientMessageId,
+        Ref[IO, Option[
+          StartPeginSessionResponse
+        ]]
+      ]
   )(implicit
       clientNumber: ClientNumber,
       logger: org.typelevel.log4cats.Logger[IO]
-  ) = for {
-    concurrentHashMap <- Resource.make(
-      IO(
-        new ConcurrentHashMap[
-          ConsensusClientMessageId,
-          CountDownLatch[IO]
-        ]()
+  ) = {
+    val countDownLatchMap = new ConcurrentHashMap[
+      ConsensusClientMessageId,
+      CountDownLatch[IO]
+    ]()
+    for {
+      keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
+      consensusClient <- ConsensusClientGrpcImpl
+        .make[IO](
+          keyPair,
+          countDownLatchMap,
+          messageResponseMap,
+          backendHost,
+          backendPort,
+          backendSecure
+        )
+      app = createApp(consensusClient)
+      _ <- EmberServerBuilder
+        .default[IO]
+        .withIdleTimeout(ServerConfig.idleTimeOut)
+        .withHost(ServerConfig.host)
+        .withPort(ServerConfig.port)
+        .withHttpApp(app)
+        .withLogger(logger)
+        .build
+      rService <- replyService(
+        replicaKeysMap,
+        messageResponseMap,
+        countDownLatchMap
       )
-    )(_ => IO.unit)
-    consensusClient <- ConsensusClientGrpcImpl
-      .make[IO](
-        privateKeyFile,
-        concurrentHashMap,
-        backendHost,
-        backendPort,
-        backendSecure
+      grpcListener <- NettyServerBuilder
+        .forAddress(new InetSocketAddress(clientHost, clientPort))
+        .addService(rService)
+        .resource[IO]
+      grpcShutdown <- IO.asyncForIO.background(
+        IO(
+          grpcListener.start
+        ) >> info"Netty-Server (grpc) service bound to address ${clientHost}:${clientPort}"
       )
-    app = createApp(consensusClient)
-    _ <- EmberServerBuilder
-      .default[IO]
-      .withIdleTimeout(ServerConfig.idleTimeOut)
-      .withHost(ServerConfig.host)
-      .withPort(ServerConfig.port)
-      .withHttpApp(app)
-      .withLogger(logger)
-      .build
-    rService <- replyService(concurrentHashMap)
-    grpcListener <- NettyServerBuilder
-      .forAddress(new InetSocketAddress(clientHost, clientPort))
-      .addService(rService)
-      .resource[IO]
-    grpcShutdown <- IO.asyncForIO.background(
-      IO(
-        grpcListener.start
-      ) >> info"Netty-Server (grpc) service bound to address ${clientHost}:${clientPort}"
-    )
-  } yield grpcShutdown
+    } yield grpcShutdown
+  }
+
+  private def createPublicKeyMap[F[_]: Sync](
+      conf: Config
+  ): F[Map[Int, PublicKey]] = {
+    val replicaCount =
+      conf.getInt("bridge.client.consensus.replicaCount")
+    (for (i <- 0 until replicaCount) yield {
+      val publicKeyFile = conf.getString(
+        s"bridge.client.consensus.replicas.$i.publicKeyFile"
+      )
+      for {
+        keyPair <- BridgeCryptoUtils.getPublicKey(publicKeyFile).allocated
+      } yield (i, keyPair._1)
+    }).toList.sequence.map(x => Map(x: _*))
+  }
 
   override def run(args: List[String]): IO[ExitCode] = {
     implicit val logger =
@@ -217,13 +204,21 @@ object Main extends IOApp with PublicApiParamsDescriptor {
           _ <- info"bridge.client.clientId: ${clientId.value}"
           _ <- info"bridge.client.responses.host: ${clientHost}"
           _ <- info"bridge.client.responses.port: ${clientPort}"
+          replicaKeysMap <- createPublicKeyMap[IO](conf)
+          messageResponseMap <- IO(
+            new ConcurrentHashMap[ConsensusClientMessageId, Ref[IO, Option[
+              StartPeginSessionResponse
+            ]]]
+          )
           _ <- setupServices(
             clientHost,
             clientPort,
             privateKeyFile,
             backendHost,
             backendPort,
-            backendSecure
+            backendSecure,
+            replicaKeysMap,
+            messageResponseMap
           ).useForever
         } yield ExitCode.Success
       case None =>
