@@ -30,3 +30,7 @@ integration/user-wallet02.db
 integration/user-wallet02.json
 integration/node01/
 integration/node02/
+integration/clientPrivateKey.pem
+integration/clientPublicKey.pem
+integration/consensusPrivateKey.pem
+integration/consensusPublicKey.pem

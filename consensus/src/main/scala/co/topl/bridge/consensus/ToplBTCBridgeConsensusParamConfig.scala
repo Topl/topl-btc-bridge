@@ -4,6 +4,7 @@ import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
+import java.io.File
 
 case class ToplBTCBridgeConsensusParamConfig(
     btcWaitExpirationTime: Int =
@@ -33,5 +34,6 @@ case class ToplBTCBridgeConsensusParamConfig(
     feePerByte: CurrencyUnit = 2.satoshis,
     groupId: GroupId,
     seriesId: SeriesId,
+    configurationFile : File = new File("application.conf"),
     toplSecureConnection: Boolean = false
 )

@@ -5,6 +5,7 @@ import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.SatoshisLong
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
+import java.io.File
 
 trait ConsensusParamsDescriptor {
 
@@ -154,6 +155,15 @@ trait ConsensusParamsDescriptor {
           x =>
             if (x > 0) success
             else failure("Confirmation threshold must be a positive number")
+        ),
+      opt[File]("config-file")
+        .action((x, c) => c.copy(configurationFile = x))
+        .validate(x =>
+          if (x.exists) success
+          else failure("Configuration file does not exist")
+        )
+        .text(
+          "Configuration file for the topl-btc-bridge-public-api service"
         )
     )
   }

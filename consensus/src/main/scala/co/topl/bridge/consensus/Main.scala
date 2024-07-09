@@ -3,27 +3,41 @@ package co.topl.bridge.consensus
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
+import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
+import cats.effect.kernel.Resource
+import cats.effect.std.Queue
+import co.topl.brambl.dataApi.BifrostQueryAlgebra
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor
+import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.ConsensusParamsDescriptor
 import co.topl.bridge.consensus.ServerConfig
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.consensus.managers.BTCWalletImpl
+import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.modules.AppModule
+import co.topl.bridge.consensus.service.StateMachineReply
+import co.topl.bridge.consensus.statemachine.pegin.BlockProcessor
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
+import co.topl.shared.BridgeCryptoUtils
+import com.google.protobuf.ByteString
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import org.bitcoins.keymanager.bip39.BIP39KeyManager
 import org.bitcoins.rpc.config.BitcoindAuthCredentials
-import org.http4s.ember.server.EmberServerBuilder
 import scopt.OParser
-import cats.effect.std.Queue
-import co.topl.bridge.consensus.managers.SessionEvent
-import co.topl.brambl.monitoring.BifrostMonitor
-import co.topl.brambl.dataApi.BifrostQueryAlgebra
-import co.topl.bridge.consensus.statemachine.pegin.BlockProcessor
-import co.topl.brambl.models.SeriesId
-import co.topl.brambl.models.GroupId
-import co.topl.brambl.utils.Encoding
-import com.google.protobuf.ByteString
+
+import java.security.KeyPair
+import java.security.PublicKey
+import java.util.concurrent.ConcurrentHashMap
+import io.grpc.netty.NettyServerBuilder
+import java.net.InetSocketAddress
+import java.nio.file.Files
+import java.security.Security
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -99,6 +113,40 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       params.walletPassword
     )
 
+  private def createClientMap[F[_]: Async](
+      replicaKeyPair: KeyPair,
+      conf: Config
+  )(implicit
+      replicaId: ReplicaId
+  ): Resource[F, Map[ClientId, (PublicApiClientGrpc[F], PublicKey)]] = {
+    import cats.implicits._
+    val replicaCount =
+      conf.getInt("bridge.replica.clients.clientCount")
+    (for (i <- 0 until replicaCount) yield {
+      val publicKeyFile = conf.getString(
+        s"bridge.replica.clients.clients.$i.publicKeyFile"
+      )
+      val host = conf.getString(s"bridge.replica.clients.clients.$i.host")
+      val port = conf.getInt(s"bridge.replica.clients.clients.$i.port")
+      val secure = conf.getBoolean(
+        s"bridge.replica.clients.clients.$i.secure"
+      )
+      for {
+        publicKey <- BridgeCryptoUtils.getPublicKey(publicKeyFile)
+        publicApiGrpc <- PublicApiClientGrpcImpl.make[F](
+          replicaKeyPair,
+          new ConcurrentHashMap[
+            ConsensusClientMessageId,
+            Ref[F, StateMachineReply.Result]
+          ](),
+          host,
+          port,
+          secure
+        )
+      } yield (new ClientId(i) -> (publicApiGrpc, publicKey))
+    }).toList.sequence.map(x => Map(x: _*))
+  }
+
   def runWithArgs(params: ToplBTCBridgeConsensusParamConfig): IO[ExitCode] = {
     import org.typelevel.log4cats.syntax._
     implicit val defaultFromFellowship = new Fellowship("self")
@@ -112,12 +160,20 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       params.btcUrl,
       credentials
     )
+    import fs2.grpc.syntax.all._
     implicit val groupId = params.groupId
     implicit val seriesId = params.seriesId
     implicit val btcRetryThreshold: BTCRetryThreshold = new BTCRetryThreshold(
       params.btcRetryThreshold
     )
+    val conf = ConfigFactory.parseFile(params.configurationFile)
+    implicit val replicaId = new ReplicaId(
+      conf.getInt("bridge.replica.replicaId")
+    )
+    val replicaHost = conf.getString("bridge.replica.requests.host")
+    val replicaPort = conf.getInt("bridge.replica.requests.port")
     (for {
+      _ <- IO(Security.addProvider(new BouncyCastleProvider()))
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
       pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
@@ -153,6 +209,9 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       _ <- info"topl-network           : ${params.toplNetwork}" (logger)
       _ <- info"topl-host              : ${params.toplHost}" (logger)
       _ <- info"topl-port              : ${params.toplPort}" (logger)
+      _ <- info"config-file            : ${params.configurationFile.toPath().toString()}" (
+        logger
+      )
       _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (
         logger
       )
@@ -164,14 +223,32 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       _ <- info"abtc-series-id         : ${Encoding.encodeToHex(params.seriesId.value.toByteArray)}" (
         logger
       )
+      privateKeyFile <- IO(
+        conf.getString("bridge.replica.security.privateKeyFile")
+      )
+      _ <- info"bridge.replica.security.privateKeyFile: ${privateKeyFile}" (
+        logger
+      )
+      _ <- info"bridge.replica.requests.host: ${replicaHost}" (logger)
+      _ <- info"bridge.replica.requests.port: ${replicaPort}" (logger)
+      _ <- info"bridge.replica.replicaId: ${replicaId.id}" (logger)
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
+      replicaKeyPair <- BridgeCryptoUtils
+        .getKeyPair[IO](privateKeyFile)
+        .allocated
+        .map(_._1)
       currentToplHeight <- Ref[IO].of(0L)
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
+      createClientMapResource <- createClientMap[IO](
+        replicaKeyPair,
+        conf
+      ).allocated.map(_._1)
       appAndInitAndStateMachine <- createApp(
         params,
+        createClientMapResource,
         queue,
         walletManager,
         pegInWalletManager,
@@ -180,7 +257,8 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
         currentToplHeight,
         globalState
       )
-      (app, init, peginStateMachine) = appAndInitAndStateMachine
+      (grpcServiceResource, init, peginStateMachine) = appAndInitAndStateMachine
+      grpcService <- grpcServiceResource.allocated.map(_._1)
       monitor <- BitcoinMonitor(
         bitcoindInstance,
         zmqHost = params.zmqHost,
@@ -196,6 +274,12 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       bifrostMonitor <- BifrostMonitor(
         bifrostQueryAlgebra
       )
+      grpcListener <- NettyServerBuilder
+        .forAddress(new InetSocketAddress(replicaHost, replicaPort))
+        .addService(grpcService)
+        .resource[IO]
+        .allocated
+        .map(_._1)
       _ <- IO.asyncForIO
         .background(
           fs2.Stream
@@ -205,6 +289,11 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
             .drain
         )
         .allocated
+      _ <- IO.asyncForIO.background(
+        IO(
+          grpcListener.start
+        ) >> info"Netty-Server (grpc) service bound to address ${replicaHost}:${replicaPort}"(logger)
+      ).allocated.map(_._1)
       currentToplHeightVal <- currentToplHeight.get
       currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
       _ <- IO.asyncForIO
@@ -225,23 +314,6 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
             .drain
         )
         .allocated
-      _ <- EmberServerBuilder
-        .default[IO]
-        .withIdleTimeout(ServerConfig.idleTimeOut)
-        .withHost(ServerConfig.host)
-        .withPort(ServerConfig.port)
-        .withHttpApp(app)
-        .withLogger(logger)
-        .build
-        .allocated
-        .both(
-          init.setupWallet(
-            defaultFromFellowship,
-            defaultFromTemplate,
-            params.groupId,
-            params.seriesId
-          )
-        )
     } yield {
       Right(
         s"Server started on ${ServerConfig.host}:${ServerConfig.port}"

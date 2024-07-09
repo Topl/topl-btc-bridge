@@ -42,6 +42,7 @@ import java.util.UUID
 import co.topl.shared.InvalidInput
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.ToplWaitExpirationTime
+import co.topl.bridge.consensus.service.StartSessionOperation
 
 object StartSessionController {
 
@@ -119,7 +120,7 @@ object StartSessionController {
   }
 
   def startPeginSession[F[_]: Async: Logger](
-      req: StartPeginSessionRequest,
+      req: StartSessionOperation,
       pegInWalletManager: BTCWalletAlgebra[F],
       bridgeWalletManager: BTCWalletAlgebra[F],
       sessionManager: SessionManagerAlgebra[F],

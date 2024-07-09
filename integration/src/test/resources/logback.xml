@@ -16,6 +16,7 @@
   <logger name="Bifrost.P2P" level="WARN" />
   <logger name="it-test" level="DEBUG" />
   <logger name="consensus" level="INFO" />
+  <logger name="public-api" level="INFO" />
   <root level="ERROR">
       <appender-ref ref="STDOUT" />
   </root>

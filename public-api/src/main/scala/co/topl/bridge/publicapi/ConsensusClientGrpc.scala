@@ -57,7 +57,7 @@ object ConsensusClientGrpcImpl {
       )
     } yield new ConsensusClientGrpc[F] {
 
-      import co.topl.bridge.publicapi.implicits._
+      import co.topl.shared.implicits._
       import cats.implicits._
 
       private def prepareRequest(

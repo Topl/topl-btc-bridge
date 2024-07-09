@@ -34,6 +34,8 @@ message StateMachineReply {
   oneof result {
     StartSessionRes startSession = 5;
     MintingStatusRes mintingStatus = 6;
+    SessionNotFoundRes sessionNotFound = 7;
+    InvalidInputRes invalidInput = 8;
   }
 }
 
@@ -51,6 +53,13 @@ message StartSessionRes {
   uint64 maxHeight = 6;
 }
 
+message SessionNotFoundRes {
+  string sessionId = 1;
+}
+
+message InvalidInputRes {
+  string errorMessage = 1;
+}
 
 message MintingStatusOperation {
   string sessionId = 1;

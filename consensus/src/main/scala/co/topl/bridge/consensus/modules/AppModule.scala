@@ -40,6 +40,9 @@ import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.BTCConfirmationThreshold
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.BTCRetryThreshold
+import co.topl.bridge.consensus.ClientId
+import co.topl.bridge.consensus.PublicApiClientGrpc
+import java.security.PublicKey
 
 trait AppModule
     extends WalletStateResource
@@ -54,6 +57,10 @@ trait AppModule
 
   def createApp(
       params: ToplBTCBridgeConsensusParamConfig,
+      publicApiClientGrpcMap: Map[
+        ClientId,
+        (PublicApiClientGrpc[IO], PublicKey)
+      ],
       queue: Queue[IO, SessionEvent],
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
@@ -115,31 +122,6 @@ trait AppModule
         params.toplWalletSeedFile,
         params.toplWalletPassword
       )
-      notFoundResponse <- NotFound(
-        """<!DOCTYPE html>
-          |<html>
-          |<body>
-          |<h1>Not found</h1>
-          |<p>The page you are looking for is not found.</p>
-          |<p>This message was generated on the server.</p>
-          |</body>
-          |</html>""".stripMargin('|'),
-        headers.`Content-Type`(MediaType.text.html)
-      )
-      router = Router.define(
-        "/" -> webUI(),
-        "/api" -> apiServices(
-          walletStateAlgebra,
-          keyPair,
-          sessionManager,
-          pegInWalletManager,
-          walletManager,
-          params.btcNetwork,
-          params.toplNetwork,
-          currentToplHeight,
-          currentState
-        )
-      )(default = staticAssetsService)
 
     } yield {
       implicit val kp = keyPair
@@ -157,9 +139,15 @@ trait AppModule
           new ConcurrentHashMap()
         )
       (
-        Kleisli[IO, Request[IO], Response[IO]] { request =>
-          router.run(request).getOrElse(notFoundResponse)
-        },
+        grpcServices(
+          publicApiClientGrpcMap,
+          keyPair,
+          sessionManager,
+          pegInWalletManager,
+          walletManager,
+          params.btcNetwork,
+          currentToplHeight
+        ),
         InitializationModule
           .make[IO](currentBitcoinNetworkHeight, currentState),
         peginStateMachine

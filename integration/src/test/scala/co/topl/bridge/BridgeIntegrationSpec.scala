@@ -56,7 +56,7 @@ class BridgeIntegrationSpec
       .spawn[IO]
       .use { getText }
     // print bridgeNetwork
-    _ <- info"bridgeNetwork: $bridgeNetwork"
+    // _ <- info"bridgeNetwork: $bridgeNetwork"
   } yield (bridgeNetwork, networkName)
 
   lazy val toplWalletDb =
@@ -67,8 +67,9 @@ class BridgeIntegrationSpec
   val startServer: AnyFixture[Unit] =
     new FutureFixture[Unit]("server setup") {
 
-      var fiber: Fiber[IO, Throwable, ExitCode] = _
-      def apply() = fiber: Unit
+      var fiber01: Fiber[IO, Throwable, ExitCode] = _
+      var fiber02: Fiber[IO, Throwable, ExitCode] = _
+      def apply() = (fiber01, fiber02): Unit
 
       override def beforeAll() = {
         (for {
@@ -112,32 +113,47 @@ class BridgeIntegrationSpec
           _ <- IO.asyncForIO
             .both(
               IO.asyncForIO
-                .start(
-                  consensus.Main.run(
-                    List(
-                      "--btc-wallet-seed-file",
-                      "src/test/resources/wallet.json",
-                      "--btc-peg-in-seed-file",
-                      "src/test/resources/pegin-wallet.json",
-                      "--topl-wallet-seed-file",
-                      toplWalletJson,
-                      "--topl-wallet-db",
-                      toplWalletDb,
-                      "--btc-url",
-                      "http://localhost",
-                      "--topl-blocks-to-recover",
-                      "15",
-                      "--abtc-group-id",
-                      groupId,
-                      "--abtc-series-id",
-                      seriesId
+                .both(
+                  IO.asyncForIO
+                    .start(
+                      publicapi.Main.run(
+                        List(
+                          "--config-file",
+                          "../public-api/src/main/resources/application.conf"
+                        )
+                      )
+                    ),
+                  IO.asyncForIO
+                    .start(
+                      consensus.Main.run(
+                        List(
+                          "--config-file",
+                          "../consensus/src/main/resources/application.conf",
+                          "--btc-wallet-seed-file",
+                          "src/test/resources/wallet.json",
+                          "--btc-peg-in-seed-file",
+                          "src/test/resources/pegin-wallet.json",
+                          "--topl-wallet-seed-file",
+                          toplWalletJson,
+                          "--topl-wallet-db",
+                          toplWalletDb,
+                          "--btc-url",
+                          "http://localhost",
+                          "--topl-blocks-to-recover",
+                          "15",
+                          "--abtc-group-id",
+                          groupId,
+                          "--abtc-series-id",
+                          seriesId
+                        )
+                      )
                     )
-                  )
                 ),
               IO.sleep(10.seconds)
             )
             .map { case (f, _) =>
-              fiber = f
+              fiber01 = f._2
+              fiber02 = f._1
             }
             .void
           bridgeNetwork <- computeBridgeNetworkName
@@ -191,7 +207,8 @@ class BridgeIntegrationSpec
       }
 
       override def afterAll() = {
-        fiber.cancel.void.unsafeToFuture()
+        fiber01.cancel.void.unsafeToFuture()
+        fiber02.cancel.void.unsafeToFuture()
       }
     }
 

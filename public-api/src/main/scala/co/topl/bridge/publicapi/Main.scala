@@ -177,8 +177,8 @@ object Main
           conf.getInt("bridge.client.clientId")
         )
         for {
-          _ <- IO(Security.addProvider(new BouncyCastleProvider()))
           _ <- info"Configuration parameters"
+          _ <- IO(Security.addProvider(new BouncyCastleProvider()))
           clientHost <- IO(
             conf.getString("bridge.client.responses.host")
           )
