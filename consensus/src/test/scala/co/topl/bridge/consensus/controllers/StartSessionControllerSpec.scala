@@ -1,6 +1,7 @@
 package co.topl.bridge.consensus.controllers
 
 import cats.effect.IO
+import cats.effect.kernel.Ref
 import cats.effect.std.Queue
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
@@ -11,6 +12,8 @@ import co.topl.brambl.servicekit.WalletKeyApi
 import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.consensus.RegTest
+import co.topl.bridge.consensus.ToplPrivatenet
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.PegoutSessionInfo
@@ -18,21 +21,18 @@ import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionInfo
 import co.topl.bridge.consensus.managers.SessionManagerImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
+import co.topl.bridge.consensus.service.StartSessionOperation
+import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
-import co.topl.bridge.consensus.RegTest
-import co.topl.shared.StartPeginSessionRequest
 import co.topl.shared.StartPegoutSessionRequest
-import co.topl.bridge.consensus.ToplPrivatenet
 import munit.CatsEffectSuite
 
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
-import cats.effect.kernel.Ref
-import co.topl.bridge.consensus.utils.KeyGenerationUtils
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -93,7 +93,7 @@ class StartSessionControllerSpec
           )
           currentToplHeight <- Ref[IO].of(1L)
           res <- StartSessionController.startPeginSession(
-            StartPeginSessionRequest(
+            StartSessionOperation(
               testKey,
               testHash
             ),
@@ -237,7 +237,7 @@ class StartSessionControllerSpec
           new ConcurrentHashMap[String, SessionInfo]()
         )
         res <- StartSessionController.startPeginSession(
-          StartPeginSessionRequest(
+          StartSessionOperation(
             "invalidKey",
             testHash
           ),
@@ -291,7 +291,7 @@ class StartSessionControllerSpec
         peginWallet <- BTCWalletImpl.make[IO](km0)
         currentToplHeight <- Ref[IO].of(1L)
         res <- StartSessionController.startPeginSession(
-          StartPeginSessionRequest(
+          StartSessionOperation(
             testKey,
             "invalidHash"
           ),

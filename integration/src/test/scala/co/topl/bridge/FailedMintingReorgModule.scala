@@ -10,6 +10,7 @@ trait FailedMintingReorgModule {
 
   def failedMintingReorgModule(): IO[Unit] = {
     import org.typelevel.log4cats.syntax._
+    import cats.implicits._
 
     assertIO(
       for {
@@ -56,7 +57,7 @@ trait FailedMintingReorgModule {
             _.mintingStatus == "PeginSessionMintingTBTCConfirmation"
           )
         _ <- info"Session ${startSessionResponse.sessionID} went to PeginSessionMintingTBTCConfirmation"	
-        _ <- mintToplBlock(2, 10)
+        _ <- List.fill(10)(mintToplBlock(2, 1)).sequence
         _ <- connectBridge(bridgeNetworkAndName._2, "bifrost02")
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)

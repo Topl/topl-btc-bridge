@@ -66,8 +66,10 @@ object PeginTransitionRelation {
       btcConfirmationThreshold: BTCConfirmationThreshold
   ) =
     (blockchainEvent match {
+      case SkippedToplBlock(height) =>
+        error"Error the processor skipped Topl block $height"
       case SkippedBTCBlock(height) =>
-        error"Error the processor skipped block $height"
+        error"Error the processor skipped BTC block $height"
       case NewToplBlock(height) =>
         debug"New Topl block $height"
       case NewBTCBlock(height) =>
@@ -366,6 +368,10 @@ object PeginTransitionRelation {
             cs: MintingTBTC,
             ev: NewBTCBlock
           ) =>
+        // print all values in the condition
+        println("cs.startBTCBlockHeight: " + cs.startBTCBlockHeight)
+        println("ev.height: " + ev.height)
+        println("btcWaitExpirationTime: " + btcWaitExpirationTime.underlying)
         if (
           ev.height - cs.startBTCBlockHeight > btcWaitExpirationTime.underlying
         )
@@ -378,8 +384,33 @@ object PeginTransitionRelation {
           None
       case (
             cs: MintingTBTCConfirmation,
+            ev: NewBTCBlock
+          ) =>
+        if (
+          ev.height - cs.startBTCBlockHeight > btcWaitExpirationTime.underlying
+        )
+          Some(
+            EndTransition[F](
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        else None
+      case (
+            cs: MintingTBTCConfirmation,
             be: NewToplBlock
           ) =>
+        // FIXME: Remove
+        println("cs.depositTBTCBlockHeight: " + cs.depositTBTCBlockHeight)
+        println("be.height: " + be.height)
+        println(
+          "toplConfirmationThreshold: " + toplConfirmationThreshold.underlying.toString
+        )
+        println(
+          "isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight): " + isAboveThresholdTopl(
+            be.height,
+            cs.depositTBTCBlockHeight
+          )
+        )
         if (isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight))
           Some(
             FSMTransitionTo(
@@ -417,7 +448,7 @@ object PeginTransitionRelation {
                 cs.btcVout,
                 cs.amount.amount.toLong
               ),
-               t2E(currentState, blockchainEvent)
+              t2E(currentState, blockchainEvent)
             )
           )
 

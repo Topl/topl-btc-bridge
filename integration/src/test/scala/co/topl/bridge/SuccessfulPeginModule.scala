@@ -25,6 +25,7 @@ trait SuccessfulPeginModule {
   self: BridgeIntegrationSpec =>
 
   def successfulPegin(): IO[Unit] = {
+    import cats.implicits._
 
     assertIO(
       for {
@@ -50,11 +51,14 @@ trait SuccessfulPeginModule {
         )
         signedTxHex <- signTransaction(bitcoinTx)
         _ <- sendTransaction(signedTxHex)
+        _ <- IO.sleep(5.second)
         _ <- generateToAddress(1, 8, newAddress)
         mintingStatusResponse <-
           (for {
             status <- checkMintingStatus(startSessionResponse.sessionID)
-            _ <- mintToplBlock(1, 2)
+            _ <- info"Current minting status: ${status.mintingStatus}"
+            _ <- mintToplBlock(1, 1)
+            _ <- generateToAddress(1, 1, newAddress)
             _ <- IO.sleep(1.second)
           } yield status)
             .iterateUntil(_.mintingStatus == "PeginSessionWaitingForRedemption")
@@ -108,7 +112,7 @@ trait SuccessfulPeginModule {
           "redeemTxProved.pbuf"
         )
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- mintToplBlock(1, 8)
+        _ <- List.fill(8)(mintToplBlock(1, 1)).sequence
         _ <- getCurrentUtxosFromAddress(1, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- generateToAddress(1, 3, newAddress)

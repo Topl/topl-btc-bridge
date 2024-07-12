@@ -1,18 +1,17 @@
 package co.topl.bridge.consensus
 
-import co.topl.bridge.consensus.service.StartSessionRes
-import co.topl.bridge.consensus.service.Empty
-import co.topl.bridge.consensus.service.StateMachineReply
 import cats.effect.kernel.Async
-import java.util.concurrent.ConcurrentHashMap
-import cats.effect.kernel.Ref
-import java.security.KeyPair
-import io.grpc.ManagedChannelBuilder
+import co.topl.bridge.consensus.service.Empty
 import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
-import io.grpc.Metadata
-import cats.effect.kernel.Sync
+import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.shared.BridgeCryptoUtils
 import com.google.protobuf.ByteString
+import io.grpc.ManagedChannel
+import io.grpc.Metadata
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.syntax._
+
+import java.security.KeyPair
 
 trait PublicApiClientGrpc[F[_]] {
 
@@ -25,24 +24,11 @@ trait PublicApiClientGrpc[F[_]] {
 
 object PublicApiClientGrpcImpl {
 
-  def make[F[_]: Async](
-      keyPair: KeyPair,
-      messageResponseMap: ConcurrentHashMap[
-        ConsensusClientMessageId,
-        Ref[F, StateMachineReply.Result]
-      ],
-      address: String,
-      port: Int,
-      secureConnection: Boolean
+  def make[F[_]: Async: Logger](
+      channel: ManagedChannel,
+      keyPair: KeyPair
   )(implicit replicaId: ReplicaId) = {
-    import fs2.grpc.syntax.all._
-    import scala.language.existentials
-    val channel = ManagedChannelBuilder
-      .forAddress(address, port)
     for {
-      channel <-
-        (if (secureConnection) channel.useTransportSecurity()
-         else channel.usePlaintext()).resource[F]
       client <- ResponseServiceFs2Grpc.stubResource(
         channel
       )
@@ -77,15 +63,13 @@ object PublicApiClientGrpcImpl {
       ): F[Empty] = {
 
         for {
+          _ <- trace"Replying to start pegin request"
           request <- prepareRequest(
             timestamp,
             startSessionRes
           )
-          _ <- Sync[F].delay(
-            client.deliverResponse(request, new Metadata())
-          )
+          _ <- client.deliverResponse(request, new Metadata())
         } yield Empty()
-
       }
     }
   }

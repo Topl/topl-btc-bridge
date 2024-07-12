@@ -175,7 +175,15 @@ object PeginStateMachine {
                 Sync[F].unit
             }
           )).collect({ case Some(value) =>
-          debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
+          if (blockchainEvent.isInstanceOf[NewBTCBlock])
+            debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[NewBTCBlock].height}" >> value
+          else if (blockchainEvent.isInstanceOf[SkippedBTCBlock])
+            debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[SkippedBTCBlock].height}" >> value
+          else if (blockchainEvent.isInstanceOf[NewToplBlock])
+            debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[NewToplBlock].height}" >> value
+          else
+            debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
+          //debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
         })
 
     }
@@ -183,11 +191,11 @@ object PeginStateMachine {
     private def fsmStateToSessionState(
         peginStateMachineState: PeginStateMachineState
     ): PeginSessionState = peginStateMachineState match {
-      case _: MintingTBTC          => PeginSessionStateMintingTBTC
-      case _: WaitingForBTC        => PeginSessionStateWaitingForBTC
-      case _: WaitingForRedemption => PeginSessionWaitingForRedemption
-      case _: WaitingForClaim      => PeginSessionWaitingForClaim
-      case _: MintingTBTCConfirmation      => PeginSessionMintingTBTCConfirmation
+      case _: MintingTBTC             => PeginSessionStateMintingTBTC
+      case _: WaitingForBTC           => PeginSessionStateWaitingForBTC
+      case _: WaitingForRedemption    => PeginSessionWaitingForRedemption
+      case _: WaitingForClaim         => PeginSessionWaitingForClaim
+      case _: MintingTBTCConfirmation => PeginSessionMintingTBTCConfirmation
       case _: WaitingForEscrowBTCConfirmation =>
         PeginSessionWaitingForEscrowBTCConfirmation
       case _: WaitingForClaimBTCConfirmation =>

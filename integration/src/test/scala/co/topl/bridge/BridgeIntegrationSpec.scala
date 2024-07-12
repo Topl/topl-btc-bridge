@@ -8,6 +8,7 @@ import io.circe.parser._
 import munit.AnyFixture
 import munit.CatsEffectSuite
 import munit.FutureFixture
+import org.typelevel.log4cats.Logger
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -74,88 +75,65 @@ class BridgeIntegrationSpec
       override def beforeAll() = {
         (for {
           _ <- pwd
-          currentAddress <- process
-            .ProcessBuilder(
-              CS_CMD,
-              csParams ++ Seq(
-                "wallet",
-                "current-address",
-                "--walletdb",
-                toplWalletDb
-              ): _*
-            )
-            .spawn[IO]
-            .use { getText }
-          utxo <- process
-            .ProcessBuilder(
-              CS_CMD,
-              csParams ++ Seq(
-                "genus-query",
-                "utxo-by-address",
-                "--host",
-                "localhost",
-                "--port",
-                "9084",
-                "--secure",
-                "false",
-                "--walletdb",
-                toplWalletDb,
-                "--from-address",
-                currentAddress
-              ): _*
-            )
-            .spawn[IO]
-            .use(
-              getText
-            )
-          _ <- IO.println("utxo: " + utxo)
+          currentAddress <- currentAddress(toplWalletDb)
+          utxo <- getCurrentUtxosFromAddress(toplWalletDb, currentAddress)
           (groupId, seriesId) = extractIds(utxo)
+          _ <- IO.asyncForIO.both(
+            IO.asyncForIO
+              .start(
+                consensus.Main.run(
+                  List(
+                    "--config-file",
+                    "../consensus/src/main/resources/application.conf",
+                    "--btc-wallet-seed-file",
+                    "src/test/resources/wallet.json",
+                    "--btc-peg-in-seed-file",
+                    "src/test/resources/pegin-wallet.json",
+                    "--topl-wallet-seed-file",
+                    toplWalletJson,
+                    "--topl-wallet-db",
+                    toplWalletDb,
+                    "--btc-url",
+                    "http://localhost",
+                    "--btc-blocks-to-recover",
+                    "50",
+                    "--topl-confirmation-threshold",
+                    "5",
+                    "--topl-blocks-to-recover",
+                    "15",
+                    "--abtc-group-id",
+                    groupId,
+                    "--abtc-series-id",
+                    seriesId
+                  )
+                )
+                // , FIXME: Remove me
+                // ExecutionContext.fromExecutor(
+                //   new java.util.concurrent.ForkJoinPool(4)
+                // )
+              )
+              .map { f2 =>
+                fiber02 = f2
+              },
+            IO.sleep(10.seconds)
+          )
           _ <- IO.asyncForIO
-            .both(
-              IO.asyncForIO
-                .both(
-                  IO.asyncForIO
-                    .start(
-                      publicapi.Main.run(
-                        List(
-                          "--config-file",
-                          "../public-api/src/main/resources/application.conf"
-                        )
-                      )
-                    ),
-                  IO.asyncForIO
-                    .start(
-                      consensus.Main.run(
-                        List(
-                          "--config-file",
-                          "../consensus/src/main/resources/application.conf",
-                          "--btc-wallet-seed-file",
-                          "src/test/resources/wallet.json",
-                          "--btc-peg-in-seed-file",
-                          "src/test/resources/pegin-wallet.json",
-                          "--topl-wallet-seed-file",
-                          toplWalletJson,
-                          "--topl-wallet-db",
-                          toplWalletDb,
-                          "--btc-url",
-                          "http://localhost",
-                          "--topl-blocks-to-recover",
-                          "15",
-                          "--abtc-group-id",
-                          groupId,
-                          "--abtc-series-id",
-                          seriesId
-                        )
-                      )
-                    )
-                ),
-              IO.sleep(10.seconds)
+            .start(
+              publicapi.Main.run(
+                List(
+                  "--config-file",
+                  "../public-api/src/main/resources/application.conf"
+                )
+              )
+              // , FIXME: Remove me
+              // ExecutionContext.fromExecutor(
+              //   new java.util.concurrent.ForkJoinPool(4)
+              // )
             )
-            .map { case (f, _) =>
-              fiber01 = f._2
-              fiber02 = f._1
+            .map { f =>
+              fiber01 = f
             }
-            .void
+          _ <- IO.sleep(10.seconds)
           bridgeNetwork <- computeBridgeNetworkName
           _ <- IO.println("bridgeNetwork: " + bridgeNetwork)
           // parse

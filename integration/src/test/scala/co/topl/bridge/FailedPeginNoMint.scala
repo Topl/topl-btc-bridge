@@ -13,7 +13,9 @@ trait FailedPeginNoMintModule {
 
     assertIO(
       for {
+        // ref <- Ref.of[IO, Int](0)
         _ <- mintToplBlock(1, 1)
+        _ <- IO.sleep(1.second)
         newAddress <- getNewAddress
         txIdAndBTCAmount <- extractGetTxIdAndAmount
         (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount
@@ -25,13 +27,13 @@ trait FailedPeginNoMintModule {
         )
         signedTxHex <- signTransaction(bitcoinTx)
         _ <- sendTransaction(signedTxHex)
-        _ <- generateToAddress(1, 102, newAddress)
+        _ <- generateToAddress(1, 52, newAddress)
         _ <- checkStatus(startSessionResponse.sessionID)
           .flatMap(x =>
-            generateToAddress(1, 1, newAddress) >> 
-            mintToplBlock(1, 1) >>
-            IO.sleep(1.second) >> 
-            IO.pure(x)
+            for {
+              _ <- generateToAddress(1, 5, newAddress)
+              _ <- IO.sleep(1.second)
+            } yield x
           )
           .iterateUntil(
             _.code == 404

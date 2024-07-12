@@ -9,6 +9,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
 
   def successfulPeginWithClaimErrorRetry(): IO[Unit] = {
     import org.typelevel.log4cats.syntax._
+    import cats.implicits._
 
     assertIO(
       for {
@@ -93,7 +94,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- mintToplBlock(1, 8)
+        _ <- List.fill(8)(mintToplBlock(1, 1)).sequence
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- (for {

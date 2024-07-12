@@ -10,34 +10,39 @@ import cats.effect.std.Queue
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
-import co.topl.brambl.monitoring.BifrostMonitor
+import co.topl.brambl.monitoring.BifrostMonitorBis
 import co.topl.brambl.monitoring.BitcoinMonitor
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.ConsensusParamsDescriptor
+import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.ServerConfig
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
+import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.modules.AppModule
-import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.statemachine.pegin.BlockProcessor
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.shared.BridgeCryptoUtils
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import io.grpc.ManagedChannelBuilder
+import io.grpc.netty.NettyServerBuilder
 import org.bitcoins.keymanager.bip39.BIP39KeyManager
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.bitcoins.rpc.config.BitcoindAuthCredentials
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
+import java.net.InetSocketAddress
 import java.security.KeyPair
 import java.security.PublicKey
-import java.util.concurrent.ConcurrentHashMap
-import io.grpc.netty.NettyServerBuilder
-import java.net.InetSocketAddress
-import java.nio.file.Files
 import java.security.Security
-import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.util.concurrent.Executors
+import scala.concurrent.ExecutionContext
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -90,6 +95,7 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       case Some(config) =>
         runWithArgs(config)
       case None =>
+        println("Invalid arguments")
         IO.consoleForIO.errorln("Invalid arguments") *>
           IO(ExitCode.Error)
     }
@@ -113,7 +119,7 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       params.walletPassword
     )
 
-  private def createClientMap[F[_]: Async](
+  private def createClientMap[F[_]: Async: Logger](
       replicaKeyPair: KeyPair,
       conf: Config
   )(implicit
@@ -131,20 +137,188 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       val secure = conf.getBoolean(
         s"bridge.replica.clients.clients.$i.secure"
       )
+      import fs2.grpc.syntax.all._
       for {
         publicKey <- BridgeCryptoUtils.getPublicKey(publicKeyFile)
+        channel <-
+          (if (secure)
+             ManagedChannelBuilder
+               .forAddress(host, port)
+               .useTransportSecurity()
+           else
+             ManagedChannelBuilder
+               .forAddress(host, port)
+               .usePlaintext()).resource[F]
         publicApiGrpc <- PublicApiClientGrpcImpl.make[F](
-          replicaKeyPair,
-          new ConcurrentHashMap[
-            ConsensusClientMessageId,
-            Ref[F, StateMachineReply.Result]
-          ](),
-          host,
-          port,
-          secure
+          channel,
+          replicaKeyPair
         )
       } yield (new ClientId(i) -> (publicApiGrpc, publicKey))
     }).toList.sequence.map(x => Map(x: _*))
+  }
+
+  def initializeForResources(
+      publicApiClientGrpcMap: Map[
+        ClientId,
+        (PublicApiClientGrpc[IO], PublicKey)
+      ],
+      params: ToplBTCBridgeConsensusParamConfig,
+      queue: Queue[IO, SessionEvent],
+      walletManager: BTCWalletAlgebra[IO],
+      pegInWalletManager: BTCWalletAlgebra[IO],
+      currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentToplHeight: Ref[IO, Long],
+      currentState: Ref[IO, SystemGlobalState]
+  )(implicit
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
+      bitcoindInstance: BitcoindRpcClient,
+      btcRetryThreshold: BTCRetryThreshold,
+      groupIdIdentifier: GroupId,
+      seriesIdIdentifier: SeriesId,
+      logger: Logger[IO]
+  ) = for {
+    currentToplHeightVal <- currentToplHeight.get
+    currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
+    res <- createApp(
+      params,
+      publicApiClientGrpcMap,
+      queue,
+      walletManager,
+      pegInWalletManager,
+      logger,
+      currentBitcoinNetworkHeight,
+      currentToplHeight,
+      currentState
+    )
+    monitor <- BitcoinMonitor(
+      bitcoindInstance,
+      zmqHost = params.zmqHost,
+      zmqPort = params.zmqPort
+    )
+    bifrostQueryAlgebra = BifrostQueryAlgebra.make[IO](
+      channelResource(
+        params.toplHost,
+        params.toplPort,
+        params.toplSecureConnection
+      )
+    )
+    bifrostMonitor <- BifrostMonitorBis(
+      params.toplHost,
+      params.toplPort,
+      params.toplSecureConnection,
+      bifrostQueryAlgebra
+    )
+  } yield (
+    currentToplHeightVal,
+    currentBitcoinNetworkHeightVal,
+    res._1,
+    res._2,
+    res._3,
+    monitor,
+    bifrostMonitor
+  )
+
+  def startResources(
+      conf: Config,
+      privateKeyFile: String,
+      params: ToplBTCBridgeConsensusParamConfig,
+      queue: Queue[IO, SessionEvent],
+      walletManager: BTCWalletAlgebra[IO],
+      pegInWalletManager: BTCWalletAlgebra[IO],
+      currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentToplHeight: Ref[IO, Long],
+      currentState: Ref[IO, SystemGlobalState]
+  )(implicit
+      fromFellowship: Fellowship,
+      fromTemplate: Template,
+      bitcoindInstance: BitcoindRpcClient,
+      btcRetryThreshold: BTCRetryThreshold,
+      groupIdIdentifier: GroupId,
+      seriesIdIdentifier: SeriesId,
+      logger: Logger[IO],
+      replicaId: ReplicaId
+  ) = {
+    import fs2.grpc.syntax.all._
+    val replicaHost = conf.getString("bridge.replica.requests.host")
+    val replicaPort = conf.getInt("bridge.replica.requests.port")
+    for {
+      replicaKeyPair <- BridgeCryptoUtils
+        .getKeyPair[IO](privateKeyFile)
+      createClientMapResource <- createClientMap(
+        replicaKeyPair,
+        conf
+      )(IO.asyncForIO, logger, replicaId)
+      res <- initializeForResources(
+        createClientMapResource,
+        params,
+        queue,
+        walletManager,
+        pegInWalletManager,
+        currentBitcoinNetworkHeight,
+        currentToplHeight,
+        currentState
+      ).toResource
+      (
+        currentToplHeightVal,
+        currentBitcoinNetworkHeightVal,
+        grpcServiceResource,
+        init,
+        peginStateMachine,
+        monitor,
+        bifrostMonitorRes
+      ) = res
+      bifrostMonitor <- bifrostMonitorRes
+      grpcService <- grpcServiceResource
+      grpcListener <- NettyServerBuilder
+        .forAddress(new InetSocketAddress(replicaHost, replicaPort))
+        .addService(grpcService)
+        .resource[IO]
+      _ <- IO.asyncForIO
+        .background(
+          fs2.Stream
+            .fromQueueUnterminated(queue)
+            .evalMap(x => peginStateMachine.innerStateConfigurer(x))
+            .compile
+            .drain
+        )
+      _ <- IO.asyncForIO
+        .background(
+          IO(
+            grpcListener.start
+          ) >> info"Netty-Server (grpc) service bound to address ${replicaHost}:${replicaPort}" (
+            logger
+          )
+        )
+      outcome <- IO.asyncForIO
+        .backgroundOn(
+          monitor
+            .monitorBlocks()
+            .either(
+              bifrostMonitor
+                .monitorBlocks()
+                .handleErrorWith(e => {
+                  println("Error in bifrost monitor")
+                  e.printStackTrace()
+                  fs2.Stream.empty
+                })
+            )
+            .flatMap(
+              BlockProcessor
+                .process(currentBitcoinNetworkHeightVal, currentToplHeightVal)
+            )
+            .flatMap(
+              // this handles each event in the context of the state machine
+              peginStateMachine.handleBlockchainEventInContext
+            )
+            .evalMap(identity)
+            .compile
+            .drain,
+          ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+        )
+      outcomeVal <- outcome.toResource
+      _ <- info"Outcome of monitoring: $outcomeVal" (logger).toResource
+    } yield ()
   }
 
   def runWithArgs(params: ToplBTCBridgeConsensusParamConfig): IO[ExitCode] = {
@@ -160,7 +334,6 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       params.btcUrl,
       credentials
     )
-    import fs2.grpc.syntax.all._
     implicit val groupId = params.groupId
     implicit val seriesId = params.seriesId
     implicit val btcRetryThreshold: BTCRetryThreshold = new BTCRetryThreshold(
@@ -170,6 +343,9 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
     implicit val replicaId = new ReplicaId(
       conf.getInt("bridge.replica.replicaId")
     )
+    implicit val logger =
+      org.typelevel.log4cats.slf4j.Slf4jLogger
+        .getLoggerFromName[IO]("consensus-" + f"${replicaId.id}%02d")
     val replicaHost = conf.getString("bridge.replica.requests.host")
     val replicaPort = conf.getInt("bridge.replica.requests.port")
     (for {
@@ -178,9 +354,6 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       walletKm <- loadKeyWallet(params)
       pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
       walletManager <- BTCWalletImpl.make[IO](walletKm)
-      logger =
-        org.typelevel.log4cats.slf4j.Slf4jLogger
-          .getLoggerFromName[IO]("consensus")
       // For each parameter, log its value to info
       _ <- info"Command line arguments" (logger)
       _ <- info"btc-blocks-to-recover  : ${params.btcWaitExpirationTime}" (
@@ -191,6 +364,10 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       )
       _ <-
         info"btc-confirmation-threshold : ${params.btcConfirmationThreshold}" (
+          logger
+        )
+      _ <-
+        info"topl-confirmation-threshold : ${params.toplConfirmationThreshold}" (
           logger
         )
       _ <- info"btc-peg-in-seed-file   : ${params.btcPegInSeedFile}" (logger)
@@ -235,85 +412,20 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
-      replicaKeyPair <- BridgeCryptoUtils
-        .getKeyPair[IO](privateKeyFile)
-        .allocated
-        .map(_._1)
       currentToplHeight <- Ref[IO].of(0L)
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
-      createClientMapResource <- createClientMap[IO](
-        replicaKeyPair,
-        conf
-      ).allocated.map(_._1)
-      appAndInitAndStateMachine <- createApp(
+      _ <- startResources(
+        conf,
+        privateKeyFile,
         params,
-        createClientMapResource,
         queue,
         walletManager,
         pegInWalletManager,
-        logger,
         currentBitcoinNetworkHeight,
         currentToplHeight,
         globalState
-      )
-      (grpcServiceResource, init, peginStateMachine) = appAndInitAndStateMachine
-      grpcService <- grpcServiceResource.allocated.map(_._1)
-      monitor <- BitcoinMonitor(
-        bitcoindInstance,
-        zmqHost = params.zmqHost,
-        zmqPort = params.zmqPort
-      )
-      bifrostQueryAlgebra = BifrostQueryAlgebra.make[IO](
-        channelResource(
-          params.toplHost,
-          params.toplPort,
-          params.toplSecureConnection
-        )
-      )
-      bifrostMonitor <- BifrostMonitor(
-        bifrostQueryAlgebra
-      )
-      grpcListener <- NettyServerBuilder
-        .forAddress(new InetSocketAddress(replicaHost, replicaPort))
-        .addService(grpcService)
-        .resource[IO]
-        .allocated
-        .map(_._1)
-      _ <- IO.asyncForIO
-        .background(
-          fs2.Stream
-            .fromQueueUnterminated(queue)
-            .evalMap(x => peginStateMachine.innerStateConfigurer(x))
-            .compile
-            .drain
-        )
-        .allocated
-      _ <- IO.asyncForIO.background(
-        IO(
-          grpcListener.start
-        ) >> info"Netty-Server (grpc) service bound to address ${replicaHost}:${replicaPort}"(logger)
-      ).allocated.map(_._1)
-      currentToplHeightVal <- currentToplHeight.get
-      currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
-      _ <- IO.asyncForIO
-        .background(
-          monitor
-            .monitorBlocks()
-            .either(bifrostMonitor.monitorBlocks())
-            .flatMap(
-              BlockProcessor
-                .process(currentBitcoinNetworkHeightVal, currentToplHeightVal)
-            )
-            .flatMap(
-              // this handles each event in the context of the state machine
-              peginStateMachine.handleBlockchainEventInContext
-            )
-            .evalMap(identity)
-            .compile
-            .drain
-        )
-        .allocated
+      ).useForever
     } yield {
       Right(
         s"Server started on ${ServerConfig.host}:${ServerConfig.port}"

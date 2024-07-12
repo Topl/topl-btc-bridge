@@ -2,7 +2,7 @@ package co.topl.bridge.consensus.statemachine.pegin
 
 import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.models.box.Attestation
-import co.topl.brambl.monitoring.BifrostMonitor
+import co.topl.brambl.monitoring.BifrostMonitorBis
 import co.topl.brambl.monitoring.BitcoinMonitor.BitcoinBlockSync
 import co.topl.brambl.utils.Encoding
 
@@ -22,15 +22,17 @@ object BlockProcessor {
   def process[F[_]](
       initialBTCHeight: Int,
       initialToplHeight: Long
-  ): Either[BitcoinBlockSync, BifrostMonitor.BifrostBlockSync] => fs2.Stream[
+  ): Either[BitcoinBlockSync, BifrostMonitorBis.BifrostBlockSync] => fs2.Stream[
     F,
     BlockchainEvent
   ] = {
     var btcHeight = initialBTCHeight
-    var toplHeight = initialToplHeight // FIXME: This will be used for the topl reorgs
-    var ascending = false
+    var toplHeight =
+      initialToplHeight // FIXME: This will be used for the topl reorgs
+    var btcAscending = false
+    var toplAscending = false
     def processAux[F[_]](
-        block: Either[BitcoinBlockSync, BifrostMonitor.BifrostBlockSync]
+        block: Either[BitcoinBlockSync, BifrostMonitorBis.BifrostBlockSync]
     ): fs2.Stream[F, BlockchainEvent] = block match {
       case Left(b) =>
         val allTransactions = fs2.Stream(
@@ -54,39 +56,43 @@ object BlockProcessor {
             }
           ): _*
         )
+        if (btcHeight == 0)
+          btcHeight = b.height - 1
         val transactions =
           if (b.height == (btcHeight + 1)) { // going up as expected, include all transaction
-            btcHeight = b.height
-            ascending = true
-            allTransactions
+            btcAscending = true
+            fs2.Stream(NewBTCBlock(b.height)) ++ allTransactions
           } else if (b.height == (btcHeight - 1)) { // going down by one, we ommit transactions
-            ascending = false
-            fs2.Stream()
+            btcAscending = false
+            fs2.Stream(NewBTCBlock(b.height))
           } else if (b.height > (btcHeight + 1)) { // we went up by more than one
-            ascending = true
+            btcAscending = true
+            println("b.height: " + b.height)
+            println("btcHeight + 1: " + (btcHeight + 1))
             fs2.Stream(
               SkippedBTCBlock(b.height)
             )
           } else if (b.height < (btcHeight - 1)) { // we went down by more than one, we ommit transactions
-            ascending = false
+            btcAscending = false
             fs2.Stream()
           } else {
             // we stayed the same
-            if (ascending) {
+            if (btcAscending) {
               // if we are ascending, it means the current block was just unapplied
               // we don't pass the transactions that we have already seen
-              ascending = false
-              fs2.Stream()
+              btcAscending = false
+              fs2.Stream(NewBTCBlock(b.height))
             } else {
               // if we are descending, it means the current block was just applied
               // we need to pass all transactions
-              ascending = true
-              allTransactions
+              btcAscending = true
+              fs2.Stream(NewBTCBlock(b.height)) ++ allTransactions
             }
           }
-        fs2.Stream(NewBTCBlock(b.height)) ++ transactions
+        btcHeight = b.height
+        transactions
       case Right(b) =>
-        fs2.Stream(NewToplBlock(b.height)) ++ fs2.Stream(
+        val allTransactions = fs2.Stream(
           b.block.transactions.flatMap(transaction =>
             transaction.inputs
               .filter(x => isLvlSeriesGroupOrAsset(x.value.value))
@@ -115,6 +121,41 @@ object BlockProcessor {
             }
           ): _*
         )
+        if (toplHeight == 0)
+          toplHeight = b.height - 1
+        val transactions =
+          if (b.height == (toplHeight + 1)) { // going up as expected, include all transaction
+            toplAscending = true
+            fs2.Stream(NewToplBlock(b.height)) ++ allTransactions
+          } else if (b.height == (toplHeight - 1)) { // going down by one, we ommit transactions
+            toplAscending = false
+            fs2.Stream(NewToplBlock(b.height))
+          } else if (b.height > (toplHeight + 1)) { // we went up by more than one
+            toplAscending = true
+            println("b.height: " + b.height)
+            println("toplHeight + 1: " + (toplHeight + 1))
+            fs2.Stream(
+              SkippedToplBlock(b.height)
+            )
+          } else if (b.height < (toplHeight - 1)) { // we went down by more than one, we ommit transactions
+            toplAscending = false
+            fs2.Stream()
+          } else {
+            // we stayed the same
+            if (toplAscending) {
+              // if we are ascending, it means the current block was just unapplied
+              // we don't pass the transactions that we have already seen
+              toplAscending = false
+              fs2.Stream(NewToplBlock(b.height))
+            } else {
+              // if we are descending, it means the current block was just applied
+              // we need to pass all transactions
+              toplAscending = true
+              fs2.Stream(NewToplBlock(b.height)) ++ allTransactions
+            }
+          }
+        toplHeight = b.height
+        transactions
     }
     processAux
 

@@ -12,16 +12,19 @@ import co.topl.bridge.publicapi.ClientNumber
 import co.topl.bridge.publicapi.modules.ApiServicesModule
 import co.topl.bridge.publicapi.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.StartPeginSessionResponse
+import co.topl.shared.BridgeError
+import co.topl.shared.BridgeResponse
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
+import io.grpc.ManagedChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.http4s._
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
 import org.http4s.server.staticcontent.resourceServiceBuilder
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
@@ -53,6 +56,7 @@ object Main
   def createApp(
       consensusGrpc: ConsensusClientGrpc[IO]
   )(implicit
+      l: Logger[IO],
       clientNumber: ClientNumber
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
@@ -97,8 +101,9 @@ object Main
       replicaKeysMap: Map[Int, PublicKey],
       messageResponseMap: ConcurrentHashMap[
         ConsensusClientMessageId,
-        Ref[IO, Option[
-          StartPeginSessionResponse
+        Ref[IO, Either[
+          BridgeError,
+          BridgeResponse
         ]]
       ]
   )(implicit
@@ -111,14 +116,25 @@ object Main
     ]()
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
+      channel <-
+        (if (backendSecure)
+           ManagedChannelBuilder
+             .forAddress(backendHost, backendPort)
+             .useTransportSecurity()
+         else
+           ManagedChannelBuilder
+             .forAddress(backendHost, backendPort)
+             .usePlaintext()).resource[IO]
+
       consensusClient <- ConsensusClientGrpcImpl
         .make[IO](
           keyPair,
           countDownLatchMap,
           messageResponseMap,
-          backendHost,
-          backendPort,
-          backendSecure
+          channel
+          // backendHost, // FIXME: remove
+          // backendPort,
+          // backendSecure
         )
       app = createApp(consensusClient)
       _ <- EmberServerBuilder
@@ -162,9 +178,6 @@ object Main
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    implicit val logger =
-      org.typelevel.log4cats.slf4j.Slf4jLogger
-        .getLoggerFromName[IO]("public-api")
     // log syntax
     OParser.parse(
       parser,
@@ -176,6 +189,9 @@ object Main
         implicit val clientId = new ClientNumber(
           conf.getInt("bridge.client.clientId")
         )
+        implicit val logger =
+          org.typelevel.log4cats.slf4j.Slf4jLogger
+            .getLoggerFromName[IO](s"public-api-" + f"${clientId.value}%02d")
         for {
           _ <- info"Configuration parameters"
           _ <- IO(Security.addProvider(new BouncyCastleProvider()))
@@ -206,8 +222,9 @@ object Main
           _ <- info"bridge.client.responses.port: ${clientPort}"
           replicaKeysMap <- createPublicKeyMap[IO](conf)
           messageResponseMap <- IO(
-            new ConcurrentHashMap[ConsensusClientMessageId, Ref[IO, Option[
-              StartPeginSessionResponse
+            new ConcurrentHashMap[ConsensusClientMessageId, Ref[IO, Either[
+              BridgeError,
+              BridgeResponse
             ]]]
           )
           _ <- setupServices(

@@ -34,3 +34,4 @@ integration/clientPrivateKey.pem
 integration/clientPublicKey.pem
 integration/consensusPrivateKey.pem
 integration/consensusPublicKey.pem
+integration/redeemTxProved.pbuf

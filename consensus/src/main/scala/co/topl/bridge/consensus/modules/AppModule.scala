@@ -1,21 +1,23 @@
 package co.topl.bridge.consensus.modules
 
-import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Ref
 import cats.effect.std.Queue
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.GenusQueryAlgebra
-import co.topl.brambl.dataApi.RpcChannelResource
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.SeriesId
 import co.topl.brambl.servicekit.FellowshipStorageApi
 import co.topl.brambl.servicekit.TemplateStorageApi
 import co.topl.brambl.servicekit.WalletKeyApi
 import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.consensus.BTCRetryThreshold
+import co.topl.bridge.consensus.ClientId
 import co.topl.bridge.consensus.Fellowship
-import co.topl.bridge.consensus.Lvl
+import co.topl.bridge.consensus.PublicApiClientGrpc
 import co.topl.bridge.consensus.SystemGlobalState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
@@ -28,25 +30,13 @@ import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.dsl.io._
-import org.http4s.server.Router
-import org.http4s.server.staticcontent.resourceServiceBuilder
-import org.typelevel.log4cats.SelfAwareStructuredLogger
-import co.topl.brambl.models.SeriesId
-import co.topl.brambl.models.GroupId
+import org.typelevel.log4cats.Logger
 
-import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.BTCWaitExpirationTime
-import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.BTCConfirmationThreshold
-import co.topl.bridge.consensus.ToplConfirmationThreshold
-import co.topl.bridge.consensus.BTCRetryThreshold
-import co.topl.bridge.consensus.ClientId
-import co.topl.bridge.consensus.PublicApiClientGrpc
 import java.security.PublicKey
+import java.util.concurrent.ConcurrentHashMap
 
 trait AppModule
     extends WalletStateResource
-    with RpcChannelResource
     with ApiServicesModule {
 
   def webUI() = HttpRoutes.of[IO] { case request @ GET -> Root =>
@@ -64,7 +54,7 @@ trait AppModule
       queue: Queue[IO, SessionEvent],
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
-      logger: SelfAwareStructuredLogger[IO],
+      logger: Logger[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
       currentToplHeight: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
@@ -76,7 +66,7 @@ trait AppModule
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId
   ) = {
-    val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
+    import co.topl.bridge.consensus._
     val walletKeyApi = WalletKeyApi.make[IO]()
     implicit val walletApi = WalletApi.make[IO](walletKeyApi)
     val walletRes = walletResource(params.toplWalletDb)

@@ -138,10 +138,19 @@ package object bridge {
   def currentAddress(id: Int)(implicit l: Logger[IO]) =
     withLoggingReturn(currentAddressP(id))
 
+  def currentAddress(file: String)(implicit l: Logger[IO]) =
+    withLoggingReturn(currentAddressP(file))
+
   def getCurrentUtxosFromAddress(id: Int, address: String)(implicit
       l: Logger[IO]
   ) = for {
     utxo <- withTracingReturn(getCurrentUtxosFromAddressP(id, address))
+  } yield utxo
+
+  def getCurrentUtxosFromAddress(file: String, address: String)(implicit
+      l: Logger[IO]
+  ) = for {
+    utxo <- withTracingReturn(getCurrentUtxosFromAddressP(file, address))
   } yield utxo
 
   def redeemAddressTx(
@@ -207,7 +216,7 @@ package object bridge {
           method = Method.POST,
           Uri
             .fromString(
-              "http://127.0.0.1:4000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
+              "http://127.0.0.1:5000/api/" + BridgeContants.START_PEGIN_SESSION_PATH
             )
             .toOption
             .get
@@ -223,28 +232,37 @@ package object bridge {
       )
     })
 
-  def checkMintingStatus(sessionId: String) = EmberClientBuilder
-    .default[IO]
-    .build
-    .use({ client =>
-      client.expect[MintingStatusResponse](
-        Request[IO](
-          method = Method.POST,
-          Uri
-            .fromString(
-              "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+  def checkMintingStatus(sessionId: String)(implicit l: Logger[IO]) =
+    EmberClientBuilder
+      .default[IO]
+      .build
+      .use({ client =>
+        client
+          .expect[MintingStatusResponse](
+            Request[IO](
+              method = Method.POST,
+              Uri
+                .fromString(
+                  "http://127.0.0.1:5000/api/" + BridgeContants.TOPL_MINTING_STATUS
+                )
+                .toOption
+                .get
+            ).withContentType(
+              `Content-Type`.apply(MediaType.application.json)
+            ).withEntity(
+              MintingStatusRequest(sessionId)
             )
-            .toOption
-            .get
-        ).withContentType(
-          `Content-Type`.apply(MediaType.application.json)
-        ).withEntity(
-          MintingStatusRequest(sessionId)
-        )
-      )
-    })
+          )
+          .handleErrorWith(e => {
+            error"Error getting status response" >> IO(
+              e.printStackTrace()
+            ) >> IO.raiseError(
+              e
+            )
+          })
+      })
 
-  def checkStatus(sessionId: String) = EmberClientBuilder
+  def checkStatus(sessionId: String)(implicit l: Logger[IO]) = EmberClientBuilder
     .default[IO]
     .build
     .use({ client =>
@@ -254,7 +272,7 @@ package object bridge {
             method = Method.POST,
             Uri
               .fromString(
-                "http://127.0.0.1:4000/api/" + BridgeContants.TOPL_MINTING_STATUS
+                "http://127.0.0.1:5000/api/" + BridgeContants.TOPL_MINTING_STATUS
               )
               .toOption
               .get
@@ -264,6 +282,13 @@ package object bridge {
             MintingStatusRequest(sessionId)
           )
         )
+          .handleErrorWith(e => {
+            error"Error getting status code" >> IO(
+              e.printStackTrace()
+            ) >> IO.raiseError(
+              e
+            )
+          })
     })
 
   def extractGetTxIdAndAmount(implicit l: Logger[IO]) = for {
@@ -407,12 +432,32 @@ package object bridge {
     )
     .spawn[IO]
 
+  def getCurrentUtxosFromAddressP(file: String, address: String) = process
+    .ProcessBuilder(
+      CS_CMD,
+      csParams ++ Seq(
+        "genus-query",
+        "utxo-by-address",
+        "--host",
+        "localhost",
+        "--port",
+        "9084",
+        "--secure",
+        "false",
+        "--walletdb",
+        file,
+        "--from-address",
+        address
+      ): _*
+    )
+    .spawn[IO]
+
   def templateFromSha(sha256: String, min: Long, max: Long) =
     s"""threshold(1, sha256($sha256) and height($min, $max))"""
 
   val secretMap = Map(1 -> "topl-secret", 2 -> "topl-secret01")
 
-  val bifrostHostMap = 
+  val bifrostHostMap =
     if (Option(System.getenv("CI")).isDefined) {
       Map(1 -> "bifrost01", 2 -> "bifrost02")
     } else {
@@ -480,6 +525,18 @@ package object bridge {
         "current-address",
         "--walletdb",
         userWalletDb(id)
+      ): _*
+    )
+    .spawn[IO]
+
+  def currentAddressP(file: String) = process
+    .ProcessBuilder(
+      CS_CMD,
+      csParams ++ Seq(
+        "wallet",
+        "current-address",
+        "--walletdb",
+        file
       ): _*
     )
     .spawn[IO]

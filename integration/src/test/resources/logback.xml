@@ -15,8 +15,8 @@
   <logger class="io.grpc.netty.shaded.io.grpc.netty.NettyClientHandler" level="WARN" />
   <logger name="Bifrost.P2P" level="WARN" />
   <logger name="it-test" level="DEBUG" />
-  <logger name="consensus" level="INFO" />
-  <logger name="public-api" level="INFO" />
+  <logger name="consensus-00" level="DEBUG" />
+  <logger name="public-api-00" level="INFO" />
   <root level="ERROR">
       <appender-ref ref="STDOUT" />
   </root>

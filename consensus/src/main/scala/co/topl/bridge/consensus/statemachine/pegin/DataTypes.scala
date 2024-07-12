@@ -12,6 +12,8 @@ case class NewBTCBlock(height: Int) extends BlockchainEvent
 
 case class SkippedBTCBlock(height: Int) extends BlockchainEvent
 
+case class SkippedToplBlock(height: Long) extends BlockchainEvent
+
 case class NewToplBlock(height: Long) extends BlockchainEvent
 
 case class BTCFundsDeposited(

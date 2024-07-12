@@ -149,7 +149,17 @@ trait ConsensusParamsDescriptor {
       opt[Int]("btc-confirmation-threshold")
         .action((x, c) => c.copy(btcConfirmationThreshold = x))
         .text(
-          "The number of confirmations required for a peg-in transaction. (mandatory)"
+          "The number of confirmations required for a peg-in transaction in the BTC network. (mandatory)"
+        )
+        .validate( // check that it is a positive number
+          x =>
+            if (x > 0) success
+            else failure("Confirmation threshold must be a positive number")
+        ),
+      opt[Int]("topl-confirmation-threshold")
+        .action((x, c) => c.copy(toplConfirmationThreshold = x))
+        .text(
+          "The number of confirmations required for a peg-in transaction in the Topl network. (mandatory)"
         )
         .validate( // check that it is a positive number
           x =>

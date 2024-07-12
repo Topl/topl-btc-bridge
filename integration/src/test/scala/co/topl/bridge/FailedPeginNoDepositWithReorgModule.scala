@@ -40,7 +40,8 @@ trait FailedPeginNoDepositWithReorgModule {
           .iterateUntil(
             _.mintingStatus == "PeginSessionWaitingForEscrowBTCConfirmation"
           )
-        _ <- generateToAddress(1, 2, newAddress)
+        _ <- warn"We are in the waiting for escrow confirmation state"
+        // _ <- generateToAddress(1, 2, newAddress)
         _ <- generateToAddress(2, 8, newAddress)
         // reconnect network
         _ <- setNetworkActive(2, true)
@@ -50,7 +51,7 @@ trait FailedPeginNoDepositWithReorgModule {
         _ <- forceConnection(2, ipBitcoin01, 18444)
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
-          _ <- IO.sleep(1.second)
+          _ <- IO.sleep(2.second)
         } yield status)
           .iterateUntil(
             _.mintingStatus == "PeginSessionStateWaitingForBTC"

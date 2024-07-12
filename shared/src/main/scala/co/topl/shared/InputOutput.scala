@@ -22,11 +22,13 @@ case class MintingStatusRequest(
     sessionID: String
 )
 
+sealed trait BridgeResponse
+
 case class MintingStatusResponse(
     mintingStatus: String,
     address: String,
     redeemScript: String
-)
+) extends BridgeResponse
 
 case class SyncWalletRequest(
     secret: String
@@ -39,7 +41,7 @@ case class StartPeginSessionResponse(
     descriptor: String,
     minHeight: Long,
     maxHeight: Long
-)
+) extends BridgeResponse
 
 case class StartPegoutSessionResponse(
     sessionID: String,
@@ -49,6 +51,10 @@ case class StartPegoutSessionResponse(
 sealed trait BridgeError extends Throwable {
   val error: String
 }
+
+case class UnknownError(error: String) extends BridgeError
+
+case class TimeoutError(error: String) extends BridgeError
 
 case class SessionNotFoundError(error: String) extends BridgeError
 case class InvalidKey(error: String) extends BridgeError
