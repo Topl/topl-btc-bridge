@@ -68,7 +68,7 @@ jobs:
           echo "    timestamp: 0" >> node01/config.yaml
           echo "    regtest-enabled: true" >> node01/config.yaml
           echo "    stakes: [10000, 10000]" >> node01/config.yaml
-          apt-get install jq
+          sudo apt-get install jq
           export BIFROST_01=`docker run --rm -d --name bifrost01 -p 9085:9085 -p 9084:9084 -p 9091:9091 -v $(pwd)/node01:/bifrost-staking:rw toplprotocol/bifrost-tooling:v2.0.0-beta3 --  --config  /bifrost-staking/config.yaml --regtest`
           echo "Bifrost01 container id: $BIFROST_01"
           echo "BRIDGE=`docker network ls | head -2 | tail -1 | awk -e '{print $2}'`" >> $GITHUB_ENV
