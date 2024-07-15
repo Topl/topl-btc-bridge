@@ -2,7 +2,7 @@ package co.topl.bridge.consensus.statemachine.pegin
 
 import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.models.box.Attestation
-import co.topl.brambl.monitoring.BifrostMonitorBis
+import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor.BitcoinBlockSync
 import co.topl.brambl.utils.Encoding
 
@@ -22,17 +22,17 @@ object BlockProcessor {
   def process[F[_]](
       initialBTCHeight: Int,
       initialToplHeight: Long
-  ): Either[BitcoinBlockSync, BifrostMonitorBis.BifrostBlockSync] => fs2.Stream[
+  ): Either[BitcoinBlockSync, BifrostMonitor.BifrostBlockSync] => fs2.Stream[
     F,
     BlockchainEvent
   ] = {
     var btcHeight = initialBTCHeight
     var toplHeight =
-      initialToplHeight // FIXME: This will be used for the topl reorgs
+      initialToplHeight
     var btcAscending = false
     var toplAscending = false
     def processAux[F[_]](
-        block: Either[BitcoinBlockSync, BifrostMonitorBis.BifrostBlockSync]
+        block: Either[BitcoinBlockSync, BifrostMonitor.BifrostBlockSync]
     ): fs2.Stream[F, BlockchainEvent] = block match {
       case Left(b) =>
         val allTransactions = fs2.Stream(
@@ -67,8 +67,6 @@ object BlockProcessor {
             fs2.Stream(NewBTCBlock(b.height))
           } else if (b.height > (btcHeight + 1)) { // we went up by more than one
             btcAscending = true
-            println("b.height: " + b.height)
-            println("btcHeight + 1: " + (btcHeight + 1))
             fs2.Stream(
               SkippedBTCBlock(b.height)
             )
@@ -132,8 +130,6 @@ object BlockProcessor {
             fs2.Stream(NewToplBlock(b.height))
           } else if (b.height > (toplHeight + 1)) { // we went up by more than one
             toplAscending = true
-            println("b.height: " + b.height)
-            println("toplHeight + 1: " + (toplHeight + 1))
             fs2.Stream(
               SkippedToplBlock(b.height)
             )

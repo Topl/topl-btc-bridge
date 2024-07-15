@@ -379,7 +379,7 @@ package object bridge {
     "launch",
     "-r",
     "https://s01.oss.sonatype.org/content/repositories/releases",
-    "co.topl:brambl-cli_2.13:2.0.0-beta5+2-4f603d9d-SNAPSHOT",
+    "co.topl:brambl-cli_2.13:2.0.0-beta6",
     "--"
   )
 

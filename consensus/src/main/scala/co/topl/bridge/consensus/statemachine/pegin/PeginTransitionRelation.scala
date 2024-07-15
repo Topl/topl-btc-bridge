@@ -368,10 +368,6 @@ object PeginTransitionRelation {
             cs: MintingTBTC,
             ev: NewBTCBlock
           ) =>
-        // print all values in the condition
-        println("cs.startBTCBlockHeight: " + cs.startBTCBlockHeight)
-        println("ev.height: " + ev.height)
-        println("btcWaitExpirationTime: " + btcWaitExpirationTime.underlying)
         if (
           ev.height - cs.startBTCBlockHeight > btcWaitExpirationTime.underlying
         )
@@ -399,18 +395,6 @@ object PeginTransitionRelation {
             cs: MintingTBTCConfirmation,
             be: NewToplBlock
           ) =>
-        // FIXME: Remove
-        println("cs.depositTBTCBlockHeight: " + cs.depositTBTCBlockHeight)
-        println("be.height: " + be.height)
-        println(
-          "toplConfirmationThreshold: " + toplConfirmationThreshold.underlying.toString
-        )
-        println(
-          "isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight): " + isAboveThresholdTopl(
-            be.height,
-            cs.depositTBTCBlockHeight
-          )
-        )
         if (isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight))
           Some(
             FSMTransitionTo(

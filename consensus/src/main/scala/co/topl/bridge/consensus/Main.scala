@@ -10,7 +10,7 @@ import cats.effect.std.Queue
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
-import co.topl.brambl.monitoring.BifrostMonitorBis
+import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.ConsensusParamsDescriptor
@@ -191,32 +191,12 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       currentToplHeight,
       currentState
     )
-    monitor <- BitcoinMonitor(
-      bitcoindInstance,
-      zmqHost = params.zmqHost,
-      zmqPort = params.zmqPort
-    )
-    bifrostQueryAlgebra = BifrostQueryAlgebra.make[IO](
-      channelResource(
-        params.toplHost,
-        params.toplPort,
-        params.toplSecureConnection
-      )
-    )
-    bifrostMonitor <- BifrostMonitorBis(
-      params.toplHost,
-      params.toplPort,
-      params.toplSecureConnection,
-      bifrostQueryAlgebra
-    )
   } yield (
     currentToplHeightVal,
     currentBitcoinNetworkHeightVal,
     res._1,
     res._2,
-    res._3,
-    monitor,
-    bifrostMonitor
+    res._3
   )
 
   def startResources(
@@ -264,11 +244,27 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
         currentBitcoinNetworkHeightVal,
         grpcServiceResource,
         init,
-        peginStateMachine,
-        monitor,
-        bifrostMonitorRes
+        peginStateMachine
       ) = res
-      bifrostMonitor <- bifrostMonitorRes
+      bifrostQueryAlgebra = BifrostQueryAlgebra
+        .make[IO](
+          channelResource(
+            params.toplHost,
+            params.toplPort,
+            params.toplSecureConnection
+          )
+        )
+      btcMonitor <- BitcoinMonitor(
+        bitcoindInstance,
+        zmqHost = params.zmqHost,
+        zmqPort = params.zmqPort
+      )
+      bifrostMonitor <- BifrostMonitor(
+        params.toplHost,
+        params.toplPort,
+        params.toplSecureConnection,
+        bifrostQueryAlgebra
+      )
       grpcService <- grpcServiceResource
       grpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(replicaHost, replicaPort))
@@ -292,13 +288,10 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
         )
       outcome <- IO.asyncForIO
         .backgroundOn(
-          monitor
-            .monitorBlocks()
+          btcMonitor
             .either(
               bifrostMonitor
-                .monitorBlocks()
                 .handleErrorWith(e => {
-                  println("Error in bifrost monitor")
                   e.printStackTrace()
                   fs2.Stream.empty
                 })

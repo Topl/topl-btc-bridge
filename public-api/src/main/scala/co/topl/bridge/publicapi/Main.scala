@@ -132,9 +132,6 @@ object Main
           countDownLatchMap,
           messageResponseMap,
           channel
-          // backendHost, // FIXME: remove
-          // backendPort,
-          // backendSecure
         )
       app = createApp(consensusClient)
       _ <- EmberServerBuilder

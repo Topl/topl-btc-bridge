@@ -94,7 +94,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- List.fill(8)(mintToplBlock(1, 1)).sequence
+        _ <- mintToplBlock(1, 1)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- (for {

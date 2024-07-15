@@ -20,6 +20,7 @@ import quivr.models.KeyPair
 import co.topl.brambl.wallet.WalletApi
 import cats.effect.kernel.Resource
 import io.grpc.ManagedChannel
+import org.typelevel.log4cats.Logger
 
 object WaitingBTCOps {
 
@@ -41,14 +42,29 @@ object WaitingBTCOps {
       .outputAddress
   }
 
-  private def computeAssetMintingStatement[F[_]: Async](
+  private def computeAssetMintingStatement[F[_]: Async: Logger](
       amount: Long,
       currentAddress: LockAddress,
       utxoAlgebra: GenusQueryAlgebra[F]
   ) = for {
-    txos <- utxoAlgebra.queryUtxo(
-      currentAddress
-    )
+    txos <- (utxoAlgebra
+      .queryUtxo(
+        currentAddress
+      )
+      .attempt >>= {
+      case Left(e) =>
+        import scala.concurrent.duration._
+        Async[F].sleep(5.second) >> Async[F].pure(e.asLeft[Seq[Txo]])
+      case Right(txos) => 
+        if (txos.isEmpty) {
+          import scala.concurrent.duration._
+          import org.typelevel.log4cats.syntax._
+          Async[F].sleep(5.second) >> warn"No UTXO found while minting" >> Async[F].pure(new Throwable("No UTXOs found").asLeft[Seq[Txo]])
+        } else
+          Async[F].pure(txos.asRight[Throwable])
+    })
+      .iterateUntil(_.isRight)
+      .map(_.toOption.get)
   } yield AssetMintingStatement(
     getGroupTokeUtxo(txos),
     getSeriesTokenUtxo(txos),
@@ -91,7 +107,7 @@ object WaitingBTCOps {
       .flatMap(Async[F].fromEither(_))
   } yield txId
 
-  def startMintingProcess[F[_]: Async](
+  def startMintingProcess[F[_]: Async: Logger](
       fromFellowship: Fellowship,
       fromTemplate: Template,
       redeemAddress: String,

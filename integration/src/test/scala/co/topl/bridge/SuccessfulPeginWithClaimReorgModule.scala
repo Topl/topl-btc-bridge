@@ -41,10 +41,10 @@ trait SuccessfulPeginWithClaimReorgModule {
         )
         signedTxHex <- signTransaction(bitcoinTx)
         _ <- sendTransaction(signedTxHex)
-        _ <- generateToAddress(1, 8, newAddress)
+        _ <- generateToAddress(1, 10, newAddress)
         mintingStatusResponse <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
-          _ <- mintToplBlock(1, 2)
+          _ <- mintToplBlock(1, 1)
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(
@@ -73,7 +73,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- IO.println(
           "broadcastFundRedeemAddressTxRes: " + broadcastFundRedeemAddressTxRes
         )
-        _ <- mintToplBlock(1, 2)
+        _ <- mintToplBlock(1, 1)
         utxo <- getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
           .iterateUntil(_.contains("LVL"))
         groupId = extractGroupId(utxo)
@@ -103,7 +103,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
-        _ <- List.fill(8)(mintToplBlock(1, 1)).sequence
+        _ <- mintToplBlock(1, 2)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- (for {

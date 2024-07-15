@@ -107,10 +107,6 @@ class BridgeIntegrationSpec
                     seriesId
                   )
                 )
-                // , FIXME: Remove me
-                // ExecutionContext.fromExecutor(
-                //   new java.util.concurrent.ForkJoinPool(4)
-                // )
               )
               .map { f2 =>
                 fiber02 = f2
@@ -125,10 +121,6 @@ class BridgeIntegrationSpec
                   "../public-api/src/main/resources/application.conf"
                 )
               )
-              // , FIXME: Remove me
-              // ExecutionContext.fromExecutor(
-              //   new java.util.concurrent.ForkJoinPool(4)
-              // )
             )
             .map { f =>
               fiber01 = f

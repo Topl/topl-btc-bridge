@@ -72,7 +72,7 @@ jobs:
           ./cs setup --yes
           shopt -s expand_aliases
           mkdir ${{ github.workspace }}/data
-          alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta1 -- "
+          alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta6 -- "
           export TOPL_WALLET_DB=${{ github.workspace }}/data/topl-wallet.db
           export TOPL_WALLET_JSON=${{ github.workspace }}/data/topl-wallet.json
           export TOPL_WALLET_MNEMONIC=${{ github.workspace }}/data/topl-mnemonic.txt
