@@ -20,7 +20,7 @@ jobs:
         with:
           java-version: adopt@1.11
       - name: Run unit tests
-        run: sbt coverage toplBtcBridge/test
+        run: sbt coverage test
       - uses: actions/upload-artifact@v3
         with:
           name: unit-test-reports
@@ -170,7 +170,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - if: github.event.release
         name: Push images to registries
-        run: sbt "buildClient; toplBtcBridge / Docker / publish"
+        run: sbt "buildClient; publicApi / Docker / publish ; consensus / Docker / publish"
         env:
           DOCKER_PUBLISH: true
           RELEASE_PUBLISH: true
