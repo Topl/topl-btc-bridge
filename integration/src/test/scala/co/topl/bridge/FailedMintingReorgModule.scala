@@ -39,7 +39,7 @@ trait FailedMintingReorgModule {
         signedTxHex <- signTransaction(bitcoinTx)
         // disconnect
         _ <- disconnectBridge(bridgeNetworkAndName._2, "bifrost02")
-        _ <- info"Disconnected bridge"
+        _ <- info"Disconnected bridge: ${bridgeNetworkAndName._2}"
         _ <- sendTransaction(signedTxHex)
         _ <- generateToAddress(1, 8, newAddress)
         // ref
@@ -49,7 +49,7 @@ trait FailedMintingReorgModule {
           nbTries <- mutableRef.updateAndGet(_ + 1)
           _ <-
             if (nbTries < 5)
-              mintToplBlock(1, 1)
+              mintToplBlockDocker(1, 1)
             else IO.unit
           _ <- IO.sleep(1.second)
         } yield status)
@@ -57,7 +57,7 @@ trait FailedMintingReorgModule {
             _.mintingStatus == "PeginSessionMintingTBTCConfirmation"
           )
         _ <- info"Session ${startSessionResponse.sessionID} went to PeginSessionMintingTBTCConfirmation"	
-        _ <- List.fill(10)(mintToplBlock(2, 1)).sequence
+        _ <- List.fill(10)(mintToplBlockDocker(2, 1)).sequence
         _ <- connectBridge(bridgeNetworkAndName._2, "bifrost02")
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)

@@ -280,11 +280,10 @@ class BridgeIntegrationSpec
     info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
   }
 
-  // FIXME: Re-enable this test
-  // cleanupDir.test(
-  //   "Bridge should correctly go back to minting if there is a reorg"
-  // ) { _ =>
-  //   info"Bridge should correctly go back to minting if there is a reorg" >> failedMintingReorgModule()
-  // }
+  cleanupDir.test(
+    "Bridge should correctly go back to minting if there is a reorg".flaky
+  ) { _ =>
+    info"Bridge should correctly go back to minting if there is a reorg" >> failedMintingReorgModule()
+  }
 
 }

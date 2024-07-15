@@ -85,6 +85,9 @@ package object bridge {
   def mintToplBlock(node: Int, nbBlocks: Int)(implicit l: Logger[IO]) =
     withLogging(mintBlockP(node, nbBlocks))
 
+  def mintToplBlockDocker(node: Int, nbBlocks: Int)(implicit l: Logger[IO]) =
+    withLogging(mintBlockDockerP(node, nbBlocks))
+
   def initToplWallet(id: Int)(implicit l: Logger[IO]) =
     withLogging(initUserWalletP(id))
 
