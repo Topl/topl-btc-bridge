@@ -68,8 +68,7 @@ jobs:
           echo "    timestamp: 0" >> node01/config.yaml
           echo "    regtest-enabled: true" >> node01/config.yaml
           echo "    stakes: [10000, 10000]" >> node01/config.yaml
-          sudo apt-get install jq
-          export BIFROST_01=`docker run --rm -d --name bifrost01 -p 9085:9085 -p 9084:9084 -p 9091:9091 -v $(pwd)/node01:/bifrost-staking:rw toplprotocol/bifrost-tooling:v2.0.0-beta3 --  --config  /bifrost-staking/config.yaml --regtest`
+          export BIFROST_01=`docker run --rm -d --name bifrost01 -p 9085:9085 -p 9084:9084 -p 9091:9091 -v $(pwd)/node01:/bifrost-staking:rw docker.io/toplprotocol/bifrost-tooling:2.0.0-beta3-29-11442de4 --  --config  /bifrost-staking/config.yaml --regtest`
           echo "Bifrost01 container id: $BIFROST_01"
           echo "BRIDGE=`docker network ls | head -2 | tail -1 | awk -e '{print $2}'`" >> $GITHUB_ENV
           curl -fL "https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-linux.gz" | gzip -d > cs
@@ -121,7 +120,7 @@ jobs:
               echo "    stakes: [10000, 10000]" >> node02/config.yaml
               export IP_CONTAINER=`docker network inspect $BRIDGE | jq  ".[0].Containers.\"$CONTAINER_ID\".IPv4Address" | sed  's:"::g' | sed -n 's:\(.*\)/.*:\1:p'`
               echo "IP_CONTAINER: $IP_CONTAINER"
-              export BIFROST_02=`docker run --rm -d --name bifrost02 -e BIFROST_P2P_KNOWN_PEERS=$IP_CONTAINER:9085 -p 9087:9085 -p 9086:9084 -p 9092:9091 -v $(pwd)/node02:/bifrost-staking:rw toplprotocol/bifrost-tooling:v2.0.0-beta3 --  --config  /bifrost-staking/config.yaml --regtest`
+              export BIFROST_02=`docker run --rm -d --name bifrost02 -e BIFROST_P2P_KNOWN_PEERS=$IP_CONTAINER:9085 -p 9087:9085 -p 9086:9084 -p 9092:9091 -v $(pwd)/node02:/bifrost-staking:rw docker.io/toplprotocol/bifrost-tooling:2.0.0-beta3-29-11442de4 --  --config  /bifrost-staking/config.yaml --regtest`
               sbt coverage integration/test coverageReport
               docker stop $BIFROST_01
               docker stop $BIFROST_02
