@@ -468,11 +468,7 @@ package object bridge {
     }
 
   val bifrostPortMap =
-    if (Option(System.getenv("CI")).isDefined) {
-      Map(1 -> 9084, 2 -> 9084)
-    } else {
       Map(1 -> 9084, 2 -> 9086)
-    }
 
   val shaSecretMap = Map(
     1 -> "ee15b31e49931db6551ed8a82f1422ce5a5a8debabe8e81a724c88f79996d0df",
