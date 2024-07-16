@@ -25,8 +25,6 @@ class BridgeIntegrationSpec
     with SuccessfulPeginWithClaimReorgRetryModule
     with FailedMintingReorgModule {
 
-  val DOCKER_CMD = "docker"
-
   override val munitIOTimeout = Duration(180, "s")
 
   implicit val logger: Logger[IO] =

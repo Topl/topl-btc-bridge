@@ -1,23 +1,8 @@
 package co.topl.bridge
 import cats.effect.IO
-import co.topl.shared.BridgeContants
-import co.topl.shared.MintingStatusRequest
-import co.topl.shared.MintingStatusResponse
-import co.topl.shared.StartPeginSessionRequest
-import co.topl.shared.StartPeginSessionResponse
-import fs2.io.file.Files
-import fs2.io.process
-import io.circe.parser._
-import org.http4s.Method
-import org.http4s.Request
-import org.http4s.Uri
-import org.http4s._
-import org.http4s.ember.client._
-import org.http4s.headers.`Content-Type`
+import org.typelevel.log4cats.syntax._
 
-import java.io.ByteArrayInputStream
 import scala.concurrent.duration._
-import scala.io.Source
 
 trait SuccessfulPeginModule {
 
@@ -69,44 +54,22 @@ trait SuccessfulPeginModule {
           1,
           "fundRedeemTx.pbuf",
           "fundRedeemTxProved.pbuf"
-        ).use { getText }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
         )
         _ <- broadcastFundRedeemAddressTx("fundRedeemTxProved.pbuf")
         _ <- mintToplBlock(1, 1)
         utxo <- getCurrentUtxosFromAddress(1, mintingStatusResponse.address)
-          .use(
-            getText
-          )
           .iterateUntil(_.contains("LVL"))
-        _ <- IO.println("utxos: " + utxo)
-        groupId = utxo
-          .split("\n")
-          .filter(_.contains("GroupId"))
-          .head
-          .split(":")
-          .last
-          .trim()
-        seriesId = utxo
-          .split("\n")
-          .filter(_.contains("SeriesId"))
-          .head
-          .split(":")
-          .last
-          .trim()
-        _ <- IO.println("groupId: " + groupId)
-        _ <- IO.println("seriesId: " + seriesId)
-        currentAddress <- currentAddress(1).use { getText }
-        redeemAddressTx <- redeemAddressTx(
+        groupId = extractGroupId(utxo)
+        seriesId = extractSeriesId(utxo)
+        currentAddress <- currentAddress(1)
+        _ <- redeemAddressTx(
           1,
           currentAddress,
-          4999000000L,
+          btcAmountLong,
           groupId,
           seriesId
-        ).use { getText }
-        _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+        )
+        _ <- proveFundRedeemAddressTx(
           1,
           "redeemTx.pbuf",
           "redeemTxProved.pbuf"

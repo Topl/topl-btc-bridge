@@ -13,6 +13,8 @@ case class ToplBTCBridgeConsensusParamConfig(
       6, // the number of confirmations required for a peg-in transaction
     toplWaitExpirationTime: Int =
       2000, // the number of blocks to wait before the user can reclaim their funds
+    toplConfirmationThreshold: Int =
+      6, // the number of confirmations required for a peg-out transaction
     btcPegInSeedFile: String = "pegin-wallet.json",
     btcPegInPassword: String = "password",
     btcWalletSeedFile: String = "wallet.json",
@@ -34,6 +36,6 @@ case class ToplBTCBridgeConsensusParamConfig(
     feePerByte: CurrencyUnit = 2.satoshis,
     groupId: GroupId,
     seriesId: SeriesId,
-    configurationFile : File = new File("application.conf"),
+    configurationFile: File = new File("application.conf"),
     toplSecureConnection: Boolean = false
 )

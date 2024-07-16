@@ -1,6 +1,8 @@
 package co.topl
 
 import cats.effect.IO
+import cats.effect.kernel.Resource
+import co.topl.shared.BridgeContants
 import co.topl.shared.MintingStatusRequest
 import co.topl.shared.MintingStatusResponse
 import co.topl.shared.StartPeginSessionRequest
@@ -8,11 +10,25 @@ import co.topl.shared.StartPeginSessionResponse
 import co.topl.shared.SyncWalletRequest
 import fs2.io.process
 import io.circe.generic.auto._
+import io.circe.parser._
 import org.http4s.EntityDecoder
+import org.http4s.Method
+import org.http4s.Request
+import org.http4s.Uri
 import org.http4s._
 import org.http4s.circe._
+import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.headers.`Content-Type`
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.syntax._
+import java.io.ByteArrayInputStream
+import fs2.io.file.Files
 
-package object bridge {
+package object bridge extends ProcessOps {
+
+  import co.topl.bridge.implicits._
+
+  val DOCKER_CMD = "docker"
 
   case class InputData(
       LockAddress: String,
@@ -395,27 +411,8 @@ package object bridge {
   val vkFile = "key.txt"
 
   // brambl-cli wallet init --network private --password password --newwalletdb user-wallet.db --mnemonicfile user-wallet-mnemonic.txt --output user-wallet.json
-  def initUserWallet(id: Int) = process
-    .ProcessBuilder(
-      CS_CMD,
-      csParams ++ Seq(
-        "wallet",
-        "init",
-        "--network",
-        "private",
-        "--password",
-        "password",
-        "--newwalletdb",
-        userWalletDb(id),
-        "--mnemonicfile",
-        userWalletMnemonic(id),
-        "--output",
-        userWalletJson(id)
-      ): _*
-    )
-    .spawn[IO]
 
-  def getCurrentUtxosFromAddress(id: Int, address: String) = process
+  def getCurrentUtxosFromAddressP(id: Int, address: String) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -472,7 +469,7 @@ package object bridge {
   )
 
   // brambl-cli templates add --walletdb user-wallet.db --template-name redeemBridge --lock-template
-  def addTemplate(id: Int, sha256: String, min: Long, max: Long) = process
+  def addTemplateP(id: Int, sha256: String, min: Long, max: Long) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -489,7 +486,7 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli wallet import-vks --walletdb user-wallet.db --input-vks key.txt --fellowship-name bridge --template-name redeemBridge -w password -k user-wallet.json
-  def importVks(id: Int) = process
+  def importVksP(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -512,7 +509,7 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli wallet current-address --walletdb user-wallet.db
-  def currentAddress(id: Int) = process
+  def currentAddressP(id: Int) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -537,7 +534,7 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli simple-transaction create --from-fellowship nofellowship --from-template genesis --from-interaction 1 -t ptetP7jshHTzLLp81RbPkeHKWFJWeE3ijH94TAmiBRPTUTj2htC31NyEWU8p -w password -o genesisTx.pbuf -n private -a 10 -h  localhost --port 9084  --keyfile user-keyfile.json --walletdb user-wallet.db --fee 10 --transfer-token lvl
-  def fundRedeemAddressTx(id: Int, redeemAddress: String) = process
+  def fundRedeemAddressTxP(id: Int, redeemAddress: String) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -582,7 +579,7 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli simple-transaction create --from-fellowship bridge --from-template redeemBridge -t ptetP7jshHTzLLp81RbPkeHKWFJWeE3ijH94TAmiBRPTUTj2htC31NyEWU8p -w password -o redeemTx.pbuf -n private -a 10 -h  localhost --port 9084  --keyfile user-keyfile.json --walletdb user-wallet.db --fee 10 --transfer-token asset
-  def redeemAddressTx(
+  def redeemAddressTxP(
       id: Int,
       redeemAddress: String,
       amount: Long,
@@ -629,7 +626,7 @@ package object bridge {
     .spawn[IO]
 
   // brambl-cli tx prove -i fundRedeemTx.pbuf --walletdb user-wallet.db --keyfile user-keyfile.json -w password -o fundRedeemTxProved.pbuf
-  def proveFundRedeemAddressTx(
+  def proveFundRedeemAddressTxP(
       id: Int,
       fileToProve: String,
       provedFile: String
@@ -655,7 +652,7 @@ package object bridge {
       .spawn[IO]
 
   // brambl-cli tx broadcast -i fundRedeemTxProved.pbuf -h localhost --port 9084
-  def broadcastFundRedeemAddressTx(txFile: String) = process
+  def broadcastFundRedeemAddressTxP(txFile: String) = process
     .ProcessBuilder(
       CS_CMD,
       csParams ++ Seq(
@@ -741,18 +738,7 @@ package object bridge {
     signedTx
   )
 
-  val extractGetTxId = Seq(
-    "exec",
-    "bitcoin01",
-    "bitcoin-cli",
-    "-rpcuser=bitcoin",
-    "-rpcpassword=password",
-    "-regtest",
-    "-rpcwallet=testwallet",
-    "listunspent"
-  )
-
-  def createTx(txId: String, address: String, amount: BigDecimal) = Seq(
+  def createTxSeq(txId: String, address: String, amount: BigDecimal) = Seq(
     "exec",
     "bitcoin01",
     "bitcoin-tx",
@@ -762,7 +748,7 @@ package object bridge {
     s"outaddr=$amount:$address"
   )
 
-  def getText(p: fs2.io.process.Process[IO]) =
+  def getText(p: fs2.io.process.Process[IO]): IO[String] =
     p.stdout
       .through(fs2.text.utf8.decode)
       .compile
@@ -774,24 +760,18 @@ package object bridge {
       .compile
       .foldMonoid
 
-  // brambl-cli fellowships add --walletdb user-wallet.db --fellowship-name bridge
-  def addFellowship(id: Int) = process
-    .ProcessBuilder(
-      CS_CMD,
-      Seq(
-        "launch",
-        "-r",
-        "https://s01.oss.sonatype.org/content/repositories/releases",
-        "co.topl:brambl-cli_2.13:2.0.0-beta5",
-        "--",
-        "fellowships",
-        "add",
-        "--walletdb",
-        userWalletDb(id),
-        "--fellowship-name",
-        "bridge"
-      ): _*
-    )
-    .spawn[IO]
+  def addFellowship(id: Int)(implicit l: Logger[IO]) =
+    withLogging(addFellowshipP(id))
+
+  def signTransaction(tx: String)(implicit l: Logger[IO]) =
+    for {
+      signedTx <- withLoggingReturn(signTransactionP(tx))
+      signedTxHex <- IO.fromEither(
+        parse(signedTx).map(x => (x \\ "hex").head.asString.get)
+      )
+    } yield signedTxHex
+
+  def sendTransaction(signedTx: String)(implicit l: Logger[IO]) =
+    withLoggingReturn(sendTransactionP(signedTx))
 
 }

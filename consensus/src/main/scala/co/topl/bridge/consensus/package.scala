@@ -11,6 +11,7 @@ package object consensus {
   class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
   class ToplWaitExpirationTime(val underlying: Int) extends AnyVal
   class BTCConfirmationThreshold(val underlying: Int) extends AnyVal
+  class ToplConfirmationThreshold(val underlying: Int) extends AnyVal
 
   def channelResource[F[_]: Sync](
       address: String,

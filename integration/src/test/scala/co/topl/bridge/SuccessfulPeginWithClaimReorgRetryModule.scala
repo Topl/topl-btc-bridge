@@ -53,15 +53,11 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- fundRedeemAddressTx(
           2,
           mintingStatusResponse.address
-        ).use { getText }
-        _ <- IO.println("fundRedeemAddressTx: " + fundRedeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+        )
+        _ <- proveFundRedeemAddressTx(
           2,
           "fundRedeemTx.pbuf",
           "fundRedeemTxProved.pbuf"
-        ).use { getText }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
         )
         _ <- broadcastFundRedeemAddressTx("fundRedeemTxProved.pbuf")
         _ <- mintToplBlock(1, 1)
@@ -73,21 +69,14 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- redeemAddressTx(
           2,
           currentAddress,
-          BigDecimal((btcAmount.toInt.get - 1).toString + "99000000").toLong,
+          btcAmountLong,
           groupId,
           seriesId
-        ).use { getText }
-        _ <- IO.println("redeemAddressTx: " + redeemAddressTx)
-        proveFundRedeemAddressTxRes <- proveFundRedeemAddressTx(
+        )
+        _ <- proveFundRedeemAddressTx(
           2,
           "redeemTx.pbuf",
           "redeemTxProved.pbuf"
-        )
-          .use {
-            getText
-          }
-        _ <- IO.println(
-          "proveFundRedeemAddressTxRes: " + proveFundRedeemAddressTxRes
         )
         // disconnect networks
         _ <- setNetworkActive(2, false)

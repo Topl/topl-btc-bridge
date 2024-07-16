@@ -85,6 +85,21 @@ case class WaitingForRedemption(
     amount: BifrostCurrencyUnit
 ) extends PeginStateMachineState
 
+case class MintingTBTCConfirmation(
+    startBTCBlockHeight: Int,
+    depositTBTCBlockHeight: Long,
+    currentWalletIdx: Int,
+    scriptAsm: String,
+    redeemAddress: String,
+    claimAddress: String,
+    btcTxId: String,
+    btcVout: Long,
+    utxoTxId: String,
+    utxoIndex: Int,
+    amount: BifrostCurrencyUnit
+) extends PeginStateMachineState
+
+
 case class WaitingForClaim(
     someStartBtcBlockHeight: Option[Int],
     secret: String,

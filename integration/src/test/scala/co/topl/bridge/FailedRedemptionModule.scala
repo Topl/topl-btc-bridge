@@ -3,7 +3,6 @@ import cats.effect.IO
 import org.typelevel.log4cats.syntax._
 
 import scala.concurrent.duration._
-import co.topl.bridge.mintToplBlock
 
 trait FailedRedemptionModule {
 
