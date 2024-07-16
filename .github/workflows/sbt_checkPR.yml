@@ -24,7 +24,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: unit-test-reports
-          path: topl-btc-bridge/target/test-reports/
+          path: consensus/target/test-reports/
   integration-test:
     name: Run Integration Tests
     runs-on: ubuntu-20.04
@@ -137,7 +137,7 @@ jobs:
           TOPL_WALLET_JSON: ${{ github.workspace }}/data/topl-wallet.json
       - uses: actions/download-artifact@v3
         with:
-          path: topl-btc-bridge/target/test-reports/
+          path: consensus/target/test-reports/
           name: unit-test-reports
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -145,11 +145,12 @@ jobs:
         with:
           files: |
             integration/target/test-reports/**/*.xml
-            topl-btc-bridge/target/test-reports/**/*.xml
+            consensus/target/test-reports/**/*.xml
+            public-api/target/test-reports/**/*.xml
       - name: Code Coverage Report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: topl-btc-bridge/target/scala-2.13/coverage-report/cobertura.xml
+          filename: consensus/target/scala-2.13/coverage-report/cobertura.xml
           badge: false
           fail_below_min: false
           format: markdown
