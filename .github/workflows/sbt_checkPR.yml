@@ -109,9 +109,9 @@ jobs:
           brambl-cli bifrost-query mint-block --nb-blocks 1 -h localhost  --port 9084 -s false
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
           openssl ecparam -name secp256k1 -genkey -noout -out integration/consensusPrivateKey.pem
-          openssl ec -in consensusPrivateKey.pem -pubout -out integration/consensusPublicKey.pem
+          openssl ec -in integration/consensusPrivateKey.pem -pubout -out integration/consensusPublicKey.pem
           openssl ecparam -name secp256k1 -genkey -noout -out integration/clientPrivateKey.pem
-          openssl ec -in clientPrivateKey.pem -pubout -out integration/clientPublicKey.pem
+          openssl ec -in integration/clientPrivateKey.pem -pubout -out integration/clientPublicKey.pem
       - name: Run integration tests
         run: |
               mkdir node02
