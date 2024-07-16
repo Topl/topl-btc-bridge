@@ -55,14 +55,11 @@ trait SharedData {
   implicit val toplWaitExpirationTime: ToplWaitExpirationTime =
     new ToplWaitExpirationTime(2000)
 
-  implicit val btcConfirmationThreshold: BTCConfirmationThreshold =
-    new BTCConfirmationThreshold(6)
+  implicit val btcConfirmationThreshold: BTCConfirmationThreshold = new BTCConfirmationThreshold(6)
 
-  implicit val toplConfirmationThreshold: ToplConfirmationThreshold =
-    new ToplConfirmationThreshold(6)
+  implicit val toplConfirmationThreshold: ToplConfirmationThreshold = new ToplConfirmationThreshold(6)
 
-  implicit val btcRetryThreshold: BTCRetryThreshold =
-    new BTCRetryThreshold(6)
+  implicit val btcRetryThreshold: BTCRetryThreshold = new BTCRetryThreshold(6)
 
   val testToplNetworkId = ToplPrivatenet
 

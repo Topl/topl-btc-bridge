@@ -488,7 +488,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
 
   // MintingTBTC -> WaitingForRedemption
   test(
-    "PeginTransitionRelation should transition from MintingTBTC to WaitingForRedemption"
+    "PeginTransitionRelation should transition from MintingTBTC to MintingTBTCConfirmation"
   ) {
 
     import co.topl.brambl.syntax._
@@ -521,7 +521,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
         .nextState
-        .isInstanceOf[WaitingForRedemption]
+        .isInstanceOf[MintingTBTCConfirmation]
     )
   }
 
