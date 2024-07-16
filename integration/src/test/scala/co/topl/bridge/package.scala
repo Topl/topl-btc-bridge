@@ -461,11 +461,7 @@ package object bridge {
   val secretMap = Map(1 -> "topl-secret", 2 -> "topl-secret01")
 
   val bifrostHostMap =
-    if (Option(System.getenv("CI")).isDefined) {
-      Map(1 -> "bifrost01", 2 -> "bifrost02")
-    } else {
       Map(1 -> "localhost", 2 -> "localhost")
-    }
 
   val bifrostPortMap =
       Map(1 -> 9084, 2 -> 9086)
