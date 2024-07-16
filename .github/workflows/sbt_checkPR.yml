@@ -69,7 +69,7 @@ jobs:
           echo "    regtest-enabled: true" >> node01/config.yaml
           echo "    stakes: [10000, 10000]" >> node01/config.yaml
           docker network ls
-          export BRIDGE=`docker network ls | head -2 | tail -1 | awk -e '{print $2}'`
+          export BRIDGE=`docker network ls | head -3 | tail -1 | awk -e '{print $2}'`
           echo "BRIDGE=$BRIDGE" >> $GITHUB_ENV
           echo "BRIDGE NETWORK: $BRIDGE"
           export BIFROST_01=`docker run --rm -d --network=$BRIDGE --name bifrost01 -p 9085:9085 -p 9084:9084 -p 9091:9091 -v ${{ github.workspace }}/node01:/bifrost-staking:rw docker.io/toplprotocol/bifrost-tooling:2.0.0-beta3-29-11442de4 --  --config  /bifrost-staking/config.yaml --regtest`
