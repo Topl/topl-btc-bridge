@@ -77,7 +77,7 @@ jobs:
           shopt -s expand_aliases
           mkdir ${{ github.workspace }}/data
           alias brambl-cli="./cs launch -r https://s01.oss.sonatype.org/content/repositories/releases co.topl:brambl-cli_2.13:2.0.0-beta6 -- "
-          brambl-cli bifrost-query mint-block --nb-blocks 1 -h bifrost01  --port 9084 -s false
+          brambl-cli bifrost-query mint-block --nb-blocks 1 -h localhost  --port 9084 -s false
           export TOPL_WALLET_DB=${{ github.workspace }}/data/topl-wallet.db
           export TOPL_WALLET_JSON=${{ github.workspace }}/data/topl-wallet.json
           export TOPL_WALLET_MNEMONIC=${{ github.workspace }}/data/topl-mnemonic.txt
@@ -87,7 +87,7 @@ jobs:
           brambl-cli simple-transaction create --from-fellowship nofellowship --from-template genesis --from-interaction 1 --change-fellowship nofellowship --change-template genesis --change-interaction 1  -t $ADDRESS -w $TOPL_WALLET_PASSWORD -o genesisTx.pbuf -n private -a 1000 -h  127.0.0.1 --port 9084 --keyfile $TOPL_WALLET_JSON --walletdb $TOPL_WALLET_DB --fee 10 --transfer-token lvl
           brambl-cli tx prove -i genesisTx.pbuf --walletdb $TOPL_WALLET_DB --keyfile $TOPL_WALLET_JSON -w $TOPL_WALLET_PASSWORD -o genesisTxProved.pbuf
           export GROUP_UTXO=$(brambl-cli tx broadcast -i genesisTxProved.pbuf -h 127.0.0.1 --port 9084)
-          brambl-cli bifrost-query mint-block --nb-blocks 1 -h bifrost01  --port 9084 -s false
+          brambl-cli bifrost-query mint-block --nb-blocks 1 -h localhost  --port 9084 -s false
           echo "GROUP_UTXO: $GROUP_UTXO"
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
           echo "label: ToplBTCGroup" > groupPolicy.yaml
@@ -96,7 +96,7 @@ jobs:
           brambl-cli tx prove -i groupMintingtx.pbuf --walletdb $TOPL_WALLET_DB --keyfile $TOPL_WALLET_JSON -w $TOPL_WALLET_PASSWORD -o groupMintingtxProved.pbuf
           export SERIES_UTXO=$(brambl-cli tx broadcast -i groupMintingtxProved.pbuf -h 127.0.0.1 --port 9084)
           echo "SERIES_UTXO: $SERIES_UTXO"
-          brambl-cli bifrost-query mint-block --nb-blocks 1 -h bifrost01  --port 9084 -s false
+          brambl-cli bifrost-query mint-block --nb-blocks 1 -h localhost  --port 9084 -s false
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
           echo "label: ToplBTCSeries" > seriesPolicy.yaml
           echo "registrationUtxo: $SERIES_UTXO#0" >> seriesPolicy.yaml
@@ -106,7 +106,7 @@ jobs:
           brambl-cli tx prove -i seriesMintingTx.pbuf --walletdb $TOPL_WALLET_DB --keyfile $TOPL_WALLET_JSON -w $TOPL_WALLET_PASSWORD -o seriesMintingTxProved.pbuf
           export ASSET_UTXO=$(brambl-cli tx broadcast -i seriesMintingTxProved.pbuf -h 127.0.0.1 --port 9084)
           echo "ASSET_UTXO: $ASSET_UTXO"
-          brambl-cli bifrost-query mint-block --nb-blocks 1 -h bifrost01  --port 9084 -s false
+          brambl-cli bifrost-query mint-block --nb-blocks 1 -h localhost  --port 9084 -s false
           until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
           openssl ecparam -name secp256k1 -genkey -noout -out integration/consensusPrivateKey.pem
           openssl ec -in consensusPrivateKey.pem -pubout -out integration/consensusPublicKey.pem
