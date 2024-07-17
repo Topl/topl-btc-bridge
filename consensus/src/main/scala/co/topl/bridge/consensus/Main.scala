@@ -310,7 +310,7 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
           ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
         )
       outcomeVal <- outcome.toResource
-      _ <- info"Outcome of monitoring: $outcomeVal" (logger).toResource
+      _ <- info"Outcome of monitoring: $outcomeVal" .toResource
     } yield ()
   }
 
@@ -348,60 +348,44 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
       walletManager <- BTCWalletImpl.make[IO](walletKm)
       // For each parameter, log its value to info
-      _ <- info"Command line arguments" (logger)
-      _ <- info"btc-blocks-to-recover  : ${params.btcWaitExpirationTime}" (
-        logger
-      )
-      _ <- info"topl-blocks-to-recover : ${params.toplWaitExpirationTime}" (
-        logger
-      )
+      _ <- info"Command line arguments" 
+      _ <- info"btc-blocks-to-recover  : ${params.btcWaitExpirationTime}" 
+      _ <- info"topl-blocks-to-recover : ${params.toplWaitExpirationTime}" 
       _ <-
-        info"btc-confirmation-threshold : ${params.btcConfirmationThreshold}" (
-          logger
-        )
+        info"btc-confirmation-threshold : ${params.btcConfirmationThreshold}"
       _ <-
-        info"topl-confirmation-threshold : ${params.toplConfirmationThreshold}" (
-          logger
-        )
-      _ <- info"btc-peg-in-seed-file   : ${params.btcPegInSeedFile}" (logger)
-      _ <- info"btc-peg-in-password    : ******" (logger)
-      _ <- info"wallet-seed-file       : ${params.btcWalletSeedFile}" (logger)
-      _ <- info"wallet-password        : ******" (logger)
-      _ <- info"topl-wallet-seed-file  : ${params.toplWalletSeedFile}" (logger)
-      _ <- info"topl-wallet-password   : ******" (logger)
-      _ <- info"topl-wallet-db         : ${params.toplWalletDb}" (logger)
-      _ <- info"btc-url                : ${params.btcUrl}" (logger)
-      _ <- info"btc-user               : ${params.btcUser}" (logger)
-      _ <- info"zmq-host               : ${params.zmqHost}" (logger)
-      _ <- info"zmq-port               : ${params.zmqPort}" (logger)
-      _ <- info"btc-password           : ******" (logger)
-      _ <- info"btc-network            : ${params.btcNetwork}" (logger)
-      _ <- info"topl-network           : ${params.toplNetwork}" (logger)
-      _ <- info"topl-host              : ${params.toplHost}" (logger)
-      _ <- info"topl-port              : ${params.toplPort}" (logger)
-      _ <- info"config-file            : ${params.configurationFile.toPath().toString()}" (
-        logger
-      )
-      _ <- info"topl-secure-connection : ${params.toplSecureConnection}" (
-        logger
-      )
-      _ <- info"minting-fee            : ${params.mintingFee}" (logger)
-      _ <- info"fee-per-byte           : ${params.feePerByte}" (logger)
-      _ <- info"abtc-group-id          : ${Encoding.encodeToHex(params.groupId.value.toByteArray)}" (
-        logger
-      )
-      _ <- info"abtc-series-id         : ${Encoding.encodeToHex(params.seriesId.value.toByteArray)}" (
-        logger
-      )
+        info"topl-confirmation-threshold : ${params.toplConfirmationThreshold}"
+      _ <- info"btc-peg-in-seed-file   : ${params.btcPegInSeedFile}" 
+      _ <- info"btc-peg-in-password    : ******" 
+      _ <- info"wallet-seed-file       : ${params.btcWalletSeedFile}" 
+      _ <- info"wallet-password        : ******" 
+      _ <- info"topl-wallet-seed-file  : ${params.toplWalletSeedFile}" 
+      _ <- info"topl-wallet-password   : ******" 
+      _ <- info"topl-wallet-db         : ${params.toplWalletDb}" 
+      _ <- info"btc-url                : ${params.btcUrl}" 
+      _ <- info"btc-user               : ${params.btcUser}" 
+      _ <- info"zmq-host               : ${params.zmqHost}" 
+      _ <- info"zmq-port               : ${params.zmqPort}" 
+      _ <- info"btc-password           : ******" 
+      _ <- info"btc-network            : ${params.btcNetwork}" 
+      _ <- info"topl-network           : ${params.toplNetwork}" 
+      _ <- info"topl-host              : ${params.toplHost}" 
+      _ <- info"topl-port              : ${params.toplPort}" 
+      _ <- info"config-file            : ${params.configurationFile.toPath().toString()}"
+      _ <- info"topl-secure-connection : ${params.toplSecureConnection}"
+      _ <- info"minting-fee            : ${params.mintingFee}" 
+      _ <- info"fee-per-byte           : ${params.feePerByte}" 
+      _ <- info"abtc-group-id          : ${Encoding.encodeToHex(params.groupId.value.toByteArray)}"
+      _ <- info"abtc-series-id         : ${Encoding.encodeToHex(params.seriesId.value.toByteArray)}"
       privateKeyFile <- IO(
         conf.getString("bridge.replica.security.privateKeyFile")
       )
       _ <- info"bridge.replica.security.privateKeyFile: ${privateKeyFile}" (
         logger
       )
-      _ <- info"bridge.replica.requests.host: ${replicaHost}" (logger)
-      _ <- info"bridge.replica.requests.port: ${replicaPort}" (logger)
-      _ <- info"bridge.replica.replicaId: ${replicaId.id}" (logger)
+      _ <- info"bridge.replica.requests.host: ${replicaHost}" 
+      _ <- info"bridge.replica.requests.port: ${replicaPort}" 
+      _ <- info"bridge.replica.replicaId: ${replicaId.id}" 
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )

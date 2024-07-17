@@ -95,7 +95,7 @@ trait ApiServicesModule {
             : EntityDecoder[IO, StartPeginSessionRequest] =
           jsonOf[IO, StartPeginSessionRequest]
 
-        for {
+        (for {
           _ <-
             info"Received request to start pegin session"
           x <- req.as[StartPeginSessionRequest]
@@ -120,7 +120,10 @@ trait ApiServicesModule {
             case Right(response) =>
               Ok(response)
           }
-        } yield res
+        } yield res).handleErrorWith(
+          e =>
+            error"Error in start pegin session request: ${e.getMessage}" >> BadRequest("Error starting pegin session")
+        )
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
         implicit val mintingStatusRequestDecoder
             : EntityDecoder[IO, MintingStatusRequest] =

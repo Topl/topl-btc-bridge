@@ -32,6 +32,7 @@ import java.net.InetSocketAddress
 import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
+import org.http4s.server.middleware.CORS
 
 sealed trait PeginSessionState
 
@@ -139,7 +140,10 @@ object Main
         .withIdleTimeout(ServerConfig.idleTimeOut)
         .withHost(ServerConfig.host)
         .withPort(ServerConfig.port)
-        .withHttpApp(app)
+        .withHttpApp(
+          CORS.policy.withAllowOriginAll.withAllowMethodsAll
+            .withAllowHeadersAll(app)
+        )
         .withLogger(logger)
         .build
       rService <- replyService(
