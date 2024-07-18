@@ -1,0 +1,10 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  sbt-build-and-test:
+    uses: ./.github/workflows/_sbt_build_and_test.yml

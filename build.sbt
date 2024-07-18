@@ -41,7 +41,7 @@ lazy val commonSettings = Seq(
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Sonatype Releases" at "https://s01.oss.sonatype.org/content/repositories/releases/",
     "Sonatype Releases s01" at "https://s01.oss.sonatype.org/content/repositories/releases/",
-    "Maven Repo" at  "https://repo1.maven.org/maven2/" ,
+    "Maven Repo" at "https://repo1.maven.org/maven2/",
     "Bintray" at "https://jcenter.bintray.com/"
   ),
   testFrameworks += TestFrameworks.MUnit
@@ -67,9 +67,14 @@ lazy val commonDockerSettings = List(
   dockerUpdateLatest := true
 )
 
-lazy val dockerPublishSettingsBroker = List(
+lazy val dockerPublishSettingsConsensus = List(
   dockerExposedPorts ++= Seq(4000),
-  Docker / packageName := "topl-btc-bridge"
+  Docker / packageName := "topl-btc-bridge-consensus"
+) ++ commonDockerSettings
+
+lazy val dockerPublishSettingsPublicApi = List(
+  dockerExposedPorts ++= Seq(5000),
+  Docker / packageName := "topl-btc-bridge-public-api"
 ) ++ commonDockerSettings
 
 def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
@@ -117,26 +122,45 @@ lazy val shared = (project in file("shared"))
   .settings(
     commonSettings,
     name := "topl-btc-bridge-shared",
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.shared ++
         Dependencies.toplBtcBridge.test
   )
+  .enablePlugins(Fs2Grpc)
 
-lazy val toplBtcBridge = (project in file("topl-btc-bridge"))
+lazy val consensus = (project in file("consensus"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
-      dockerPublishSettingsBroker
+      dockerPublishSettingsConsensus
     else mavenPublishSettings
   )
   .settings(
     commonSettings,
-    name := "topl-btc-bridge",
+    name := "topl-btc-bridge-consensus",
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.consensus ++
         Dependencies.toplBtcBridge.test
   )
   .enablePlugins(DockerPlugin, JavaAppPackaging)
   .dependsOn(shared)
+
+lazy val publicApi =
+  (project in file("public-api"))
+    .settings(
+      if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
+        dockerPublishSettingsPublicApi
+      else mavenPublishSettings
+    )
+    .settings(
+      commonSettings,
+      name := "topl-btc-bridge-public-api",
+      libraryDependencies ++=
+        Dependencies.toplBtcBridge.publicApi ++
+          Dependencies.toplBtcBridge.test
+    )
+    .enablePlugins(DockerPlugin, JavaAppPackaging)
+    .dependsOn(shared)
 
 val buildClient = taskKey[Unit]("Build client (frontend)")
 
@@ -166,7 +190,7 @@ buildClient := {
   IO.copyDirectory(
     source = (root / baseDirectory).value / "bridge-ui" / "dist",
     target =
-      (toplBtcBridge / baseDirectory).value / "src" / "main" / "resources" / "static"
+      (consensus / baseDirectory).value / "src" / "main" / "resources" / "static"
   )
 }
 
@@ -176,18 +200,18 @@ lazy val toplBtcCli = (project in file("topl-btc-cli"))
     commonSettings,
     name := "topl-btc-cli",
     libraryDependencies ++=
-      Dependencies.toplBtcBridge.main ++
+      Dependencies.toplBtcBridge.consensus ++
         Dependencies.toplBtcBridge.test
   )
   .enablePlugins(JavaAppPackaging)
   .dependsOn(shared)
 
 lazy val integration = (project in file("integration"))
-  .dependsOn(toplBtcBridge, toplBtcCli) // your current subproject
+  .dependsOn(consensus, publicApi, toplBtcCli) // your current subproject
   .settings(
     publish / skip := true,
     commonSettings,
-    libraryDependencies ++= Dependencies.toplBtcBridge.main ++ Dependencies.toplBtcBridge.test
+    libraryDependencies ++= Dependencies.toplBtcBridge.consensus ++ Dependencies.toplBtcBridge.publicApi ++ Dependencies.toplBtcBridge.shared ++ Dependencies.toplBtcBridge.test
   )
 
 lazy val root = project
@@ -197,4 +221,4 @@ lazy val root = project
     name := "topl-btc-bridge-umbrella"
   )
   .settings(noPublish)
-  .aggregate(toplBtcBridge, toplBtcCli)
+  .aggregate(consensus, publicApi, toplBtcCli)

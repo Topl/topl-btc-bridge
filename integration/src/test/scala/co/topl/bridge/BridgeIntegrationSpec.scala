@@ -8,6 +8,7 @@ import io.circe.parser._
 import munit.AnyFixture
 import munit.CatsEffectSuite
 import munit.FutureFixture
+import org.typelevel.log4cats.Logger
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -21,11 +22,16 @@ class BridgeIntegrationSpec
     with FailedRedemptionModule
     with FailedPeginNoDepositWithReorgModule
     with SuccessfulPeginWithClaimReorgModule
-    with SuccessfulPeginWithClaimReorgRetryModule {
-
-  val DOCKER_CMD = "docker"
+    with SuccessfulPeginWithClaimReorgRetryModule
+    with FailedMintingReorgModule {
 
   override val munitIOTimeout = Duration(180, "s")
+
+  implicit val logger: Logger[IO] =
+    org.typelevel.log4cats.slf4j.Slf4jLogger
+      .getLoggerFromName[IO]("it-test")
+
+  import org.typelevel.log4cats.syntax._
 
   val computeBridgeNetworkName = for {
     // network ls
@@ -43,15 +49,14 @@ class BridgeIntegrationSpec
         m.group(1) // Extract the first group matching the pattern
       case None => "bridge"
     }
-    // print network name
-    _ <- IO.println("networkName: " + networkName)
     // inspect bridge
     bridgeNetwork <- process
       .ProcessBuilder(DOCKER_CMD, inspectBridge(networkName): _*)
       .spawn[IO]
       .use { getText }
     // print bridgeNetwork
-  } yield bridgeNetwork
+    // _ <- info"bridgeNetwork: $bridgeNetwork"
+  } yield (bridgeNetwork, networkName)
 
   lazy val toplWalletDb =
     Option(System.getenv("TOPL_WALLET_DB")).getOrElse("topl-wallet.db")
@@ -61,88 +66,69 @@ class BridgeIntegrationSpec
   val startServer: AnyFixture[Unit] =
     new FutureFixture[Unit]("server setup") {
 
-      var fiber: Fiber[IO, Throwable, ExitCode] = _
-      def apply() = fiber: Unit
+      var fiber01: Fiber[IO, Throwable, ExitCode] = _
+      var fiber02: Fiber[IO, Throwable, ExitCode] = _
+      def apply() = (fiber01, fiber02): Unit
 
       override def beforeAll() = {
         (for {
-          cwd <- process
-            .ProcessBuilder("pwd")
-            .spawn[IO]
-            .use { getText }
-          _ <- IO.println("cwd: " + cwd)
-          currentAddress <- process
-            .ProcessBuilder(
-              CS_CMD,
-              csParams ++ Seq(
-                "wallet",
-                "current-address",
-                "--walletdb",
-                toplWalletDb
-              ): _*
-            )
-            .spawn[IO]
-            .use { getText }
-          utxo <- process
-            .ProcessBuilder(
-              CS_CMD,
-              csParams ++ Seq(
-                "genus-query",
-                "utxo-by-address",
-                "--host",
-                "localhost",
-                "--port",
-                "9084",
-                "--secure",
-                "false",
-                "--walletdb",
-                toplWalletDb,
-                "--from-address",
-                currentAddress
-              ): _*
-            )
-            .spawn[IO]
-            .use(
-              getText
-            )
-          _ <- IO.println("utxo: " + utxo)
+          _ <- pwd
+          currentAddress <- currentAddress(toplWalletDb)
+          utxo <- getCurrentUtxosFromAddress(toplWalletDb, currentAddress)
           (groupId, seriesId) = extractIds(utxo)
-          _ <- IO.asyncForIO
-            .both(
-              IO.asyncForIO
-                .start(
-                  Main.run(
-                    List(
-                      "--btc-wallet-seed-file",
-                      "src/test/resources/wallet.json",
-                      "--btc-peg-in-seed-file",
-                      "src/test/resources/pegin-wallet.json",
-                      "--topl-wallet-seed-file",
-                      toplWalletJson,
-                      "--topl-wallet-db",
-                      toplWalletDb,
-                      "--btc-url",
-                      "http://localhost",
-                      "--topl-blocks-to-recover",
-                      "15",
-                      "--abtc-group-id",
-                      groupId,
-                      "--abtc-series-id",
-                      seriesId
-                    )
+          _ <- IO.asyncForIO.both(
+            IO.asyncForIO
+              .start(
+                consensus.Main.run(
+                  List(
+                    "--config-file",
+                    "../consensus/src/main/resources/application.conf",
+                    "--btc-wallet-seed-file",
+                    "src/test/resources/wallet.json",
+                    "--btc-peg-in-seed-file",
+                    "src/test/resources/pegin-wallet.json",
+                    "--topl-wallet-seed-file",
+                    toplWalletJson,
+                    "--topl-wallet-db",
+                    toplWalletDb,
+                    "--btc-url",
+                    "http://localhost",
+                    "--btc-blocks-to-recover",
+                    "50",
+                    "--topl-confirmation-threshold",
+                    "5",
+                    "--topl-blocks-to-recover",
+                    "15",
+                    "--abtc-group-id",
+                    groupId,
+                    "--abtc-series-id",
+                    seriesId
                   )
-                ),
-              IO.sleep(10.seconds)
+                )
+              )
+              .map { f2 =>
+                fiber02 = f2
+              },
+            IO.sleep(10.seconds)
+          )
+          _ <- IO.asyncForIO
+            .start(
+              publicapi.Main.run(
+                List(
+                  "--config-file",
+                  "../public-api/src/main/resources/application.conf"
+                )
+              )
             )
-            .map { case (f, _) =>
-              fiber = f
+            .map { f =>
+              fiber01 = f
             }
-            .void
+          _ <- IO.sleep(10.seconds)
           bridgeNetwork <- computeBridgeNetworkName
           _ <- IO.println("bridgeNetwork: " + bridgeNetwork)
           // parse
           ipBitcoin02 <- IO.fromEither(
-            parse(bridgeNetwork)
+            parse(bridgeNetwork._1)
               .map(x =>
                 (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
                   x.filter(x =>
@@ -158,7 +144,7 @@ class BridgeIntegrationSpec
           _ <- IO.println("ipBitcoin02: " + ipBitcoin02)
           // parse
           ipBitcoin01 <- IO.fromEither(
-            parse(bridgeNetwork)
+            parse(bridgeNetwork._1)
               .map(x =>
                 (((x.asArray.get.head \\ "Containers").head.asObject.map { x =>
                   x.filter(x =>
@@ -181,11 +167,16 @@ class BridgeIntegrationSpec
             .ProcessBuilder(DOCKER_CMD, addNode(2, ipBitcoin01, 18444): _*)
             .spawn[IO]
             .use { getText }
+          _ <- initUserBitcoinWallet
+          newAddress <- getNewAddress
+          _ <- generateToAddress(1, 101, newAddress)
+          _ <- mintToplBlock(1, 1)
         } yield ()).unsafeToFuture()
       }
 
       override def afterAll() = {
-        fiber.cancel.void.unsafeToFuture()
+        fiber01.cancel.void.unsafeToFuture()
+        fiber02.cancel.void.unsafeToFuture()
       }
     }
 
@@ -256,45 +247,41 @@ class BridgeIntegrationSpec
   override def munitFixtures = List(startServer)
 
   cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
-    IO.println("Bridge should correctly peg-in BTC") >> successfulPegin()
+    info"Bridge should correctly peg-in BTC" >> successfulPegin()
   }
   cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
     _ =>
-      IO.println(
-        "Bridge should fail correctly when user does not send BTC"
-      ) >> failedPeginNoDeposit()
+      info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
   }
   cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
-    IO.println(
-      "Bridge should fail correctly when tBTC not minted"
-    ) >> failedPeginNoMint()
+    info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
   }
   cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-    IO.println(
-      "Bridge should fail correctly when tBTC not redeemed"
-    ) >> failedRedemption()
+    info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
   }
 
   cleanupDir.test(
     "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
   ) { _ =>
-    IO.println(
-      "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
-    ) >> failedPeginNoDepositWithReorg()
+    info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
   }
+
   cleanupDir.test(
     "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
   ) { _ =>
-    IO.println(
-      "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
-    ) >> successfulPeginWithClaimError()
+    info"Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation" >> successfulPeginWithClaimError()
   }
+
   cleanupDir.test(
     "Bridge should correctly retry if claim does not succeed"
   ) { _ =>
-    IO.println(
-      "Bridge should correctly retry if claim does not succeed"
-    ) >> successfulPeginWithClaimErrorRetry()
+    info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
+  }
+
+  cleanupDir.test(
+    "Bridge should correctly go back to minting if there is a reorg".flaky
+  ) { _ =>
+    info"Bridge should correctly go back to minting if there is a reorg" >> failedMintingReorgModule()
   }
 
 }

@@ -9,7 +9,7 @@ object Dependencies {
   lazy val slf4jVersion = "2.0.12"
 
   val akkaSlf4j: Seq[ModuleID] = Seq(
-     "com.typesafe.akka" %% "akka-slf4j" % "2.6.20"
+     "org.apache.pekko" %% "pekko-actor-typed" % "1.0.2"
   )
 
   val logback: Seq[ModuleID] = Seq(
@@ -25,9 +25,14 @@ object Dependencies {
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
   )
 
+  val bouncycastle: Seq[ModuleID] = Seq(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.68",
+    "org.bouncycastle" % "bcpkix-jdk15on" % "1.68"
+  )
+
   lazy val toplOrg = "co.topl"
 
-  lazy val bramblVersion = "2.0.0-beta6+2-9048e9e1-SNAPSHOT"
+  lazy val bramblVersion = "2.0.0-beta8"
 
   val bramblSdk = toplOrg %% "brambl-sdk" % bramblVersion
 
@@ -37,12 +42,18 @@ object Dependencies {
 
   val brambl: Seq[ModuleID] = Seq(bramblSdk, bramblCrypto, bramblServiceKit)
 
-  lazy val bitcoinsVersion = "1.9.7"
+  lazy val bitcoinsVersion = "1.9.9"
+  
+  lazy val btcVersionZmq = "1.9.8"
 
   lazy val monocleVersion = "3.1.0"
 
   lazy val munit: Seq[ModuleID] = Seq(
     "org.scalameta" %% "munit" % "1.0.0-M10"
+  )
+
+  lazy val ip4score: Seq[ModuleID] = Seq(
+    "com.comcast" %% "ip4s-core" % "3.6.0"
   )
 
   lazy val munitCatsEffects: Seq[ModuleID] = Seq(
@@ -80,8 +91,12 @@ object Dependencies {
     "org.bitcoin-s" %% "bitcoin-s-lnd-rpc" % bitcoinsVersion,
     "org.bitcoin-s" %% "bitcoin-s-node" % bitcoinsVersion,
     "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % bitcoinsVersion,
-    "org.bitcoin-s" %% "bitcoin-s-wallet" % bitcoinsVersion,
-    "org.bitcoin-s" %% "bitcoin-s-zmq" % bitcoinsVersion
+    "org.bitcoin-s" %% "bitcoin-s-wallet" % btcVersionZmq,
+    "org.bitcoin-s" %% "bitcoin-s-zmq" % btcVersionZmq
+  )
+
+  lazy val genericCirce: Seq[ModuleID] = Seq(
+    "io.circe" %% "circe-generic" % "0.14.9"
   )
 
   lazy val optics: Seq[ModuleID] = Seq(
@@ -89,9 +104,13 @@ object Dependencies {
     "dev.optics" %% "monocle-macro" % monocleVersion
   )
 
+  lazy val config: Seq[ModuleID] = Seq(
+    "com.typesafe" % "config" % "1.4.3"
+  )
+
   object toplBtcBridge {
 
-    lazy val main: Seq[ModuleID] =
+    lazy val consensus: Seq[ModuleID] =
       brambl ++
         scopt ++
         cats ++
@@ -103,6 +122,26 @@ object Dependencies {
         grpcRuntime ++
         akkaSlf4j ++
         slf4j
+
+    lazy val publicApi: Seq[ModuleID] =
+        scopt ++
+        ip4score ++
+        cats ++
+        log4cats ++
+        http4s ++
+        optics ++
+        grpcNetty ++
+        grpcRuntime ++
+        slf4j ++
+        config ++
+        logback ++
+        genericCirce
+
+    lazy val shared: Seq[ModuleID] =
+        grpcNetty ++
+        cats ++
+        grpcRuntime ++
+        bouncycastle
 
     lazy val test: Seq[ModuleID] =
       (
