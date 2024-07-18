@@ -37,5 +37,6 @@ case class ToplBTCBridgeConsensusParamConfig(
     groupId: GroupId,
     seriesId: SeriesId,
     configurationFile: File = new File("application.conf"),
+    dbFile: File = new File("bridge.db"),
     toplSecureConnection: Boolean = false
 )

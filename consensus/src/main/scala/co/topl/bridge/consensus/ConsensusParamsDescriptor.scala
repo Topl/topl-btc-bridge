@@ -173,7 +173,16 @@ trait ConsensusParamsDescriptor {
           else failure("Configuration file does not exist")
         )
         .text(
-          "Configuration file for the topl-btc-bridge-public-api service"
+          "Configuration file for the consensus service"
+        ),
+      opt[File]("db-file")
+        .action((x, c) => c.copy(dbFile = x))
+        .validate(x =>
+          if (x.exists) success
+          else failure("Configuration file does not exist")
+        )
+        .text(
+          "Database file for the consensus service"
         )
     )
   }
