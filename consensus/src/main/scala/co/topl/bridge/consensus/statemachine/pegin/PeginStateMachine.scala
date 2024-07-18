@@ -117,7 +117,7 @@ object PeginStateMachine {
               _ <- trace"current topl height is $x"
               _ <- trace"Updating topl height to $height"
               _ <-
-                if (height > x) // TODO: handle reorgs
+                if (height > x)
                   currentToplNetworkHeight.set(height)
                 else Sync[F].unit
             } yield ()
@@ -174,7 +174,7 @@ object PeginStateMachine {
               case FSMTransitionTo(_, _, _) =>
                 Sync[F].unit
             }
-          )).collect({ case Some(value) =>
+          )).collect{ case Some(value) =>
           if (blockchainEvent.isInstanceOf[NewBTCBlock])
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[NewBTCBlock].height}" >> value
           else if (blockchainEvent.isInstanceOf[SkippedBTCBlock])
@@ -183,9 +183,7 @@ object PeginStateMachine {
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[NewToplBlock].height}" >> value
           else
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
-          //debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
-        })
-
+          }
     }
 
     private def fsmStateToSessionState(

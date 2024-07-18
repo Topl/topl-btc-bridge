@@ -96,7 +96,3 @@ export ASSET_UTXO=$(brambl-cli tx broadcast -i seriesMintingTxProved.pbuf -h 127
 brambl-cli bifrost-query mint-block --nb-blocks 1 -h 127.0.0.1  --port 9084 -s false
 echo "ASSET_UTXO: $ASSET_UTXO"
 until brambl-cli genus-query utxo-by-address --host localhost --port 9084 --secure false --walletdb $TOPL_WALLET_DB; do sleep 5; done
-
-# Run the tests
-# echo "Running integration tests"
-# sbt "integration/test"

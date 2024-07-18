@@ -68,7 +68,7 @@ trait ReplyServicesModule {
                       Left(
                         shared.UnknownError("This should not happen: Empty response")
                       )
-                    case MintingStatus(value) => // FIXME: Implement this
+                    case MintingStatus(value) => 
                       Right(
                         MintingStatusResponse(
                           value.mintingStatus,

@@ -41,7 +41,6 @@ trait FailedPeginNoDepositWithReorgModule {
             _.mintingStatus == "PeginSessionWaitingForEscrowBTCConfirmation"
           )
         _ <- warn"We are in the waiting for escrow confirmation state"
-        // _ <- generateToAddress(1, 2, newAddress)
         _ <- generateToAddress(2, 8, newAddress)
         // reconnect network
         _ <- setNetworkActive(2, true)

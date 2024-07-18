@@ -13,7 +13,6 @@ trait FailedPeginNoMintModule {
 
     assertIO(
       for {
-        // ref <- Ref.of[IO, Int](0)
         _ <- mintToplBlock(1, 1)
         _ <- IO.sleep(1.second)
         newAddress <- getNewAddress
