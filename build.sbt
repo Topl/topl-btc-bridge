@@ -133,9 +133,7 @@ lazy val consensus = (project in file("consensus"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
       dockerPublishSettingsConsensus
-    else mavenPublishSettings
-  )
-  .settings(
+    else mavenPublishSettings,
     commonSettings,
     name := "topl-btc-bridge-consensus",
     libraryDependencies ++=
@@ -150,9 +148,7 @@ lazy val publicApi =
     .settings(
       if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
         dockerPublishSettingsPublicApi
-      else mavenPublishSettings
-    )
-    .settings(
+      else mavenPublishSettings,
       commonSettings,
       name := "topl-btc-bridge-public-api",
       libraryDependencies ++=
