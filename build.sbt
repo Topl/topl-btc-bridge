@@ -90,6 +90,8 @@ def fallbackVersion(d: java.util.Date): String =
 
 lazy val mavenPublishSettings = List(
   organization := "co.topl",
+  version := dynverGitDescribeOutput.value
+    .mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
   homepage := Some(url("https://github.com/Topl/topl-btc-bridge")),
   licenses := List("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
   ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org",
@@ -133,9 +135,7 @@ lazy val consensus = (project in file("consensus"))
   .settings(
     if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
       dockerPublishSettingsConsensus
-    else mavenPublishSettings
-  )
-  .settings(
+    else mavenPublishSettings,
     commonSettings,
     name := "topl-btc-bridge-consensus",
     libraryDependencies ++=
@@ -150,9 +150,7 @@ lazy val publicApi =
     .settings(
       if (sys.env.get("DOCKER_PUBLISH").getOrElse("false").toBoolean)
         dockerPublishSettingsPublicApi
-      else mavenPublishSettings
-    )
-    .settings(
+      else mavenPublishSettings,
       commonSettings,
       name := "topl-btc-bridge-public-api",
       libraryDependencies ++=
