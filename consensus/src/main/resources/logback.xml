@@ -14,6 +14,7 @@
 
   <logger class="io.grpc.netty.shaded.io.grpc.netty.NettyClientHandler" level="WARN" />
   <logger name="Bifrost.P2P" level="WARN" />
+  <logger name="consensus-00" level="INFO" />
   <root level="INFO">
       <appender-ref ref="STDOUT" />
   </root>

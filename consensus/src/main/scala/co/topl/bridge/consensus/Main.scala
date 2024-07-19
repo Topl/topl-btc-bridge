@@ -65,7 +65,11 @@ case object PeginSessionState {
       extends PeginSessionState
 }
 
-object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
+object Main
+    extends IOApp
+    with ConsensusParamsDescriptor
+    with AppModule
+    with InitUtils {
 
   override def run(args: List[String]): IO[ExitCode] = {
     OParser.parse(
@@ -201,7 +205,6 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
   )
 
   def startResources(
-      conf: Config,
       privateKeyFile: String,
       params: ToplBTCBridgeConsensusParamConfig,
       queue: Queue[IO, SessionEvent],
@@ -211,6 +214,7 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       currentToplHeight: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      conf: Config,
       fromFellowship: Fellowship,
       fromTemplate: Template,
       bitcoindInstance: BitcoindRpcClient,
@@ -221,8 +225,6 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       replicaId: ReplicaId
   ) = {
     import fs2.grpc.syntax.all._
-    val replicaHost = conf.getString("bridge.replica.requests.host")
-    val replicaPort = conf.getInt("bridge.replica.requests.port")
     for {
       replicaKeyPair <- BridgeCryptoUtils
         .getKeyPair[IO](privateKeyFile)
@@ -269,6 +271,18 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       _ <- storageApi.initializeStorage().toResource
       grpcService <- grpcServiceResource
+      _ <- getAndSetCurrentToplHeight(
+        currentToplHeight,
+        bifrostQueryAlgebra
+      ).toResource
+      _ <- getAndSetCurrentBitcoinHeight(
+        currentBitcoinNetworkHeight,
+        bitcoindInstance
+      ).toResource
+      _ <- getAndSetCurrentToplHeight( // we do this again in case the BTC height took too much time to get
+        currentToplHeight,
+        bifrostQueryAlgebra
+      ).toResource
       grpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(replicaHost, replicaPort))
         .addService(grpcService)
@@ -318,8 +332,47 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
     } yield ()
   }
 
+  def getAndSetCurrentToplHeight[F[_]: Async: Logger](
+      currentToplHeight: Ref[F, Long],
+      bqa: BifrostQueryAlgebra[F]
+  ) = {
+    import cats.implicits._
+    import scala.concurrent.duration._
+    (for {
+      someTip <- bqa.blockByDepth(1)
+      height <- someTip
+        .map({ tip =>
+          val (_, header, _, _) = tip
+          currentToplHeight.set(header.height) >>
+            info"Obtained and set topl height: ${header.height}" >>
+            header.height.pure[F]
+        })
+        .getOrElse(
+          warn"Failed to obtain and set topl height" >> Async[F]
+            .sleep(3.second) >> 0L.pure[F]
+        )
+    } yield height).iterateUntil(_ != 0)
+  }
+
+  def getAndSetCurrentBitcoinHeight[F[_]: Async: Logger](
+      currentBitcoinNetworkHeight: Ref[F, Int],
+      bitcoindInstance: BitcoindRpcClient
+  ) = {
+    import cats.implicits._
+    import scala.concurrent.duration._
+    (for {
+      height <- Async[F].fromFuture(
+        Async[F].delay(bitcoindInstance.getBlockCount())
+      )
+      _ <- currentBitcoinNetworkHeight.set(height)
+      _ <-
+        if (height == 0)
+          warn"Failed to obtain and set BTC height" >> Async[F].sleep(3.second)
+        else info"Obtained and set BTC height: $height"
+    } yield height).iterateUntil(_ != 0)
+  }
+
   def runWithArgs(params: ToplBTCBridgeConsensusParamConfig): IO[ExitCode] = {
-    import org.typelevel.log4cats.syntax._
     implicit val defaultFromFellowship = new Fellowship("self")
     implicit val defaultFromTemplate = new Template("default")
     val credentials = BitcoindAuthCredentials.PasswordBased(
@@ -336,59 +389,21 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
     implicit val btcRetryThreshold: BTCRetryThreshold = new BTCRetryThreshold(
       params.btcRetryThreshold
     )
-    val conf = ConfigFactory.parseFile(params.configurationFile)
+    implicit val conf = ConfigFactory.parseFile(params.configurationFile)
     implicit val replicaId = new ReplicaId(
       conf.getInt("bridge.replica.replicaId")
     )
     implicit val logger =
       org.typelevel.log4cats.slf4j.Slf4jLogger
         .getLoggerFromName[IO]("consensus-" + f"${replicaId.id}%02d")
-    val replicaHost = conf.getString("bridge.replica.requests.host")
-    val replicaPort = conf.getInt("bridge.replica.requests.port")
     (for {
       _ <- IO(Security.addProvider(new BouncyCastleProvider()))
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
       pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
       walletManager <- BTCWalletImpl.make[IO](walletKm)
-      // For each parameter, log its value to info
-      _ <- info"Command line arguments"
-      _ <- info"btc-blocks-to-recover    : ${params.btcWaitExpirationTime}"
-      _ <- info"topl-blocks-to-recover   : ${params.toplWaitExpirationTime}"
-      _ <-
-        info"btc-confirmation-threshold  : ${params.btcConfirmationThreshold}"
-      _ <-
-        info"topl-confirmation-threshold : ${params.toplConfirmationThreshold}"
-      _ <- info"btc-peg-in-seed-file     : ${params.btcPegInSeedFile}"
-      _ <- info"btc-peg-in-password      : ******"
-      _ <- info"wallet-seed-file         : ${params.btcWalletSeedFile}"
-      _ <- info"wallet-password          : ******"
-      _ <- info"topl-wallet-seed-file    : ${params.toplWalletSeedFile}"
-      _ <- info"topl-wallet-password     : ******"
-      _ <- info"topl-wallet-db           : ${params.toplWalletDb}"
-      _ <- info"btc-url                  : ${params.btcUrl}"
-      _ <- info"btc-user                 : ${params.btcUser}"
-      _ <- info"zmq-host                 : ${params.zmqHost}"
-      _ <- info"zmq-port                 : ${params.zmqPort}"
-      _ <- info"btc-password             : ******"
-      _ <- info"btc-network              : ${params.btcNetwork}"
-      _ <- info"topl-network             : ${params.toplNetwork}"
-      _ <- info"topl-host                : ${params.toplHost}"
-      _ <- info"topl-port                : ${params.toplPort}"
-      _ <- info"config-file              : ${params.configurationFile.toPath().toString()}"
-      _ <- info"topl-secure-connection   : ${params.toplSecureConnection}"
-      _ <- info"minting-fee              : ${params.mintingFee}"
-      _ <- info"fee-per-byte             : ${params.feePerByte}"
-      _ <- info"abtc-group-id            : ${Encoding.encodeToHex(params.groupId.value.toByteArray)}"
-      _ <- info"abtc-series-id           : ${Encoding.encodeToHex(params.seriesId.value.toByteArray)}"
-      _ <- info"db-file                  : ${params.dbFile.toPath().toString()}"
-      privateKeyFile <- IO(
-        conf.getString("bridge.replica.security.privateKeyFile")
-      )
-      _ <- info"bridge.replica.security.privateKeyFile: ${privateKeyFile}"
-      _ <- info"bridge.replica.requests.host : ${replicaHost}"
-      _ <- info"bridge.replica.requests.port : ${replicaPort}"
-      _ <- info"bridge.replica.replicaId     : ${replicaId.id}"
+      _ <- printParams[IO](params)
+      _ <- printConfig[IO]
       globalState <- Ref[IO].of(
         SystemGlobalState(Some("Setting up wallet..."), None)
       )
@@ -396,7 +411,6 @@ object Main extends IOApp with ConsensusParamsDescriptor with AppModule {
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
       _ <- startResources(
-        conf,
         privateKeyFile,
         params,
         queue,
