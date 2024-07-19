@@ -90,6 +90,8 @@ def fallbackVersion(d: java.util.Date): String =
 
 lazy val mavenPublishSettings = List(
   organization := "co.topl",
+  version := dynverGitDescribeOutput.value
+    .mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
   homepage := Some(url("https://github.com/Topl/topl-btc-bridge")),
   licenses := List("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
   ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org",
