@@ -54,22 +54,22 @@ trait DeserializationOps {
       case Some(amount) =>
         amount.currency match {
           case LvlCurrency(value) =>
-            Lvl(Int128.parseFrom(value.amount.toByteArray()))
+            Lvl(Int128(value.amount))
           case SeriesTokenCurrency(value) =>
             SeriesToken(
               value.id,
-              Int128.parseFrom(value.amount.toByteArray())
+              Int128(value.amount)
             )
           case GroupTokenCurrency(value) =>
             GroupToken(
               value.id,
-              Int128.parseFrom(value.amount.toByteArray())
+              Int128(value.amount)
             )
           case AssetTokenCurrency(value) =>
             AssetToken(
               value.groupId,
               value.seriesId,
-              Int128.parseFrom(value.amount.toByteArray())
+              Int128(value.amount)
             )
           case _ => throw new IllegalStateException("Unknown currency type")
         }

@@ -21,6 +21,7 @@ import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.modules.AppModule
+import co.topl.bridge.consensus.persistence.StorageApiImpl
 import co.topl.bridge.consensus.statemachine.pegin.BlockProcessor
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.shared.BridgeCryptoUtils
@@ -43,10 +44,6 @@ import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
-import co.topl.bridge.consensus.persistence.StorageApiImpl
-import co.topl.bridge.consensus.persistence.NewBTCBlock
-import co.topl.bridge.consensus.persistence.SkippedBTCBlock
-import co.topl.bridge.consensus.persistence.NewToplBlock
 
 case class SystemGlobalState(
     currentStatus: Option[String],

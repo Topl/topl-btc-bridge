@@ -142,7 +142,7 @@ trait SerializationOps {
               scriptPubKey,
               txId,
               vout,
-              ByteString.copyFrom(amount.bytes.toArray)
+              ByteString.copyFrom(amount.satoshis.bytes.toArray)
             )
           )
         )
