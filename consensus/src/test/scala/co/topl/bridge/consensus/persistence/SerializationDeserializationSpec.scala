@@ -1,14 +1,11 @@
 package co.topl.bridge.consensus.persistence
 
-import munit.CatsEffectSuite
-import org.bitcoins.core.currency.CurrencyUnit
-import org.bitcoins.core.currency.CurrencyUnits
-import org.bitcoins.core.currency.Satoshis
-import co.topl.bridge.consensus.Lvl
-import quivr.models.Int128
-import co.topl.bridge.consensus.SeriesToken
-import co.topl.bridge.consensus.GroupToken
 import co.topl.bridge.consensus.AssetToken
+import co.topl.bridge.consensus.GroupToken
+import co.topl.bridge.consensus.Lvl
+import co.topl.bridge.consensus.SeriesToken
+import munit.CatsEffectSuite
+import org.bitcoins.core.currency.Satoshis
 
 class SerializationDeserializationSpec
     extends CatsEffectSuite
