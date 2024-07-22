@@ -43,6 +43,8 @@ object StorageApiImpl {
 
     val BLOCKCHAIN_EVENT_ID = "blockchain_event"
 
+    val STATE_MACHINE_EVENT_ID = "sm_event"
+
     override def insertBlockchainEvent(
         event: BlockchainEvent
     ): F[Unit] =

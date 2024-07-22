@@ -57,6 +57,7 @@ trait AppModule
       logger: Logger[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
       currentToplHeight: Ref[IO, Long],
+      currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       fromFellowship: Fellowship,
@@ -136,6 +137,7 @@ trait AppModule
           pegInWalletManager,
           walletManager,
           params.btcNetwork,
+          currentView,
           currentToplHeight
         ),
         InitializationModule

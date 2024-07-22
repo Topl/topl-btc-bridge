@@ -45,6 +45,7 @@ trait ApiServicesModule {
       pegInWalletManager: BTCWalletAlgebra[IO],
       bridgeWalletManager: BTCWalletAlgebra[IO],
       btcNetwork: BitcoinNetworkIdentifiers,
+      currentView: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long]
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[IO],
@@ -68,6 +69,7 @@ trait ApiServicesModule {
           case MintingStatus(value) =>
             for {
               session <- sessionManager.getSession(value.sessionId)
+              viewNumber <- currentView.get
               somePegin <- session match {
                 case Some(p: PeginSessionInfo) => IO.pure(Option(p))
                 case None                      => IO.pure(None)
@@ -92,7 +94,7 @@ trait ApiServicesModule {
                   )
               }
               _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
-                .replyStartPegin(request.timestamp, resp)
+                .replyStartPegin(request.timestamp, viewNumber, resp)
             } yield Empty()
           case StartSession(sc) =>
             import StartSessionController._
@@ -106,6 +108,7 @@ trait ApiServicesModule {
                 currentToplHeight,
                 btcNetwork
               )
+              viewNumber <- currentView.get
               resp = res match {
                 case Left(e: BridgeError) =>
                   Result.InvalidInput(
@@ -127,7 +130,7 @@ trait ApiServicesModule {
 
               }
               _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
-                .replyStartPegin(request.timestamp, resp)
+                .replyStartPegin(request.timestamp, viewNumber, resp)
             } yield Empty()
         }
       }
