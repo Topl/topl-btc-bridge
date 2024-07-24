@@ -5,6 +5,7 @@ import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor.BitcoinBlockSync
 import co.topl.brambl.utils.Encoding
+import co.topl.bridge.consensus.persistence._
 
 import scala.util.Try
 
@@ -48,7 +49,7 @@ object BlockProcessor {
               val (output, vout) = outputAndVout
               BTCFundsDeposited(
                 b.height,
-                output.scriptPubKey,
+                output.scriptPubKey.asmHex,
                 transaction.txIdBE.hex,
                 vout.toLong,
                 output.value

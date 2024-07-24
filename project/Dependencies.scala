@@ -9,7 +9,7 @@ object Dependencies {
   lazy val slf4jVersion = "2.0.12"
 
   val akkaSlf4j: Seq[ModuleID] = Seq(
-     "org.apache.pekko" %% "pekko-actor-typed" % "1.0.2"
+    "org.apache.pekko" %% "pekko-actor-typed" % "1.0.2"
   )
 
   val logback: Seq[ModuleID] = Seq(
@@ -43,13 +43,17 @@ object Dependencies {
   val brambl: Seq[ModuleID] = Seq(bramblSdk, bramblCrypto, bramblServiceKit)
 
   lazy val bitcoinsVersion = "1.9.9"
-  
+
   lazy val btcVersionZmq = "1.9.8"
 
   lazy val monocleVersion = "3.1.0"
 
   lazy val munit: Seq[ModuleID] = Seq(
     "org.scalameta" %% "munit" % "1.0.0-M10"
+  )
+
+  val sqlite: Seq[ModuleID] = Seq(
+    "org.xerial" % "sqlite-jdbc" % "3.45.2.0"
   )
 
   lazy val ip4score: Seq[ModuleID] = Seq(
@@ -69,7 +73,9 @@ object Dependencies {
     Seq("io.grpc" % "grpc-netty-shaded" % "1.62.2")
 
   val grpcRuntime =
-    Seq("com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion)
+    Seq(
+      "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
+    )
 
   lazy val scopt: Seq[ModuleID] = Seq("com.github.scopt" %% "scopt" % "4.0.1")
 
@@ -120,11 +126,12 @@ object Dependencies {
         bitcoinS ++
         grpcNetty ++
         grpcRuntime ++
+        sqlite ++
         akkaSlf4j ++
         slf4j
 
     lazy val publicApi: Seq[ModuleID] =
-        scopt ++
+      scopt ++
         ip4score ++
         cats ++
         log4cats ++
@@ -138,7 +145,7 @@ object Dependencies {
         genericCirce
 
     lazy val shared: Seq[ModuleID] =
-        grpcNetty ++
+      grpcNetty ++
         cats ++
         grpcRuntime ++
         bouncycastle

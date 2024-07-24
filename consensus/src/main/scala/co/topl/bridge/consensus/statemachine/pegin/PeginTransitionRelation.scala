@@ -7,27 +7,28 @@ import cats.implicits._
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.SeriesId
+import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.consensus.AssetToken
+import co.topl.bridge.consensus.BTCConfirmationThreshold
+import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.Template
+import co.topl.bridge.consensus.ToplConfirmationThreshold
+import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
+import co.topl.bridge.consensus.persistence._
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
-import quivr.models.KeyPair
-import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.BTCRetryThreshold
-import co.topl.bridge.consensus.BTCConfirmationThreshold
-import co.topl.bridge.consensus.ToplConfirmationThreshold
-import co.topl.brambl.models.SeriesId
-import co.topl.brambl.models.GroupId
-import co.topl.bridge.consensus.AssetToken
-import co.topl.brambl.utils.Encoding
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
+import quivr.models.KeyPair
 
 object PeginTransitionRelation {
 
@@ -328,7 +329,7 @@ object PeginTransitionRelation {
             BTCFundsDeposited(depositBTCBlockHeight, scriptPubKey, _, _, _)
           ) =>
         val bech32Address = Bech32Address.fromString(cs.claimAddress)
-        if (scriptPubKey == bech32Address.scriptPubKey) {
+        if (scriptPubKey == bech32Address.scriptPubKey.asmHex) {
           // the funds were successfully deposited to the claim address
           Some(
             FSMTransitionTo(
@@ -477,7 +478,7 @@ object PeginTransitionRelation {
             ev: BTCFundsDeposited
           ) =>
         val bech32Address = Bech32Address.fromString(cs.escrowAddress)
-        if (ev.scriptPubKey == bech32Address.scriptPubKey) {
+        if (ev.scriptPubKey == bech32Address.scriptPubKey.asmHex) {
           Some(
             FSMTransitionTo(
               currentState,

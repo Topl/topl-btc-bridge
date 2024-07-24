@@ -4,7 +4,7 @@
 docker stop $(docker ps -a -q)
 
 # Remove previous data
-rm consensusPrivateKey.pem consensusPublicKey.pem clientPrivateKey.pem clientPublicKey.pem
+rm consensusPrivateKey.pem consensusPublicKey.pem clientPrivateKey.pem clientPublicKey.pem bridge.db
 
 # Create keys
 

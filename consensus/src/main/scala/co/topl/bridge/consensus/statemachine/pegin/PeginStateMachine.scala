@@ -8,21 +8,25 @@ import cats.implicits._
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
+import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.SeriesId
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.consensus.BTCConfirmationThreshold
+import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.PeginSessionState
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateMintingTBTC
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateWaitingForBTC
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaim
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.consensus.Template
+import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.PegoutSessionInfo
@@ -30,6 +34,7 @@ import co.topl.bridge.consensus.managers.SessionCreated
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.managers.SessionUpdated
+import co.topl.bridge.consensus.persistence._
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
@@ -38,11 +43,6 @@ import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.BTCConfirmationThreshold
-import co.topl.bridge.consensus.ToplConfirmationThreshold
-
-import co.topl.brambl.models.SeriesId
-import co.topl.brambl.models.GroupId
 
 trait PeginStateMachineAlgebra[F[_]] {
 
@@ -174,7 +174,7 @@ object PeginStateMachine {
               case FSMTransitionTo(_, _, _) =>
                 Sync[F].unit
             }
-          )).collect{ case Some(value) =>
+          )).collect { case Some(value) =>
           if (blockchainEvent.isInstanceOf[NewBTCBlock])
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[NewBTCBlock].height}" >> value
           else if (blockchainEvent.isInstanceOf[SkippedBTCBlock])
@@ -183,7 +183,7 @@ object PeginStateMachine {
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()} at height ${blockchainEvent.asInstanceOf[NewToplBlock].height}" >> value
           else
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
-          }
+        }
     }
 
     private def fsmStateToSessionState(

@@ -9,13 +9,13 @@ import scala.annotation.nowarn
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.controllers.SharedData
 import co.topl.brambl.syntax._
-import co.topl.bridge.consensus.statemachine.pegin.{BifrostFundsDeposited, FSMTransitionTo, MintingTBTCConfirmation, WaitingForRedemption, BTCFundsWithdrawn, MintingTBTC, BifrostFundsWithdrawn, WaitingForEscrowBTCConfirmation, PeginTransitionRelation, EndTransition, BlockchainEvent, WaitingForClaim, WaitingForClaimBTCConfirmation, PeginStateMachineState, BTCFundsDeposited, WaitingForBTC, NewToplBlock, NewBTCBlock}
+import co.topl.bridge.consensus.persistence._
 
 class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
 
   val escrowAddress =
     "bcrt1qsc9qvqvlswpzlvf4t80g05l2la2cykazmdcur45st5g339vw6aps47j7sw"
-  val escrowAddressPubkey = Bech32Address.fromString(escrowAddress).scriptPubKey
+  val escrowAddressPubkey = Bech32Address.fromString(escrowAddress).scriptPubKey.asmHex
 
   val escrowAddressOther =
     "bcrt1q0xlvz3kxy9vyx4ylghajrvwuyqkspn7pdsch20jn5wjjkhcensus805640"
@@ -29,7 +29,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   val claimAddress =
     "bcrt1q0xlvz3kxy9vyx4ylghajrvwuyqkspn7pdsch20jn5wjjkhcensus805640"
 
-  val claimAddressPubkey = Bech32Address.fromString(claimAddress).scriptPubKey
+  val claimAddressPubkey = Bech32Address.fromString(claimAddress).scriptPubKey.asmHex
 
   @nowarn // just dummy function
   def transitionToEffect[F[_]: Async](

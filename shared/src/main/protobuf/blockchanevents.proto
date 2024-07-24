@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package co.topl.bridge.consensus.protobuf;
+
+message Lvl {
+  bytes amount = 1;
+}
+
+message SeriesToken {
+  string id = 1;
+  bytes amount = 2;
+}
+
+message GroupToken {
+  string id = 1;
+  bytes amount = 2;
+}
+
+message AssetToken {
+  string groupId = 1;
+  string seriesId = 2;
+  bytes amount = 3;
+}
+
+message BifrostCurrencyUnit {
+  oneof currency {
+    Lvl lvl = 1;
+    SeriesToken seriesToken = 2;
+    GroupToken groupToken = 3;
+    AssetToken assetToken = 4;
+  }
+}
+
+
+message NewBTCBlock {
+  uint32 height = 1;
+}
+
+message SkippedBTCBlock {
+  uint32 height = 1;
+}
+
+message SkippedToplBlock {
+  uint64 height = 1;
+}
+
+message NewToplBlock {
+  uint64 height = 1;
+}
+
+message BTCFundsDeposited {
+  uint32 fundsDepositedHeight = 1;
+  string address = 2;
+  string txId = 3;
+  uint64 vout = 4;
+  bytes amount = 5; // sats
+}
+
+message BTCFundsWithdrawn {
+  string txId = 1;
+  uint64 vout = 2;
+}
+
+message BifrostFundsDeposited {
+  uint64 currentToplBlockHeight = 1;
+  string address = 2;
+  string utxoTxId = 3;
+  uint32 utxoIndex = 4;
+  BifrostCurrencyUnit amount = 5;
+}
+
+message BifrostFundsWithdrawn {
+  string txId = 1;
+  uint32 txIndex = 2;
+  string secret = 3;
+  BifrostCurrencyUnit amount = 4;
+}
+
+message BlockchainEvent {
+  oneof event {
+    NewBTCBlock newBTCBlock = 1;
+    SkippedBTCBlock skippedBTCBlock = 2;
+    SkippedToplBlock skippedToplBlock = 3;
+    NewToplBlock newToplBlock = 4;
+    BTCFundsDeposited btcFundsDeposited = 5;
+    BTCFundsWithdrawn btcFundsWithdrawn = 6;
+    BifrostFundsDeposited bifrostFundsDeposited = 7;
+    BifrostFundsWithdrawn bifrostFundsWithdrawn = 8;
+  }
+}
