@@ -29,7 +29,7 @@ import org.bitcoins.crypto.ECDigitalSignature
 import org.bitcoins.crypto.HashType
 import org.bitcoins.core.protocol.script.P2WSHWitnessV0
 import org.bitcoins.core.protocol.script.RawScriptPubKey
-import org.bitcoins.core.wallet.fee.{SatoshisPerVirtualByte, SatoshisPerByte}
+import org.bitcoins.core.wallet.fee.SatoshisPerVirtualByte
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
 import org.bitcoins.core.script.constant.OP_0
@@ -116,7 +116,7 @@ class FeeEstimationSpec extends CatsEffectSuite {
     println("desired amount: ", desiredAmt)
 
 
-    val DesiredFeeRate = SatoshisPerByte(25.satoshis)
+    val DesiredFeeRate = SatoshisPerVirtualByte(25.satoshis)
 
     val fee = estimateBtcReclaimFee(desiredAmt, DesiredFeeRate, RegTest)
     println("calculated fee: ", fee)
@@ -172,7 +172,7 @@ class FeeEstimationSpec extends CatsEffectSuite {
       bitcoindInstance.sendRawTransaction(witTx, 0), 5.seconds
     )
     val txDetails = Await.result(bitcoindInstance.getTransaction(reclaimTxId, walletName = TestWallet), 5.seconds).hex
-    val ActualFeeRate = SatoshisPerByte.calc(toSend, txDetails)
+    val ActualFeeRate = SatoshisPerVirtualByte.calc(toSend, txDetails)
     println("actual fee rate: ", ActualFeeRate)
     println("actual vsize: ", txDetails.vsize)
     println("actual fee: ", toSend - txDetails.totalOutput)
