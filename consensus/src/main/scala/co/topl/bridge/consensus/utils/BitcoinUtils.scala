@@ -36,6 +36,16 @@ import org.bitcoins.core.wallet.utxo.SegwitV0NativeInputInfo
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
+import co.topl.bridge.consensus.BTCWaitExpirationTime
+import org.bitcoins.core.config.NetworkParameters
+import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
+import org.bitcoins.core.protocol.script.RawScriptPubKey
+import org.bitcoins.core.protocol.transaction.WitnessTransaction
+import org.bitcoins.core.protocol.script.NonStandardScriptSignature
+import org.bitcoins.core.wallet.fee.FeeUnit
+
+import java.security.MessageDigest
+
 
 object BitcoinUtils {
 
@@ -177,6 +187,51 @@ object BitcoinUtils {
       Vector(ScriptPubKey.apply(bech32Address.scriptPubKey.asm))
     )
     finalizer.buildTx(builderResult)
+  }
+
+  /**
+    * Calculate the reclaim fee for a given Transaction. 
+    */
+  def calculateBtcReclaimFee(tx: Transaction, feePerByte: FeeUnit): CurrencyUnit = feePerByte.calc(tx)
+
+    /**
+    * Estimate the reclaim fee for a future reclaim transaction. This fee must be deposited by the user to the escrow address in addition to the BTC that is meant to be wrapped. 
+    * This fee will be used when the escrow address is being spent from; for example, during user reclaim (sad path).
+    * 
+    * Virtual bytes include witness data, so we must include the signatures in the transaction prior to calculating
+    * 
+    * This is an estimation since we use dummy values for any unavailable information (txOut reference, keys, etc)
+    */
+  def estimateBtcReclaimFee(inputAmount: CurrencyUnit, feePerByte: FeeUnit, network: NetworkParameters)(implicit btcWaitExpirationTime: BTCWaitExpirationTime): CurrencyUnit = {
+    val dummyClaimAddr = Bech32Address
+      .apply(
+        P2WPKHWitnessSPKV0(ECPublicKey.dummy),
+        network
+      )
+      .value
+    val dummyUserPrivKey = ECPrivateKey.freshPrivateKey
+    val dummyUnprovenTx = createRedeemingTx(DoubleSha256DigestBE.empty.hex, 0L, inputAmount.satoshis.toLong, feePerByte.currencyUnit, dummyClaimAddr)
+    val dummyScript = RawScriptPubKey(
+      buildScriptAsm(dummyUserPrivKey.publicKey, ECPublicKey.dummy, ByteVector(MessageDigest.getInstance("SHA-256").digest("dummy".getBytes)), btcWaitExpirationTime.underlying)
+    )
+    val serializedTxForSignature = serializeForSignature(dummyUnprovenTx, inputAmount.satoshis, dummyScript.asm)
+    val signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
+    val userSignature = ECDigitalSignature(dummyUserPrivKey.sign(signableBytes).bytes ++ ByteVector.fromByte(HashType.sigHashAll.byte))
+    val userSig = NonStandardScriptSignature.fromAsm(
+      Seq(
+        ScriptConstant(userSignature.hex)
+      )
+    )
+    val witTx = WitnessTransaction
+      .toWitnessTx(dummyUnprovenTx)
+      .updateWitness(
+        0,
+        P2WSHWitnessV0(
+          dummyScript,
+          userSig
+        )
+      )
+    calculateBtcReclaimFee(witTx, feePerByte)
   }
 
 }
