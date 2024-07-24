@@ -21,13 +21,17 @@ import org.http4s.circe._
 import org.http4s.headers.`Content-Type`
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
+import cats.effect.kernel.Ref
+import co.topl.bridge.publicapi.ReplicaCount
 
 trait ApiServicesModule {
   def apiServices(
-      consensusGrpc: ConsensusClientGrpc[IO]
+      currentViewRef: Ref[IO, Long],
+      consensusGrpcClients: Map[Int, ConsensusClientGrpc[IO]]
   )(implicit
       l: Logger[IO],
-      clientNumber: ClientNumber
+      clientNumber: ClientNumber,
+      replicaCount: ReplicaCount
   ) = {
     import org.http4s.dsl.io._
     implicit val bridgeErrorEntityEncoder: EntityEncoder[IO, BridgeError] =
@@ -96,10 +100,12 @@ trait ApiServicesModule {
           jsonOf[IO, StartPeginSessionRequest]
 
         (for {
+          currentView <- currentViewRef.get
           _ <-
             info"Received request to start pegin session"
           x <- req.as[StartPeginSessionRequest]
-          someResponse <- consensusGrpc.startPegin(
+          _ <- trace"Current primary is ${currentView % replicaCount.value}"
+          someResponse <- consensusGrpcClients((currentView % replicaCount.value).toInt).startPegin(
             StartSessionOperation(
               x.pkey,
               x.sha256
@@ -120,9 +126,10 @@ trait ApiServicesModule {
             case Right(response) =>
               Ok(response)
           }
-        } yield res).handleErrorWith(
-          e =>
-            error"Error in start pegin session request: ${e.getMessage}" >> BadRequest("Error starting pegin session")
+        } yield res).handleErrorWith(e =>
+          error"Error in start pegin session request: ${e.getMessage}" >> BadRequest(
+            "Error starting pegin session"
+          )
         )
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
         implicit val mintingStatusRequestDecoder
@@ -130,10 +137,10 @@ trait ApiServicesModule {
           jsonOf[IO, MintingStatusRequest]
 
         for {
-          _ <-
-            trace"Received request for minting status"
+          currentView <- currentViewRef.get
+          _ <-  trace"Received request for minting status"
           x <- req.as[MintingStatusRequest]
-          someResponse <- consensusGrpc.mintingStatus(
+          someResponse <- consensusGrpcClients((currentView % replicaCount.value).toInt).mintingStatus(
             MintingStatusOperation(
               x.sessionID
             )

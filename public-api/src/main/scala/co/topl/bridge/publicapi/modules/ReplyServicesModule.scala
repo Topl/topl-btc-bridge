@@ -1,9 +1,7 @@
 package co.topl.bridge.publicapi.modules
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
-import cats.effect.std.CountDownLatch
 import cats.implicits._
 import co.topl.bridge.consensus.service.Empty
 import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
@@ -11,7 +9,7 @@ import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.service.StateMachineReply.Result.MintingStatus
 import co.topl.bridge.consensus.service.StateMachineReply.Result.SessionNotFound
 import co.topl.bridge.consensus.service.StateMachineReply.Result.StartSession
-import co.topl.bridge.publicapi.Main.ConsensusClientMessageId
+import co.topl.bridge.publicapi.ConsensusClientMessageId
 import co.topl.shared
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
@@ -26,6 +24,7 @@ import org.typelevel.log4cats.syntax._
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.LongAdder
 
 trait ReplyServicesModule {
 
@@ -33,14 +32,10 @@ trait ReplyServicesModule {
       replicaKeysMap: Map[Int, PublicKey],
       messageResponseMap: ConcurrentHashMap[
         ConsensusClientMessageId,
-        Ref[F, Either[
+        ConcurrentHashMap[Either[
           BridgeError,
           BridgeResponse
-        ]]
-      ],
-      messagesMap: ConcurrentHashMap[
-        ConsensusClientMessageId,
-        CountDownLatch[F]
+        ], LongAdder]
       ]
   ) =
     ResponseServiceFs2Grpc.bindServiceResource(
@@ -66,9 +61,11 @@ trait ReplyServicesModule {
                   request.result match {
                     case StateMachineReply.Result.Empty =>
                       Left(
-                        shared.UnknownError("This should not happen: Empty response")
+                        shared.UnknownError(
+                          "This should not happen: Empty response"
+                        )
                       )
-                    case MintingStatus(value) => 
+                    case MintingStatus(value) =>
                       Right(
                         MintingStatusResponse(
                           value.mintingStatus,
@@ -97,19 +94,28 @@ trait ReplyServicesModule {
                       )
                   }
                 for {
-                  ref <- Sync[F].delay(
+                  voteMap <- Sync[F].delay(
                     messageResponseMap
-                      .get(ConsensusClientMessageId(request.timestamp))
+                      .get(
+                        ConsensusClientMessageId(request.timestamp)
+                      ): ConcurrentHashMap[Either[
+                      BridgeError,
+                      BridgeResponse
+                    ], LongAdder]
                   )
-                  _ <- ref.set(response)
-                  _ <- messagesMap
-                    .get(ConsensusClientMessageId(request.timestamp))
-                    .release
+                  _ <- Option(voteMap).fold(
+                    info"Vote map not found, vote completed" >> Sync[F].unit
+                  ) { _ =>
+                    Sync[F].delay(
+                      voteMap
+                        .computeIfAbsent(response, _ => new LongAdder())
+                        .increment()
+                    )
+                  }
                 } yield ()
               } else {
                 error"Invalid signature in response"
               }
-
           } yield Empty()
         }
       }

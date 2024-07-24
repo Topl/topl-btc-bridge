@@ -59,13 +59,15 @@ trait ApiServicesModule {
   ) = StateMachineServiceFs2Grpc.bindServiceResource(
     serviceImpl = new StateMachineServiceFs2Grpc[IO, Metadata] {
       // log4cats syntax
+      import org.typelevel.log4cats.syntax._
 
       def executeRequest(
           request: co.topl.bridge.consensus.service.StateMachineRequest,
           ctx: Metadata
       ): IO[Empty] = {
         request.operation match {
-          case StateMachineRequest.Operation.Empty => IO.pure(Empty())
+          case StateMachineRequest.Operation.Empty =>
+            warn"Received empty message" >> IO.pure(Empty())
           case MintingStatus(value) =>
             for {
               session <- sessionManager.getSession(value.sessionId)
@@ -99,6 +101,8 @@ trait ApiServicesModule {
           case StartSession(sc) =>
             import StartSessionController._
             for {
+              _ <-
+                warn"Received start session request from client ${request.clientNumber}"
               res <- startPeginSession(
                 sc,
                 pegInWalletManager,
