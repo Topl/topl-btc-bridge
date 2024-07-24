@@ -179,7 +179,7 @@ trait ConsensusParamsDescriptor {
         .action((x, c) => c.copy(dbFile = x))
         .validate(x =>
           if (x.exists) success
-          else failure("Configuration file does not exist")
+          else failure("Database file does not exist")
         )
         .text(
           "Database file for the consensus service"
