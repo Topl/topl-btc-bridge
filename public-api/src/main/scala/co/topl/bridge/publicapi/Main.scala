@@ -4,9 +4,7 @@ import cats.data.Kleisli
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.bridge.publicapi.ClientNumber
@@ -19,7 +17,6 @@ import co.topl.shared.BridgeResponse
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
-import io.grpc.ManagedChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.http4s._
@@ -32,7 +29,6 @@ import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
 import java.net.InetSocketAddress
-import java.security.KeyPair
 import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
@@ -59,17 +55,14 @@ object Main
     with ReplyServicesModule {
 
   def createApp(
-      currentViewRef: Ref[IO, Long],
-      consensusGrpcClients: Map[Int, ConsensusClientGrpc[IO]]
+      consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
-      clientNumber: ClientNumber,
-      replicaCount: ReplicaCount
+      clientNumber: ClientNumber
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val router = Router.define(
       "/api" -> apiServices(
-        currentViewRef,
         consensusGrpcClients
       )
     )(default = staticAssetsService)
@@ -94,37 +87,6 @@ object Main
         )
     }
   }
-  def createReplicaClient[F[_]: Async: Logger](
-      keyPair: KeyPair,
-      replicaNode: ReplicaNode[F],
-      messageResponseMap: ConcurrentHashMap[
-        ConsensusClientMessageId,
-        ConcurrentHashMap[Either[
-          BridgeError,
-          BridgeResponse
-        ], LongAdder]
-      ]
-  )(implicit
-      replicaCount: ReplicaCount
-  ): Resource[F, (Int, ConsensusClientGrpc[F])] = {
-    for {
-      channel <-
-        (if (replicaNode.backendSecure)
-           ManagedChannelBuilder
-             .forAddress(replicaNode.backendHost, replicaNode.backendPort)
-             .useTransportSecurity()
-         else
-           ManagedChannelBuilder
-             .forAddress(replicaNode.backendHost, replicaNode.backendPort)
-             .usePlaintext()).resource[F]
-      consensusClient <- ConsensusClientGrpcImpl
-        .make[F](
-          keyPair,
-          messageResponseMap,
-          channel
-        )
-    } yield (replicaNode.id -> consensusClient)
-  }
 
   def setupServices(
       clientHost: String,
@@ -143,19 +105,22 @@ object Main
         BridgeError,
         BridgeResponse
       ], LongAdder]]()
+    val messageVoterMap =
+      new ConcurrentHashMap[
+        ConsensusClientMessageId,
+        ConcurrentHashMap[Int, Int]
+      ]()
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
-      replicaClients <- replicaNodes
-        .map(
-          createReplicaClient[IO](
-            keyPair,
-            _,
-            messageResponseMap
-          )
+      replicaClients <- ConsensusClientGrpcImpl
+        .makeContainer(
+          currentViewRef,
+          keyPair,
+          replicaNodes,
+          messageVoterMap,
+          messageResponseMap
         )
-        .sequence
-        .map(x => Map(x: _*))
-      app = createApp(currentViewRef, replicaClients)
+      app = createApp(replicaClients)
       _ <- EmberServerBuilder
         .default[IO]
         .withIdleTimeout(ServerConfig.idleTimeOut)
@@ -169,6 +134,7 @@ object Main
         .build
       rService <- replyService[IO](
         replicaKeysMap,
+        messageVoterMap,
         messageResponseMap
       )
       grpcListener <- NettyServerBuilder

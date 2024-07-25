@@ -21,17 +21,13 @@ import org.http4s.circe._
 import org.http4s.headers.`Content-Type`
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
-import cats.effect.kernel.Ref
-import co.topl.bridge.publicapi.ReplicaCount
 
 trait ApiServicesModule {
   def apiServices(
-      currentViewRef: Ref[IO, Long],
-      consensusGrpcClients: Map[Int, ConsensusClientGrpc[IO]]
+      consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
-      clientNumber: ClientNumber,
-      replicaCount: ReplicaCount
+      clientNumber: ClientNumber
   ) = {
     import org.http4s.dsl.io._
     implicit val bridgeErrorEntityEncoder: EntityEncoder[IO, BridgeError] =
@@ -100,19 +96,16 @@ trait ApiServicesModule {
           jsonOf[IO, StartPeginSessionRequest]
 
         (for {
-          currentView <- currentViewRef.get
           _ <-
             info"Received request to start pegin session"
           x <- req.as[StartPeginSessionRequest]
-          _ <- trace"Current primary is ${currentView % replicaCount.value}"
-          someResponse <- consensusGrpcClients((currentView % replicaCount.value).toInt).startPegin(
+          someResponse <- consensusGrpcClients.startPegin(
             StartSessionOperation(
               x.pkey,
               x.sha256
             )
           )
           res <- someResponse match {
-
             case Left(e: BridgeError) =>
               e match {
                 case _: SessionNotFoundError =>
@@ -137,10 +130,9 @@ trait ApiServicesModule {
           jsonOf[IO, MintingStatusRequest]
 
         for {
-          currentView <- currentViewRef.get
           _ <-  trace"Received request for minting status"
           x <- req.as[MintingStatusRequest]
-          someResponse <- consensusGrpcClients((currentView % replicaCount.value).toInt).mintingStatus(
+          someResponse <- consensusGrpcClients.mintingStatus(
             MintingStatusOperation(
               x.sessionID
             )

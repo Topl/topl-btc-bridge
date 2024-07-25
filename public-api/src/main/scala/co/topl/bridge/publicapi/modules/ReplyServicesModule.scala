@@ -30,6 +30,10 @@ trait ReplyServicesModule {
 
   def replyService[F[_]: Async: Logger](
       replicaKeysMap: Map[Int, PublicKey],
+      messageVotersMap: ConcurrentHashMap[
+        ConsensusClientMessageId,
+        ConcurrentHashMap[Int, Int]
+      ],
       messageResponseMap: ConcurrentHashMap[
         ConsensusClientMessageId,
         ConcurrentHashMap[Either[
@@ -94,6 +98,12 @@ trait ReplyServicesModule {
                       )
                   }
                 for {
+                  votersMap <- Sync[F].delay(
+                    messageVotersMap
+                      .get(
+                        ConsensusClientMessageId(request.timestamp)
+                      ): ConcurrentHashMap[Int, Int]
+                  )
                   voteMap <- Sync[F].delay(
                     messageResponseMap
                       .get(
@@ -103,15 +113,26 @@ trait ReplyServicesModule {
                       BridgeResponse
                     ], LongAdder]
                   )
-                  _ <- Option(voteMap).fold(
-                    info"Vote map not found, vote completed" >> Sync[F].unit
-                  ) { _ =>
-                    Sync[F].delay(
-                      voteMap
-                        .computeIfAbsent(response, _ => new LongAdder())
-                        .increment()
-                    )
-                  }
+                  _ <- Option(voteMap)
+                    .zip(Option(votersMap))
+                    .fold(
+                      info"Vote map or voter map not found, vote completed"
+                    ) { case (voteMap, votersMap) =>
+                      // we check if the replica already voted
+                      Option(votersMap.get(request.replicaNumber)).fold(
+                        // no vote from this replica yet
+                        Sync[F].delay(
+                          votersMap
+                            .computeIfAbsent(request.replicaNumber, _ => 1)
+                        ) >> Sync[F].delay(
+                          voteMap
+                            .computeIfAbsent(response, _ => new LongAdder())
+                            .increment()
+                        )
+                      ) { _ =>
+                        warn"Duplicate vote from replica ${request.replicaNumber}"
+                      }
+                    }
                 } yield ()
               } else {
                 error"Invalid signature in response"
