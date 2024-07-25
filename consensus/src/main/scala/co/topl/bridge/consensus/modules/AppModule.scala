@@ -31,6 +31,8 @@ import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.dsl.io._
 import org.typelevel.log4cats.Logger
+import co.topl.bridge.consensus.service.StateMachineReply.Result
+
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
@@ -113,8 +115,8 @@ trait AppModule
         params.toplWalletSeedFile,
         params.toplWalletPassword
       )
-
     } yield {
+      val lastReplyMap = new ConcurrentHashMap[ClientId, Result]()
       implicit val kp = keyPair
       implicit val defaultFeePerByte = params.feePerByte
       implicit val iPeginWalletManager = pegInWalletManager
@@ -131,6 +133,7 @@ trait AppModule
         )
       (
         grpcServices(
+          lastReplyMap,
           publicApiClientGrpcMap,
           keyPair,
           sessionManager,

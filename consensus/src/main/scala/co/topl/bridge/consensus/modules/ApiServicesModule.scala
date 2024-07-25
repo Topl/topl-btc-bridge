@@ -32,10 +32,12 @@ import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
 
 import java.security.PublicKey
+import java.util.concurrent.ConcurrentHashMap
 
 trait ApiServicesModule {
 
   def grpcServices(
+      lastReplyMap: ConcurrentHashMap[ClientId, Result],
       publicApiClientGrpcMap: Map[
         ClientId,
         (PublicApiClientGrpc[IO], PublicKey)
@@ -65,77 +67,89 @@ trait ApiServicesModule {
           request: co.topl.bridge.consensus.service.StateMachineRequest,
           ctx: Metadata
       ): IO[Empty] = {
-        request.operation match {
-          case StateMachineRequest.Operation.Empty =>
-            warn"Received empty message" >> IO.pure(Empty())
-          case MintingStatus(value) =>
+        Option(lastReplyMap.get(ClientId(request.clientNumber))) match {
+          case Some(result) =>
             for {
-              session <- sessionManager.getSession(value.sessionId)
               viewNumber <- currentView.get
-              somePegin <- session match {
-                case Some(p: PeginSessionInfo) => IO.pure(Option(p))
-                case None                      => IO.pure(None)
-                case _ => IO.raiseError(new Exception("Invalid session type"))
-              }
-              resp = somePegin match {
-                case Some(pegin) =>
-                  Result.MintingStatus(
-                    MintingStatusRes(
-                      sessionId = value.sessionId,
-                      mintingStatus = pegin.mintingBTCState.toString(),
-                      address = pegin.redeemAddress,
-                      redeemScript =
-                        s""""threshold(1, sha256(${pegin.sha256}) and height(${pegin.minHeight}, ${pegin.maxHeight}))"""
-                    )
-                  )
-                case None =>
-                  Result.SessionNotFound(
-                    SessionNotFoundRes(
-                      value.sessionId
-                    )
-                  )
-              }
               _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
-                .replyStartPegin(request.timestamp, viewNumber, resp)
+                .replyStartPegin(request.timestamp, viewNumber, result)
             } yield Empty()
-          case StartSession(sc) =>
-            import StartSessionController._
-            for {
-              _ <-
-                warn"Received start session request from client ${request.clientNumber}"
-              res <- startPeginSession(
-                sc,
-                pegInWalletManager,
-                bridgeWalletManager,
-                sessionManager,
-                toplKeypair,
-                currentToplHeight,
-                btcNetwork
-              )
-              viewNumber <- currentView.get
-              resp = res match {
-                case Left(e: BridgeError) =>
-                  Result.InvalidInput(
-                    InvalidInputRes(
-                      e.error
-                    )
+          case None =>
+            (request.operation match {
+              case StateMachineRequest.Operation.Empty =>
+                warn"Received empty message" >> IO.pure(Result.Empty)
+              case MintingStatus(value) =>
+                for {
+                  session <- sessionManager.getSession(value.sessionId)
+                  viewNumber <- currentView.get
+                  somePegin <- session match {
+                    case Some(p: PeginSessionInfo) => IO.pure(Option(p))
+                    case None                      => IO.pure(None)
+                    case _ =>
+                      IO.raiseError(new Exception("Invalid session type"))
+                  }
+                  resp: Result = somePegin match {
+                    case Some(pegin) =>
+                      Result.MintingStatus(
+                        MintingStatusRes(
+                          sessionId = value.sessionId,
+                          mintingStatus = pegin.mintingBTCState.toString(),
+                          address = pegin.redeemAddress,
+                          redeemScript =
+                            s""""threshold(1, sha256(${pegin.sha256}) and height(${pegin.minHeight}, ${pegin.maxHeight}))"""
+                        )
+                      )
+                    case None =>
+                      Result.SessionNotFound(
+                        SessionNotFoundRes(
+                          value.sessionId
+                        )
+                      )
+                  }
+                  _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
+                    .replyStartPegin(request.timestamp, viewNumber, resp)
+                } yield resp
+              case StartSession(sc) =>
+                import StartSessionController._
+                for {
+                  _ <-
+                    warn"Received start session request from client ${request.clientNumber}"
+                  res <- startPeginSession(
+                    sc,
+                    pegInWalletManager,
+                    bridgeWalletManager,
+                    sessionManager,
+                    toplKeypair,
+                    currentToplHeight,
+                    btcNetwork
                   )
-                case Right(response) =>
-                  Result.StartSession(
-                    StartSessionRes(
-                      sessionId = response.sessionID,
-                      script = response.script,
-                      escrowAddress = response.escrowAddress,
-                      descriptor = response.descriptor,
-                      minHeight = response.minHeight,
-                      maxHeight = response.maxHeight
-                    )
-                  )
+                  viewNumber <- currentView.get
+                  resp:  Result = res match {
+                    case Left(e: BridgeError) =>
+                      Result.InvalidInput(
+                        InvalidInputRes(
+                          e.error
+                        )
+                      )
+                    case Right(response) =>
+                      Result.StartSession(
+                        StartSessionRes(
+                          sessionId = response.sessionID,
+                          script = response.script,
+                          escrowAddress = response.escrowAddress,
+                          descriptor = response.descriptor,
+                          minHeight = response.minHeight,
+                          maxHeight = response.maxHeight
+                        )
+                      )
 
-              }
-              _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
-                .replyStartPegin(request.timestamp, viewNumber, resp)
-            } yield Empty()
+                  }
+                  _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
+                    .replyStartPegin(request.timestamp, viewNumber, resp)
+                } yield resp
+            }).flatMap((x: Result) =>
+              IO(lastReplyMap.put(ClientId(request.clientNumber), x))
+            ) >> IO.pure(Empty())
         }
       }
     }
