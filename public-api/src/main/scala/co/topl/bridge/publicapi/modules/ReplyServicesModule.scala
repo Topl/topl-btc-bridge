@@ -25,10 +25,12 @@ import org.typelevel.log4cats.syntax._
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
+import cats.effect.kernel.Ref
 
 trait ReplyServicesModule {
 
   def replyService[F[_]: Async: Logger](
+      currentViewRef: Ref[F, Long],
       replicaKeysMap: Map[Int, PublicKey],
       messageVotersMap: ConcurrentHashMap[
         ConsensusClientMessageId,
@@ -98,6 +100,9 @@ trait ReplyServicesModule {
                       )
                   }
                 for {
+                  _ <- currentViewRef.update(x =>
+                    if (x < request.viewNumber) request.viewNumber else x
+                  )
                   votersMap <- Sync[F].delay(
                     messageVotersMap
                       .get(

@@ -133,6 +133,7 @@ object Main
         .withLogger(logger)
         .build
       rService <- replyService[IO](
+        currentViewRef,
         replicaKeysMap,
         messageVoterMap,
         messageResponseMap
