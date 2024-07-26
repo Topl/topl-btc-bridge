@@ -17,6 +17,7 @@ trait PublicApiClientGrpc[F[_]] {
 
   def replyStartPegin(
       timestamp: Long,
+      currentView: Long,
       startSessionRes: StateMachineReply.Result
   ): F[Empty]
 
@@ -39,9 +40,11 @@ object PublicApiClientGrpcImpl {
 
       private def prepareRequest(
           timestamp: Long,
+          currentView: Long,
           operation: StateMachineReply.Result
       ) = {
         val request = StateMachineReply(
+          viewNumber = currentView,
           timestamp = timestamp,
           replicaNumber = replicaId.id,
           result = operation
@@ -59,6 +62,7 @@ object PublicApiClientGrpcImpl {
 
       def replyStartPegin(
           timestamp: Long,
+          currentView: Long,
           startSessionRes: StateMachineReply.Result
       ): F[Empty] = {
 
@@ -66,6 +70,7 @@ object PublicApiClientGrpcImpl {
           _ <- trace"Replying to start pegin request"
           request <- prepareRequest(
             timestamp,
+            currentView,
             startSessionRes
           )
           _ <- client.deliverResponse(request, new Metadata())

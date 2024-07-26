@@ -45,6 +45,7 @@ trait ApiServicesModule {
       pegInWalletManager: BTCWalletAlgebra[IO],
       bridgeWalletManager: BTCWalletAlgebra[IO],
       btcNetwork: BitcoinNetworkIdentifiers,
+      currentView: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long]
   )(implicit
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[IO],
@@ -58,16 +59,19 @@ trait ApiServicesModule {
   ) = StateMachineServiceFs2Grpc.bindServiceResource(
     serviceImpl = new StateMachineServiceFs2Grpc[IO, Metadata] {
       // log4cats syntax
+      import org.typelevel.log4cats.syntax._
 
       def executeRequest(
           request: co.topl.bridge.consensus.service.StateMachineRequest,
           ctx: Metadata
       ): IO[Empty] = {
         request.operation match {
-          case StateMachineRequest.Operation.Empty => IO.pure(Empty())
+          case StateMachineRequest.Operation.Empty =>
+            warn"Received empty message" >> IO.pure(Empty())
           case MintingStatus(value) =>
             for {
               session <- sessionManager.getSession(value.sessionId)
+              viewNumber <- currentView.get
               somePegin <- session match {
                 case Some(p: PeginSessionInfo) => IO.pure(Option(p))
                 case None                      => IO.pure(None)
@@ -92,11 +96,13 @@ trait ApiServicesModule {
                   )
               }
               _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
-                .replyStartPegin(request.timestamp, resp)
+                .replyStartPegin(request.timestamp, viewNumber, resp)
             } yield Empty()
           case StartSession(sc) =>
             import StartSessionController._
             for {
+              _ <-
+                warn"Received start session request from client ${request.clientNumber}"
               res <- startPeginSession(
                 sc,
                 pegInWalletManager,
@@ -106,6 +112,7 @@ trait ApiServicesModule {
                 currentToplHeight,
                 btcNetwork
               )
+              viewNumber <- currentView.get
               resp = res match {
                 case Left(e: BridgeError) =>
                   Result.InvalidInput(
@@ -127,7 +134,7 @@ trait ApiServicesModule {
 
               }
               _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
-                .replyStartPegin(request.timestamp, resp)
+                .replyStartPegin(request.timestamp, viewNumber, resp)
             } yield Empty()
         }
       }

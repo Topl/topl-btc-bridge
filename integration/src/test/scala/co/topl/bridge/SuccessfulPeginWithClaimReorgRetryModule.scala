@@ -66,7 +66,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- IO.sleep(1.second)
         _ <- mintToplBlock(1, 1)
         _ <- IO.sleep(1.second)
-        utxo <- getCurrentUtxosFromAddress(2, mintingStatusResponse.address)
+        utxo <- (mintToplBlock(1, 1) >> getCurrentUtxosFromAddress(2, mintingStatusResponse.address))
           .iterateUntil(_.contains("LVL"))
         groupId = extractGroupId(utxo)
         seriesId = extractSeriesId(utxo)

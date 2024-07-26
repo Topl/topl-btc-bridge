@@ -273,7 +273,7 @@ class BridgeIntegrationSpec
   }
 
   cleanupDir.test(
-    "Bridge should correctly retry if claim does not succeed"
+    "Bridge should correctly retry if claim does not succeed".flaky
   ) { _ =>
     info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
   }

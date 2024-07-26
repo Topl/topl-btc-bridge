@@ -24,7 +24,7 @@ import org.typelevel.log4cats.syntax._
 
 trait ApiServicesModule {
   def apiServices(
-      consensusGrpc: ConsensusClientGrpc[IO]
+      consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
       clientNumber: ClientNumber
@@ -99,14 +99,13 @@ trait ApiServicesModule {
           _ <-
             info"Received request to start pegin session"
           x <- req.as[StartPeginSessionRequest]
-          someResponse <- consensusGrpc.startPegin(
+          someResponse <- consensusGrpcClients.startPegin(
             StartSessionOperation(
               x.pkey,
               x.sha256
             )
           )
           res <- someResponse match {
-
             case Left(e: BridgeError) =>
               e match {
                 case _: SessionNotFoundError =>
@@ -120,9 +119,10 @@ trait ApiServicesModule {
             case Right(response) =>
               Ok(response)
           }
-        } yield res).handleErrorWith(
-          e =>
-            error"Error in start pegin session request: ${e.getMessage}" >> BadRequest("Error starting pegin session")
+        } yield res).handleErrorWith(e =>
+          error"Error in start pegin session request: ${e.getMessage}" >> BadRequest(
+            "Error starting pegin session"
+          )
         )
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
         implicit val mintingStatusRequestDecoder
@@ -130,10 +130,9 @@ trait ApiServicesModule {
           jsonOf[IO, MintingStatusRequest]
 
         for {
-          _ <-
-            trace"Received request for minting status"
+          _ <-  trace"Received request for minting status"
           x <- req.as[MintingStatusRequest]
-          someResponse <- consensusGrpc.mintingStatus(
+          someResponse <- consensusGrpcClients.mintingStatus(
             MintingStatusOperation(
               x.sessionID
             )

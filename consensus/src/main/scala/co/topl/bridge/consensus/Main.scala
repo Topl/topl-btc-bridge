@@ -173,6 +173,7 @@ object Main
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
       currentToplHeight: Ref[IO, Long],
+      currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       fromFellowship: Fellowship,
@@ -194,6 +195,7 @@ object Main
       logger,
       currentBitcoinNetworkHeight,
       currentToplHeight,
+      currentView,
       currentState
     )
   } yield (
@@ -212,6 +214,7 @@ object Main
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
       currentToplHeight: Ref[IO, Long],
+      currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       conf: Config,
@@ -240,6 +243,7 @@ object Main
         pegInWalletManager,
         currentBitcoinNetworkHeight,
         currentToplHeight,
+        currentView,
         currentState
       ).toResource
       (
@@ -410,6 +414,7 @@ object Main
       currentToplHeight <- Ref[IO].of(0L)
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
+      currentView <- Ref[IO].of(0L)
       _ <- startResources(
         privateKeyFile,
         params,
@@ -418,6 +423,7 @@ object Main
         pegInWalletManager,
         currentBitcoinNetworkHeight,
         currentToplHeight,
+        currentView,
         globalState
       ).useForever
     } yield {

@@ -6,9 +6,9 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
-import cats.effect.std.CountDownLatch
 import cats.implicits._
 import co.topl.bridge.publicapi.ClientNumber
+import co.topl.bridge.publicapi.ReplicaCount
 import co.topl.bridge.publicapi.modules.ApiServicesModule
 import co.topl.bridge.publicapi.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
@@ -17,12 +17,12 @@ import co.topl.shared.BridgeResponse
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
-import io.grpc.ManagedChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.http4s._
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
+import org.http4s.server.middleware.CORS
 import org.http4s.server.staticcontent.resourceServiceBuilder
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
@@ -32,7 +32,7 @@ import java.net.InetSocketAddress
 import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
-import org.http4s.server.middleware.CORS
+import java.util.concurrent.atomic.LongAdder
 
 sealed trait PeginSessionState
 
@@ -55,7 +55,7 @@ object Main
     with ReplyServicesModule {
 
   def createApp(
-      consensusGrpc: ConsensusClientGrpc[IO]
+      consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
       clientNumber: ClientNumber
@@ -63,7 +63,7 @@ object Main
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val router = Router.define(
       "/api" -> apiServices(
-        consensusGrpc
+        consensusGrpcClients
       )
     )(default = staticAssetsService)
     Kleisli[IO, Request[IO], Response[IO]] { request =>
@@ -88,53 +88,39 @@ object Main
     }
   }
 
-  case class ConsensusClientMessageId(
-      timestamp: Long
-  )
-
   def setupServices(
       clientHost: String,
       clientPort: Int,
       privateKeyFile: String,
-      backendHost: String,
-      backendPort: Int,
-      backendSecure: Boolean,
+      replicaNodes: List[ReplicaNode[IO]],
       replicaKeysMap: Map[Int, PublicKey],
-      messageResponseMap: ConcurrentHashMap[
-        ConsensusClientMessageId,
-        Ref[IO, Either[
-          BridgeError,
-          BridgeResponse
-        ]]
-      ]
+      currentViewRef: Ref[IO, Long]
   )(implicit
+      replicaCount: ReplicaCount,
       clientNumber: ClientNumber,
-      logger: org.typelevel.log4cats.Logger[IO]
+      logger: Logger[IO]
   ) = {
-    val countDownLatchMap = new ConcurrentHashMap[
-      ConsensusClientMessageId,
-      CountDownLatch[IO]
-    ]()
+    val messageResponseMap =
+      new ConcurrentHashMap[ConsensusClientMessageId, ConcurrentHashMap[Either[
+        BridgeError,
+        BridgeResponse
+      ], LongAdder]]()
+    val messageVoterMap =
+      new ConcurrentHashMap[
+        ConsensusClientMessageId,
+        ConcurrentHashMap[Int, Int]
+      ]()
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
-      channel <-
-        (if (backendSecure)
-           ManagedChannelBuilder
-             .forAddress(backendHost, backendPort)
-             .useTransportSecurity()
-         else
-           ManagedChannelBuilder
-             .forAddress(backendHost, backendPort)
-             .usePlaintext()).resource[IO]
-
-      consensusClient <- ConsensusClientGrpcImpl
-        .make[IO](
+      replicaClients <- ConsensusClientGrpcImpl
+        .makeContainer(
+          currentViewRef,
           keyPair,
-          countDownLatchMap,
-          messageResponseMap,
-          channel
+          replicaNodes,
+          messageVoterMap,
+          messageResponseMap
         )
-      app = createApp(consensusClient)
+      app = createApp(replicaClients)
       _ <- EmberServerBuilder
         .default[IO]
         .withIdleTimeout(ServerConfig.idleTimeOut)
@@ -146,10 +132,10 @@ object Main
         )
         .withLogger(logger)
         .build
-      rService <- replyService(
+      rService <- replyService[IO](
         replicaKeysMap,
-        messageResponseMap,
-        countDownLatchMap
+        messageVoterMap,
+        messageResponseMap
       )
       grpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(clientHost, clientPort))
@@ -165,10 +151,8 @@ object Main
 
   private def createPublicKeyMap[F[_]: Sync](
       conf: Config
-  ): F[Map[Int, PublicKey]] = {
-    val replicaCount =
-      conf.getInt("bridge.client.consensus.replicaCount")
-    (for (i <- 0 until replicaCount) yield {
+  )(implicit replicaCount: ReplicaCount): F[Map[Int, PublicKey]] = {
+    (for (i <- 0 until replicaCount.value) yield {
       val publicKeyFile = conf.getString(
         s"bridge.client.consensus.replicas.$i.publicKeyFile"
       )
@@ -176,6 +160,31 @@ object Main
         keyPair <- BridgeCryptoUtils.getPublicKey(publicKeyFile).allocated
       } yield (i, keyPair._1)
     }).toList.sequence.map(x => Map(x: _*))
+  }
+
+  private def loadReplicaNodeFromConfig[F[_]: Sync: Logger](
+      conf: Config
+  ): F[List[ReplicaNode[F]]] = {
+    val replicaCount = conf.getInt("bridge.client.consensus.replicaCount")
+    (for (i <- 0 until replicaCount) yield {
+      for {
+        host <- Sync[F].delay(
+          conf.getString(s"bridge.client.consensus.replicas.$i.host")
+        )
+        port <- Sync[F].delay(
+          conf.getInt(s"bridge.client.consensus.replicas.$i.port")
+        )
+        secure <- Sync[F].delay(
+          conf.getBoolean(s"bridge.client.consensus.replicas.$i.secure")
+        )
+        _ <-
+          info"bridge.client.consensus.replicas.$i.host: ${host}"
+        _ <-
+          info"bridge.client.consensus.replicas.$i.port: ${port}"
+        _ <-
+          info"bridge.client.consensus.replicas.$i.secure: ${secure}"
+      } yield ReplicaNode[F](i, host, port, secure)
+    }).toList.sequence
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -189,6 +198,9 @@ object Main
         val conf = ConfigFactory.parseFile(configuration.configurationFile)
         implicit val clientId = new ClientNumber(
           conf.getInt("bridge.client.clientId")
+        )
+        implicit val replicaCount = new ReplicaCount(
+          conf.getInt("bridge.client.consensus.replicaCount")
         )
         implicit val logger =
           org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -205,38 +217,20 @@ object Main
           privateKeyFile <- IO(
             conf.getString("bridge.client.security.privateKeyFile")
           )
-          backendHost <- IO(
-            conf.getString("bridge.client.consensus.replicas.0.host")
-          )
-          backendPort <- IO(
-            conf.getInt("bridge.client.consensus.replicas.0.port")
-          )
-          backendSecure <- IO(
-            conf.getBoolean("bridge.client.consensus.replicas.0.secure")
-          )
           _ <- info"bridge.client.security.privateKeyFile: ${privateKeyFile}"
-          _ <- info"bridge.client.consensus.replicas.0.host: ${backendHost}"
-          _ <- info"bridge.client.consensus.replicas.0.port: ${backendPort}"
-          _ <- info"bridge.client.consensus.replicas.0.secure: ${backendSecure}"
           _ <- info"bridge.client.clientId: ${clientId.value}"
           _ <- info"bridge.client.responses.host: ${clientHost}"
           _ <- info"bridge.client.responses.port: ${clientPort}"
           replicaKeysMap <- createPublicKeyMap[IO](conf)
-          messageResponseMap <- IO(
-            new ConcurrentHashMap[ConsensusClientMessageId, Ref[IO, Either[
-              BridgeError,
-              BridgeResponse
-            ]]]
-          )
+          replicaNodes <- loadReplicaNodeFromConfig[IO](conf)
+          currentView <- Ref.of[IO, Long](0)
           _ <- setupServices(
             clientHost,
             clientPort,
             privateKeyFile,
-            backendHost,
-            backendPort,
-            backendSecure,
+            replicaNodes,
             replicaKeysMap,
-            messageResponseMap
+            currentView
           ).useForever
         } yield ExitCode.Success
       case None =>
