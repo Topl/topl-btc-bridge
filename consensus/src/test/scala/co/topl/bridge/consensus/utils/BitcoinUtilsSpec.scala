@@ -45,7 +45,7 @@ class BitcoinUtilsSpec extends CatsEffectSuite {
     val dummyHash = ByteVector(MessageDigest.getInstance("SHA-256").digest("secret".getBytes))
     val escrowScript = buildScriptAsm(dummyUserPrivKey.publicKey, dummyBridgeKey, dummyHash, btcWaitExpirationTime.underlying)
     val sequence: UInt32 = UInt32(1000L & TransactionConstants.sequenceLockTimeMask.toLong)
-    val dummyInput = TransactionInput(TransactionOutPoint(DoubleSha256DigestBE.empty.hex, 0L), ScriptSignature.empty, sequence)
+    val dummyInput = TransactionInput(TransactionOutPoint(DoubleSha256DigestBE.empty, 0), ScriptSignature.empty, sequence)
     val dummyOutput = TransactionOutput(desiredAmt, P2WPKHWitnessSPKV0(ECPublicKey.dummy))
     val dummyUnprovenTx = BaseTransaction(
         TransactionConstants.validLockVersion,
