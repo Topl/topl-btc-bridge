@@ -8,7 +8,6 @@ import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.service.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.publicapi.ConsensusClientMessageId
-import co.topl.bridge.publicapi.ReplicaCount
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
@@ -23,6 +22,8 @@ import org.typelevel.log4cats.syntax._
 import java.security.KeyPair
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
+import co.topl.shared.ReplicaNode
+import co.topl.shared.ReplicaCount
 
 trait ConsensusClientGrpc[F[_]] {
 

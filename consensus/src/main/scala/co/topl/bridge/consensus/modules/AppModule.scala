@@ -36,6 +36,10 @@ import co.topl.bridge.consensus.service.StateMachineReply.Result
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
+import io.grpc.Metadata
+import co.topl.bridge.consensus.ReplicaId
+import co.topl.shared.ReplicaCount
 
 trait AppModule
     extends WalletStateResource
@@ -48,6 +52,7 @@ trait AppModule
   }
 
   def createApp(
+      idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       params: ToplBTCBridgeConsensusParamConfig,
       publicApiClientGrpcMap: Map[
         ClientId,
@@ -62,6 +67,8 @@ trait AppModule
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      replicaId: ReplicaId,
+      replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
       fromTemplate: Template,
       bitcoindInstance: BitcoindRpcClient,
@@ -133,6 +140,7 @@ trait AppModule
         )
       (
         grpcServices(
+          idReplicaClientMap,
           lastReplyMap,
           publicApiClientGrpcMap,
           keyPair,

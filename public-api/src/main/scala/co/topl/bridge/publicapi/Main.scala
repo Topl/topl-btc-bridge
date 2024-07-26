@@ -8,7 +8,6 @@ import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.bridge.publicapi.ClientNumber
-import co.topl.bridge.publicapi.ReplicaCount
 import co.topl.bridge.publicapi.modules.ApiServicesModule
 import co.topl.bridge.publicapi.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
@@ -33,6 +32,8 @@ import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
+import co.topl.shared.ReplicaNode
+import co.topl.shared.ReplicaCount
 
 sealed trait PeginSessionState
 
