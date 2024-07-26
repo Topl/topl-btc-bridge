@@ -1,8 +1,6 @@
 package co.topl.bridge.consensus.utils
 
 import munit.CatsEffectSuite
-import java.util.concurrent.ConcurrentHashMap
-import cats.effect.IO
 import org.bitcoins.core.config.RegTest
 import co.topl.bridge.consensus.utils.BitcoinUtils._
 import scodec.bits.ByteVector
@@ -22,13 +20,18 @@ import org.bitcoins.core.protocol.script.P2WSHWitnessV0
 import org.bitcoins.core.protocol.script.RawScriptPubKey
 import org.bitcoins.core.wallet.fee.SatoshisPerVirtualByte
 import org.bitcoins.crypto.CryptoUtil
+import org.bitcoins.core.currency.SatoshisLong
+import org.bitcoins.core.protocol.transaction.TransactionOutput
+import org.bitcoins.crypto._
+import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
+
 
 class BitcoinUtilsSpec extends CatsEffectSuite {
 
   test("Fee Estimation > Verify specified Fee Rate is used in transaction") {
     implicit val btcWaitExpirationTime: BTCWaitExpirationTime = new BTCWaitExpirationTime(1000)
 
-    val desiredAmt = 10.bitcoins
+    val desiredAmt = Bitcoins(10)
 
     val DesiredFeeRate = SatoshisPerVirtualByte(25.satoshis)
 
@@ -43,14 +46,14 @@ class BitcoinUtilsSpec extends CatsEffectSuite {
     val escrowScript = buildScriptAsm(dummyUserPrivKey.publicKey, dummyBridgeKey, dummyHash, btcWaitExpirationTime.underlying)
     val sequence: UInt32 = UInt32(1000L & TransactionConstants.sequenceLockTimeMask.toLong)
     val dummyInput = TransactionInput(TransactionOutPoint(DoubleSha256DigestBE.empty.hex, 0L), ScriptSignature.empty, sequence)
-    val dummyOutput = TransactionOuput(desiredAmt, P2WPKHWitnessSPKV0(ECPublicKey.dummy))
+    val dummyOutput = TransactionOutput(desiredAmt, P2WPKHWitnessSPKV0(ECPublicKey.dummy))
     val dummyUnprovenTx = BaseTransaction(
         TransactionConstants.validLockVersion,
         Vector(dummyInput),
         Vector(dummyOutput),
         TransactionConstants.lockTime
     )
-    val serializedTxForSignature = serializeForSignature(dummyUnprovenTx, dummyInputAmt.satoshis, dummyScript.asm)
+    val serializedTxForSignature = serializeForSignature(dummyUnprovenTx, dummyInputAmt.satoshis, escrowScript)
     val signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
     val userSignature = ECDigitalSignature(dummyUserPrivKey.sign(signableBytes).bytes ++ ByteVector.fromByte(HashType.sigHashAll.byte))
     val userSig = NonStandardScriptSignature.fromAsm(
