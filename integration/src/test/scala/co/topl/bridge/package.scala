@@ -163,7 +163,7 @@ package object bridge extends ProcessOps {
   def getCurrentUtxosFromAddress(id: Int, address: String)(implicit
       l: Logger[IO]
   ) = for {
-    utxo <- withTracingReturn(getCurrentUtxosFromAddressP(id, address))
+    utxo <- withLoggingReturn(getCurrentUtxosFromAddressP(id, address))
   } yield utxo
 
   def getCurrentUtxosFromAddress(file: String, address: String)(implicit
