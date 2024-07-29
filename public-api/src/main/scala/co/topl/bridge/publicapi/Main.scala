@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
 import co.topl.shared.ReplicaNode
 import co.topl.shared.ReplicaCount
+import cats.effect.std.Mutex
 
 sealed trait PeginSessionState
 
@@ -113,10 +114,12 @@ object Main
       ]()
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
+      mutex <- Mutex[IO].toResource
       replicaClients <- ConsensusClientGrpcImpl
         .makeContainer(
           currentViewRef,
           keyPair,
+          mutex,
           replicaNodes,
           messageVoterMap,
           messageResponseMap

@@ -11,6 +11,8 @@ import co.topl.bridge.publicapi.ConsensusClientMessageId
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
+import co.topl.shared.ReplicaCount
+import co.topl.shared.ReplicaNode
 import co.topl.shared.TimeoutError
 import com.google.protobuf.ByteString
 import fs2.grpc.syntax.all._
@@ -22,8 +24,7 @@ import org.typelevel.log4cats.syntax._
 import java.security.KeyPair
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
-import co.topl.shared.ReplicaNode
-import co.topl.shared.ReplicaCount
+import cats.effect.std.Mutex
 
 trait ConsensusClientGrpc[F[_]] {
 
@@ -59,6 +60,7 @@ object ConsensusClientGrpcImpl {
   def makeContainer[F[_]: Async: Logger](
       currentViewRef: Ref[F, Long],
       keyPair: KeyPair,
+      mutex: Mutex[F],
       replicaNodes: List[ReplicaNode[F]],
       messageVotersMap: ConcurrentHashMap[
         ConsensusClientMessageId,
@@ -99,24 +101,24 @@ object ConsensusClientGrpcImpl {
       )(implicit
           clientNumber: ClientNumber
       ): F[Either[BridgeError, BridgeResponse]] =
-        for {
+        mutex.lock.surround(for {
           request <- prepareRequest(
             StateMachineRequest.Operation.StartSession(startSessionOperation)
           )
           response <- executeRequest(request)
-        } yield response
+        } yield response)
 
       def mintingStatus(
           mintingStatusOperation: MintingStatusOperation
       )(implicit
           clientNumber: ClientNumber
       ): F[Either[BridgeError, BridgeResponse]] =
-        for {
+        mutex.lock.surround(for {
           request <- prepareRequest(
             StateMachineRequest.Operation.MintingStatus(mintingStatusOperation)
           )
           response <- executeRequest(request)
-        } yield response
+        } yield response)
 
       private def clearVoteTable(
           timestamp: Long
@@ -238,4 +240,3 @@ object ConsensusClientGrpcImpl {
 
   }
 }
-

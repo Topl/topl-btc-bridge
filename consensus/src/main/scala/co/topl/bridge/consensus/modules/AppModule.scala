@@ -123,7 +123,7 @@ trait AppModule
         params.toplWalletPassword
       )
     } yield {
-      val lastReplyMap = new ConcurrentHashMap[ClientId, Result]()
+      val lastReplyMap = new ConcurrentHashMap[(ClientId, Long), Result]()
       implicit val kp = keyPair
       implicit val defaultFeePerByte = params.feePerByte
       implicit val iPeginWalletManager = pegInWalletManager

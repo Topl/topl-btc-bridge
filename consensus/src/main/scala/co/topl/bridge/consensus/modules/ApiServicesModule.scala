@@ -42,7 +42,7 @@ trait ApiServicesModule {
 
   def grpcServices(
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
-      lastReplyMap: ConcurrentHashMap[ClientId, Result],
+      lastReplyMap: ConcurrentHashMap[(ClientId, Long), Result],
       publicApiClientGrpcMap: Map[
         ClientId,
         (PublicApiClientGrpc[IO], PublicKey)
@@ -154,7 +154,9 @@ trait ApiServicesModule {
           request: co.topl.bridge.consensus.service.StateMachineRequest,
           ctx: Metadata
       ): IO[Empty] = {
-        Option(lastReplyMap.get(ClientId(request.clientNumber))) match {
+        Option(
+          lastReplyMap.get((ClientId(request.clientNumber), request.timestamp))
+        ) match {
           case Some(result) => // we had a cached response
             for {
               viewNumber <- currentView.get
@@ -185,7 +187,12 @@ trait ApiServicesModule {
                     case StartSession(sc) =>
                       startSession(request.clientNumber, request.timestamp, sc)
                   }).flatMap(x =>
-                    IO(lastReplyMap.put(ClientId(request.clientNumber), x))
+                    IO(
+                      lastReplyMap.put(
+                        (ClientId(request.clientNumber), request.timestamp),
+                        x
+                      )
+                    )
                   ) >> IO.pure(Empty())
                 }
             } yield Empty()
