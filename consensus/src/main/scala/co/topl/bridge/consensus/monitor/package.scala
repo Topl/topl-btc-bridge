@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.statemachine
+package co.topl.bridge.consensus
 
 import _root_.co.topl.brambl.models.box.Value
 import _root_.co.topl.brambl.utils.Encoding
@@ -7,7 +7,7 @@ import _root_.co.topl.bridge.consensus.GroupToken
 import _root_.co.topl.bridge.consensus.Lvl
 import _root_.co.topl.bridge.consensus.SeriesToken
 
-package object pegin {
+package object monitor {
 
   def isLvlSeriesGroupOrAsset(value: Value.Value): Boolean = {
     value.isLvl || value.isSeries || value.isGroup || value.isAsset

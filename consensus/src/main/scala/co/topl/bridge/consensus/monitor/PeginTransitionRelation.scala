@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.statemachine.pegin
+package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
@@ -29,6 +29,9 @@ import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 import quivr.models.KeyPair
+import co.topl.bridge.consensus.monitor.{EndTransition, WaitingForClaim, FSMTransitionTo, MintingTBTCConfirmation, WaitingForRedemption, WaitingForBTC, MintingTBTC, WaitingForEscrowBTCConfirmation, FSMTransition, WaitingForClaimBTCConfirmation, PeginStateMachineState}
+import co.topl.bridge.consensus.monitor.WaitingBTCOps
+import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
 
 object PeginTransitionRelation {
 

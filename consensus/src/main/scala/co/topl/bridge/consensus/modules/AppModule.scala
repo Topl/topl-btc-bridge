@@ -25,7 +25,7 @@ import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionManagerImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
-import co.topl.bridge.consensus.statemachine.pegin.PeginStateMachine
+import co.topl.bridge.consensus.monitor.PeginStateMachine
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
 import org.http4s._

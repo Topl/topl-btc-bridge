@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.statemachine.pegin
+package co.topl.bridge.consensus.monitor
 
 import cats.effect.IO
 import cats.effect.kernel.Async

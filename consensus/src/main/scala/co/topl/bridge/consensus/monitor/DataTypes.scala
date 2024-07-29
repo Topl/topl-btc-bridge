@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.statemachine.pegin
+package co.topl.bridge.consensus.monitor
 
 import co.topl.bridge.consensus.BifrostCurrencyUnit
 
