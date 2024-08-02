@@ -101,6 +101,7 @@ trait ApiServicesModule {
           x <- req.as[StartPeginSessionRequest]
           someResponse <- consensusGrpcClients.startPegin(
             StartSessionOperation(
+              None,
               x.pkey,
               x.sha256
             )

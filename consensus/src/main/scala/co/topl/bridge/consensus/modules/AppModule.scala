@@ -40,6 +40,7 @@ import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import io.grpc.Metadata
 import co.topl.bridge.consensus.ReplicaId
 import co.topl.shared.ReplicaCount
+import co.topl.bridge.consensus.persistence.StorageApi
 
 trait AppModule
     extends WalletStateResource
@@ -52,6 +53,7 @@ trait AppModule
   }
 
   def createApp(
+      storageApi: StorageApi[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       params: ToplBTCBridgeConsensusParamConfig,
       publicApiClientGrpcMap: Map[
@@ -95,8 +97,8 @@ trait AppModule
     )
     implicit val fellowshipStorageApi = FellowshipStorageApi.make(walletRes)
     implicit val templateStorageApi = TemplateStorageApi.make(walletRes)
-    implicit val sessionManager =
-      SessionManagerImpl.make[IO](queue, new ConcurrentHashMap())
+    val sessionManagerPermanent =
+      SessionManagerImpl.makePermanent[IO](storageApi, queue)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
@@ -144,7 +146,7 @@ trait AppModule
           lastReplyMap,
           publicApiClientGrpcMap,
           keyPair,
-          sessionManager,
+          sessionManagerPermanent,
           pegInWalletManager,
           walletManager,
           params.btcNetwork,

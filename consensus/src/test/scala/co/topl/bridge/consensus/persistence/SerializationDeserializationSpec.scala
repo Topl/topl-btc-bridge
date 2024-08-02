@@ -6,6 +6,7 @@ import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.SeriesToken
 import munit.CatsEffectSuite
 import org.bitcoins.core.currency.Satoshis
+import co.topl.bridge.consensus.monitor._
 
 class SerializationDeserializationSpec
     extends CatsEffectSuite

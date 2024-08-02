@@ -46,6 +46,7 @@ import co.topl.bridge.consensus.protobuf.{BlockchainEvent => BlockchainEventPb}
 import org.bitcoins.core.currency.Satoshis
 import quivr.models.Int128
 import scodec.bits.ByteVector
+import co.topl.bridge.consensus.monitor.{BifrostFundsDeposited, BlockchainEvent, BTCFundsWithdrawn, BTCFundsDeposited, BifrostFundsWithdrawn, SkippedToplBlock, SkippedBTCBlock, NewToplBlock, NewBTCBlock}
 
 trait DeserializationOps {
 
