@@ -34,7 +34,6 @@ import co.topl.bridge.consensus.managers.SessionCreated
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.managers.SessionUpdated
-import co.topl.bridge.consensus.persistence._
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
@@ -43,7 +42,18 @@ import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.monitor.{EndTransition, WaitingForClaim, FSMTransitionTo, MintingTBTCConfirmation, WaitingForRedemption, WaitingForBTC, MintingTBTC, WaitingForEscrowBTCConfirmation, WaitingForClaimBTCConfirmation, PeginStateMachineState}
+import co.topl.bridge.consensus.monitor.{
+  EndTransition,
+  WaitingForClaim,
+  FSMTransitionTo,
+  MintingTBTCConfirmation,
+  WaitingForRedemption,
+  WaitingForBTC,
+  MintingTBTC,
+  WaitingForEscrowBTCConfirmation,
+  WaitingForClaimBTCConfirmation,
+  PeginStateMachineState
+}
 import co.topl.bridge.consensus.monitor.PeginTransitionRelation
 
 trait PeginStateMachineAlgebra[F[_]] {
@@ -65,7 +75,7 @@ object PeginStateMachine {
       currentToplNetworkHeight: Ref[F, Long],
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
-      sessionManager: SessionManagerAlgebra[F],
+      // sessionManager: SessionManagerAlgebra[F],
       walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
@@ -99,7 +109,7 @@ object PeginStateMachine {
             for {
               x <- currentBitcoinNetworkHeight.get
               _ <-
-                if (height > x) // TODO: handle reorgs
+                if (height > x)
                   currentBitcoinNetworkHeight.set(height)
                 else Sync[F].unit
             } yield ()
@@ -155,11 +165,8 @@ object PeginStateMachine {
           .map(x =>
             x match {
               case EndTransition(effect) =>
-                info"Session $sessionId ended successfully" >>
-                  Sync[F].delay(map.remove(sessionId)) >>
-                  sessionManager
-                    .removeSession(sessionId)
-                    .flatMap(_ => effect.asInstanceOf[F[Unit]])
+                info"Session $sessionId ended successfully" >> effect
+                  .asInstanceOf[F[Unit]] // FIXME: only update the session
               case FSMTransitionTo(prevState, nextState, effect)
                   if (prevState != nextState) =>
                 info"Transitioning session $sessionId from ${currentState
@@ -204,10 +211,11 @@ object PeginStateMachine {
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =
       Sync[F].delay(map.replace(sessionId, transition.nextState)) >>
-        sessionManager.updateSession(
-          sessionId,
-          _.copy(mintingBTCState = fsmStateToSessionState(transition.nextState))
-        ) >> transition.effect
+        // sessionManager.updateSession( FIXME: Remove
+        //   sessionId,
+        //   _.copy(mintingBTCState = fsmStateToSessionState(transition.nextState))
+        // )
+          transition.effect
 
     def innerStateConfigurer(
         sessionEvent: SessionEvent

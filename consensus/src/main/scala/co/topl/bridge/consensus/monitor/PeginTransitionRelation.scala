@@ -21,7 +21,6 @@ import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
-import co.topl.bridge.consensus.persistence._
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.core.protocol.Bech32Address
@@ -29,7 +28,19 @@ import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 import quivr.models.KeyPair
-import co.topl.bridge.consensus.monitor.{EndTransition, WaitingForClaim, FSMTransitionTo, MintingTBTCConfirmation, WaitingForRedemption, WaitingForBTC, MintingTBTC, WaitingForEscrowBTCConfirmation, FSMTransition, WaitingForClaimBTCConfirmation, PeginStateMachineState}
+import co.topl.bridge.consensus.monitor.{
+  EndTransition,
+  WaitingForClaim,
+  FSMTransitionTo,
+  MintingTBTCConfirmation,
+  WaitingForRedemption,
+  WaitingForBTC,
+  MintingTBTC,
+  WaitingForEscrowBTCConfirmation,
+  FSMTransition,
+  WaitingForClaimBTCConfirmation,
+  PeginStateMachineState
+}
 import co.topl.bridge.consensus.monitor.WaitingBTCOps
 import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
 

@@ -10,7 +10,9 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.ClientId
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
 import co.topl.bridge.consensus.PublicApiClientGrpc
+import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.controllers.StartSessionController
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
@@ -18,25 +20,27 @@ import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.service.Empty
 import co.topl.bridge.consensus.service.InvalidInputRes
+import co.topl.bridge.consensus.service.MintingStatusOperation
 import co.topl.bridge.consensus.service.MintingStatusRes
+import co.topl.bridge.consensus.service.PostDepositBTCOperation
 import co.topl.bridge.consensus.service.SessionNotFoundRes
+import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.service.StartSessionRes
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.service.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.MintingStatus
+import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostDepositBTC
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.StartSession
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.shared.BridgeError
+import co.topl.shared.ReplicaCount
 import io.grpc.Metadata
 import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
 
 import java.security.PublicKey
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.service.MintingStatusOperation
-import co.topl.bridge.consensus.service.StartSessionOperation
-import co.topl.shared.ReplicaCount
-import co.topl.bridge.consensus.ReplicaId
 
 trait ApiServicesModule {
 
@@ -115,39 +119,65 @@ trait ApiServicesModule {
         for {
           _ <-
             warn"Received start session request from client ${clientNumber}"
+          sessionId <- IO(
+            sc.sessionId.getOrElse(UUID.randomUUID().toString)
+          )
           res <- startPeginSession(
+            sessionId,
             sc,
             pegInWalletManager,
             bridgeWalletManager,
-            sessionManager,
             toplKeypair,
             currentToplHeight,
             btcNetwork
           )
           viewNumber <- currentView.get
-          resp: Result = res match {
+          resp <- res match {
             case Left(e: BridgeError) =>
-              Result.InvalidInput(
-                InvalidInputRes(
-                  e.error
+              IO(
+                Result.InvalidInput(
+                  InvalidInputRes(
+                    e.error
+                  )
                 )
               )
-            case Right(response) =>
-              Result.StartSession(
-                StartSessionRes(
-                  sessionId = response.sessionID,
-                  script = response.script,
-                  escrowAddress = response.escrowAddress,
-                  descriptor = response.descriptor,
-                  minHeight = response.minHeight,
-                  maxHeight = response.maxHeight
+            case Right((sessionInfo, response)) =>
+              sessionManager.createNewSession(sessionId, sessionInfo) >>
+                IO(
+                  Result.StartSession(
+                    StartSessionRes(
+                      sessionId = response.sessionID,
+                      script = response.script,
+                      escrowAddress = response.escrowAddress,
+                      descriptor = response.descriptor,
+                      minHeight = response.minHeight,
+                      maxHeight = response.maxHeight
+                    )
+                  )
                 )
-              )
 
           }
           _ <- publicApiClientGrpcMap(ClientId(clientNumber))._1
             .replyStartPegin(timestamp, viewNumber, resp)
         } yield resp
+      }
+
+      private def postDepositBTC(
+          clientNumber: Int,
+          timestamp: Long,
+          value: PostDepositBTCOperation
+      ) = {
+        for {
+          viewNumber <- currentView.get
+          _ <- sessionManager.updateSession(
+            value.sessionId,
+            _.copy(
+              mintingBTCState = PeginSessionWaitingForEscrowBTCConfirmation
+            )
+          )
+          _ <- publicApiClientGrpcMap(ClientId(clientNumber))._1
+            .replyStartPegin(timestamp, viewNumber, Result.Empty)
+        } yield Result.Empty
       }
 
       def executeRequest(
@@ -184,6 +214,8 @@ trait ApiServicesModule {
                         request.timestamp,
                         value
                       )
+                    case PostDepositBTC(value) =>
+                      IO.pure(Result.Empty)
                     case StartSession(sc) =>
                       startSession(request.clientNumber, request.timestamp, sc)
                   }).flatMap(x =>

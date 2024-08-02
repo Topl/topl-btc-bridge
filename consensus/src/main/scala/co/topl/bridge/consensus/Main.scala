@@ -49,6 +49,7 @@ import cats.effect.kernel.Sync
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import io.grpc.Metadata
 import co.topl.shared.ReplicaCount
+import co.topl.bridge.consensus.persistence.StorageApi
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -68,6 +69,22 @@ case object PeginSessionState {
       extends PeginSessionState
   case object PeginSessionWaitingForClaimBTCConfirmation
       extends PeginSessionState
+
+  def withName(s: String): Option[PeginSessionState] = s match {
+    case "PeginSessionStateWaitingForBTC" =>
+      Some(PeginSessionStateWaitingForBTC)
+    case "PeginSessionStateMintingTBTC" => Some(PeginSessionStateMintingTBTC)
+    case "PeginSessionWaitingForRedemption" =>
+      Some(PeginSessionWaitingForRedemption)
+    case "PeginSessionWaitingForClaim" => Some(PeginSessionWaitingForClaim)
+    case "PeginSessionMintingTBTCConfirmation" =>
+      Some(PeginSessionMintingTBTCConfirmation)
+    case "PeginSessionWaitingForEscrowBTCConfirmation" =>
+      Some(PeginSessionWaitingForEscrowBTCConfirmation)
+    case "PeginSessionWaitingForClaimBTCConfirmation" =>
+      Some(PeginSessionWaitingForClaimBTCConfirmation)
+    case _ => None
+  }
 }
 
 object Main
@@ -219,6 +236,7 @@ object Main
   }
 
   def initializeForResources(
+      storageApi: StorageApi[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       publicApiClientGrpcMap: Map[
         ClientId,
@@ -246,6 +264,7 @@ object Main
     currentToplHeightVal <- currentToplHeight.get
     currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
     res <- createApp(
+      storageApi,
       idReplicaClientMap,
       params,
       publicApiClientGrpcMap,
@@ -297,8 +316,10 @@ object Main
         conf
       )(IO.asyncForIO, logger, replicaId, replicaCount)
       replicaNodes <- loadReplicaNodeFromConfig[IO](conf).toResource
+      storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       res <- initializeForResources(
+        storageApi,
         idReplicaClientMap,
         publicApiClientGrpcMap,
         params,
@@ -336,7 +357,6 @@ object Main
         params.toplSecureConnection,
         bifrostQueryAlgebra
       )
-      storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       _ <- storageApi.initializeStorage().toResource
       grpcService <- grpcServiceResource
       _ <- getAndSetCurrentToplHeight(

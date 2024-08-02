@@ -68,6 +68,7 @@ import co.topl.bridge.consensus.protobuf.{
   SkippedToplBlock => SkippedToplBlockPb
 }
 import com.google.protobuf.ByteString
+import co.topl.bridge.consensus.monitor.{BifrostFundsDeposited, BlockchainEvent, BTCFundsWithdrawn, BTCFundsDeposited, BifrostFundsWithdrawn, SkippedToplBlock, SkippedBTCBlock, NewToplBlock, NewBTCBlock}
 
 trait SerializationOps {
 

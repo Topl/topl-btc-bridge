@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package co.topl.bridge.consensus.service;
+
+message Empty {
+
+}
+
+service StateMachineService {
+  rpc ExecuteRequest(StateMachineRequest) returns (Empty);
+}
+
+
+service ResponseService {
+  rpc DeliverResponse(StateMachineReply) returns (Empty);
+}
+
+message StateMachineRequest {
+  uint64 timestamp = 1;
+  uint32  clientNumber = 2;
+  bytes signature = 3;
+  oneof operation {
+    StartSessionOperation startSession = 4;
+    PostDepositBTCOperation postDepositBTC = 5;
+    TimeoutDepositBTCOperation timeoutDepositBTC = 6;
+    UndoDepositBTCOperation undoDepositBTC = 7;
+    ConfirmDepositBTCOperation confirmDepositBTC = 8;
+    PostTBTCMintOperation postTBTCMint = 9;
+    TimeoutTBTCMintOperation timeoutTBTCMint = 10;
+    UndoTBTCMintOperation undoTBTCMint = 11;
+    ConfirmTBTCMintOperation confirmTBTCMint = 12;
+    PostRedemptionTxOperation postRedemptionTx = 13;
+    TimeoutRedemptionTxOperation timeoutRedemptionTx = 14;
+    UndoRedemptionTxOperation undoRedemptionTx = 15;
+    ConfirmRedemptionTxOperation confirmRedemptionTx = 16;
+    PostClaimTxOperation postClaimTx = 17;
+    TimeoutClaimTxOperation timeoutClaimTx = 18;
+    UndoClaimTxOperation undoClaimTx = 19;
+    ConfirmClaimTxOperation confirmClaimTx = 20;
+    MintingStatusOperation mintingStatus = 21;
+  }
+  
+}
+
+message StateMachineReply {
+  uint64 viewNumber = 1; // current view number
+  uint64 timestamp = 2; // timestamp of the request
+  uint32 replicaNumber = 3; // replica number of the request
+  bytes signature = 4; // signature of the request
+  oneof result {
+    StartSessionRes startSession = 5;
+    MintingStatusRes mintingStatus = 6;
+    SessionNotFoundRes sessionNotFound = 7;
+    InvalidInputRes invalidInput = 8;
+  }
+}
+
+message StartSessionOperation {
+   optional string sessionId = 1;
+   string pkey = 2;
+   string sha256= 3;
+}
+
+message PostDepositBTCOperation {
+  string sessionId = 1;
+  string txId = 2;
+  uint64 vout = 3;
+  uint64 amount = 4;
+}
+
+message TimeoutDepositBTCOperation {
+  string sessionId = 1;
+}
+
+message UndoDepositBTCOperation {
+  string sessionId = 1;
+}
+
+message ConfirmDepositBTCOperation {
+  string sessionId = 1;
+}
+
+message PostTBTCMintOperation {
+  string sessionId = 1;
+  string utxoTxId = 4;
+  uint32 utxoIndex = 5;
+  uint64 amount = 6;
+}
+
+message TimeoutTBTCMintOperation {
+  string sessionId = 1;
+}
+
+message UndoTBTCMintOperation {
+  string sessionId = 1;
+}
+
+message ConfirmTBTCMintOperation {
+  string sessionId = 1;
+}
+
+message PostRedemptionTxOperation {
+  string sessionId = 1;
+  string utxoTxId = 4;
+  uint32 utxoIndex = 5;
+}
+
+message TimeoutRedemptionTxOperation {
+  string sessionId = 1;
+}
+
+message UndoRedemptionTxOperation {
+  string sessionId = 1;
+}
+
+message ConfirmRedemptionTxOperation {
+  string sessionId = 1;
+}
+
+message PostClaimTxOperation {
+  string sessionId = 1;
+  string txId = 2;
+  uint64 vout = 3;
+}
+
+message TimeoutClaimTxOperation {
+  string sessionId = 1;
+}
+
+message UndoClaimTxOperation {
+  string sessionId = 1;
+}
+
+message ConfirmClaimTxOperation {
+  string sessionId = 1;
+}
+
+message StartSessionRes {
+  string sessionId = 1;
+  string script = 2;
+  string escrowAddress = 3;
+  string descriptor = 4;
+  uint64 minHeight = 5;
+  uint64 maxHeight = 6;
+}
+
+message SessionNotFoundRes {
+  string sessionId = 1;
+}
+
+message InvalidInputRes {
+  string errorMessage = 1;
+}
+
+message MintingStatusOperation {
+  string sessionId = 1;
+}
+
+message MintingStatusRes {
+  string sessionId = 1;
+  string mintingStatus = 2;
+  string address = 3;
+  string redeemScript = 4;
+}

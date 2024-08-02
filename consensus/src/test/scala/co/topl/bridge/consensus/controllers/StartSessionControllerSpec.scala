@@ -33,6 +33,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
+import cats.effect.kernel.Resource
+import co.topl.bridge.consensus.persistence.StorageApiImpl
+import co.topl.bridge.consensus.persistence.StorageApi
 
 class StartSessionControllerSpec
     extends CatsEffectSuite
@@ -82,120 +85,26 @@ class StartSessionControllerSpec
             testPassword
           )
           peginWallet <- BTCWalletImpl.make[IO](km0)
-          queue <- Queue.unbounded[IO, SessionEvent]
-          sessionManager = SessionManagerImpl.make[IO](
-            queue,
-            new ConcurrentHashMap[String, SessionInfo]()
-          )
           keyPair <- walletManagementUtils.loadKeys(
             toplWalletFile,
             testToplPassword
           )
           currentToplHeight <- Ref[IO].of(1L)
           res <- StartSessionController.startPeginSession(
+            "pegin",
             StartSessionOperation(
+              None,
               testKey,
               testHash
             ),
             peginWallet,
             peginWallet,
-            sessionManager,
             keyPair,
             currentToplHeight,
             RegTest
           )
-          sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-        } yield (sessionInfo.get
-          .asInstanceOf[PeginSessionInfo]
-          .btcPeginCurrentWalletIdx == 0)
+        } yield (res.toOption.get._1.btcPeginCurrentWalletIdx == 0)
       )
-  }
-
-  tmpDirectory.test("StartSessionController should start a pegout session") {
-    _ =>
-      val walletKeyApi = WalletKeyApi.make[IO]()
-      implicit val walletApi = WalletApi.make[IO](walletKeyApi)
-      val walletManagementUtils = new WalletManagementUtils(
-        walletApi,
-        walletKeyApi
-      )
-      implicit val walletStateAlgebra = WalletStateApi
-        .make[IO](walletResource(toplWalletDb), walletApi)
-      implicit val fellowshipStorageApi =
-        FellowshipStorageApi.make(walletResource(toplWalletDb))
-      implicit val templateStorageApi =
-        TemplateStorageApi.make(walletResource(toplWalletDb))
-      assertIOBoolean(
-        for {
-          queue <- Queue.unbounded[IO, SessionEvent]
-          sessionManager = SessionManagerImpl.make[IO](
-            queue,
-            new ConcurrentHashMap[String, SessionInfo]()
-          )
-          keypair <- walletManagementUtils.loadKeys(
-            toplWalletFile,
-            testToplPassword
-          )
-          res <- StartSessionController.startPegoutSession[IO](
-            StartPegoutSessionRequest(
-              pegoutTestKey,
-              1000,
-              testHash
-            ),
-            ToplPrivatenet,
-            keypair, // keypair
-            sessionManager, // session manager
-            1000
-          )
-          sessionInfo <- sessionManager.getSession(res.toOption.get.sessionID)
-        } yield (sessionInfo.get
-          .asInstanceOf[PegoutSessionInfo]
-          .address == "ptetP7jshHVPgNWRFrYBAMCrnfAwpRn6hSNuAcMfgukVtA1x3wkjCPqqwD7w")
-      )
-  }
-
-  tmpDirectory.test(
-    "StartSessionController should fail with invalid key (pegout)"
-  ) { _ =>
-    val walletKeyApi = WalletKeyApi.make[IO]()
-    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
-    val walletManagementUtils = new WalletManagementUtils(
-      walletApi,
-      walletKeyApi
-    )
-    implicit val walletStateAlgebra = WalletStateApi
-      .make[IO](walletResource(toplWalletDb), walletApi)
-
-    implicit val fellowshipStorageApi =
-      FellowshipStorageApi.make(walletResource(toplWalletDb))
-    implicit val templateStorageApi =
-      TemplateStorageApi.make(walletResource(toplWalletDb))
-    assertIOBoolean(
-      for {
-        queue <- Queue.unbounded[IO, SessionEvent]
-        sessionManager = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
-        keypair <- walletManagementUtils.loadKeys(
-          toplWalletFile,
-          testToplPassword
-        )
-        res <- StartSessionController.startPegoutSession[IO](
-          StartPegoutSessionRequest(
-            "invalidKey",
-            1000,
-            testHash
-          ),
-          ToplPrivatenet,
-          keypair, // keypair
-          sessionManager, // session manager
-          1000
-        )
-      } yield res.isLeft && res.swap.toOption.get == InvalidKey(
-        "Invalid key invalidKey"
-      )
-    )
   }
 
   tmpDirectory.test(
@@ -230,20 +139,16 @@ class StartSessionControllerSpec
           testPassword
         )
         peginWallet <- BTCWalletImpl.make[IO](km0)
-        queue <- Queue.unbounded[IO, SessionEvent]
         currentToplHeight <- Ref[IO].of(1L)
-        sessionManager = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
         res <- StartSessionController.startPeginSession(
+          "pegin",
           StartSessionOperation(
+            None,
             "invalidKey",
             testHash
           ),
           peginWallet,
           peginWallet,
-          sessionManager,
           keypair,
           currentToplHeight,
           RegTest
@@ -278,11 +183,6 @@ class StartSessionControllerSpec
           toplWalletFile,
           testToplPassword
         )
-        queue <- Queue.unbounded[IO, SessionEvent]
-        sessionManager = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
         km0 <- KeyGenerationUtils.createKeyManager[IO](
           RegTest,
           peginWalletFile,
@@ -291,107 +191,20 @@ class StartSessionControllerSpec
         peginWallet <- BTCWalletImpl.make[IO](km0)
         currentToplHeight <- Ref[IO].of(1L)
         res <- StartSessionController.startPeginSession(
+          "pegin",
           StartSessionOperation(
+            None,
             testKey,
             "invalidHash"
           ),
           peginWallet,
           peginWallet,
-          sessionManager,
           keypair,
           currentToplHeight,
           RegTest
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidHash(
         "Invalid hash invalidHash"
-      )
-    )
-  }
-
-  tmpDirectory.test(
-    "StartSessionController should fail with invalid hash (pegout)"
-  ) { _ =>
-    val walletKeyApi = WalletKeyApi.make[IO]()
-    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
-    val walletManagementUtils = new WalletManagementUtils(
-      walletApi,
-      walletKeyApi
-    )
-    implicit val walletStateAlgebra = WalletStateApi
-      .make[IO](walletResource(toplWalletDb), walletApi)
-
-    implicit val fellowshipStorageApi =
-      FellowshipStorageApi.make(walletResource(toplWalletDb))
-    implicit val templateStorageApi =
-      TemplateStorageApi.make(walletResource(toplWalletDb))
-    assertIOBoolean(
-      for {
-        queue <- Queue.unbounded[IO, SessionEvent]
-        sessionManager = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
-        keypair <- walletManagementUtils.loadKeys(
-          toplWalletFile,
-          testToplPassword
-        )
-        res <- StartSessionController.startPegoutSession[IO](
-          StartPegoutSessionRequest(
-            testKey,
-            1000,
-            "invalidHash"
-          ),
-          ToplPrivatenet,
-          keypair, // keypair
-          sessionManager, // session manager
-          1000
-        )
-      } yield res.isLeft && res.swap.toOption.get == InvalidHash(
-        "Invalid hash invalidHash"
-      )
-    )
-  }
-
-  tmpDirectory.test(
-    "StartSessionController should fail with invalid height (pegout)"
-  ) { _ =>
-    val walletKeyApi = WalletKeyApi.make[IO]()
-    implicit val walletApi = WalletApi.make[IO](walletKeyApi)
-    val walletManagementUtils = new WalletManagementUtils(
-      walletApi,
-      walletKeyApi
-    )
-    implicit implicit val walletStateAlgebra = WalletStateApi
-      .make[IO](walletResource(toplWalletDb), walletApi)
-
-    implicit val fellowshipStorageApi =
-      FellowshipStorageApi.make(walletResource(toplWalletDb))
-    implicit val templateStorageApi =
-      TemplateStorageApi.make(walletResource(toplWalletDb))
-    assertIOBoolean(
-      for {
-        queue <- Queue.unbounded[IO, SessionEvent]
-        sessionManager = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
-        )
-        keypair <- walletManagementUtils.loadKeys(
-          toplWalletFile,
-          testToplPassword
-        )
-        res <- StartSessionController.startPegoutSession[IO](
-          StartPegoutSessionRequest(
-            pegoutTestKey,
-            -1,
-            testHash
-          ),
-          ToplPrivatenet,
-          keypair, // keypair
-          sessionManager, // session manager
-          1000
-        )
-      } yield res.isLeft && res.swap.toOption.get == InvalidInput(
-        "Invalid block height -1"
       )
     )
   }
