@@ -1,11 +1,12 @@
 package co.topl.bridge.consensus.monitor
 
 import co.topl.bridge.consensus.BifrostCurrencyUnit
+import org.bitcoins.core.currency.CurrencyUnit
 
 
 sealed trait PeginStateMachineState
 
-case class WaitingForBTC(
+case class MWaitingForBTCDeposit(
     currentBTCBlockHeight: Int,
     currentWalletIdx: Int,
     scriptAsm: String,
@@ -14,7 +15,7 @@ case class WaitingForBTC(
     claimAddress: String
 ) extends PeginStateMachineState
 
-case class WaitingForEscrowBTCConfirmation(
+case class MConfirmingBTCDeposit(
     startBTCBlockHeight: Int,
     depositBTCBlockHeight: Int,
     currentWalletIdx: Int,
@@ -24,10 +25,10 @@ case class WaitingForEscrowBTCConfirmation(
     claimAddress: String,
     btcTxId: String,
     btcVout: Long,
-    amount: Long
+    amount: CurrencyUnit
 ) extends PeginStateMachineState
 
-case class MintingTBTC(
+case class MMintingTBTC(
     startBTCBlockHeight: Int,
     currentWalletIdx: Int,
     scriptAsm: String,
@@ -35,8 +36,9 @@ case class MintingTBTC(
     claimAddress: String,
     btcTxId: String,
     btcVout: Long,
-    amount: Long
+    amount: CurrencyUnit
 ) extends PeginStateMachineState
+
 case class WaitingForRedemption(
     currentTolpBlockHeight: Long,
     currentWalletIdx: Int,
@@ -61,7 +63,7 @@ case class MintingTBTCConfirmation(
     btcVout: Long,
     utxoTxId: String,
     utxoIndex: Int,
-    amount: BifrostCurrencyUnit
+    amount: CurrencyUnit
 ) extends PeginStateMachineState
 
 

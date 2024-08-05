@@ -63,13 +63,15 @@ message StartSessionOperation {
 
 message PostDepositBTCOperation {
   string sessionId = 1;
-  string txId = 2;
-  uint64 vout = 3;
-  uint64 amount = 4;
+  uint32 height = 2;
+  string txId = 3;
+  uint64 vout = 4;
+  bytes amount = 5;
 }
 
 message TimeoutDepositBTCOperation {
   string sessionId = 1;
+  uint32 height = 2;
 }
 
 message UndoDepositBTCOperation {
@@ -78,6 +80,7 @@ message UndoDepositBTCOperation {
 
 message ConfirmDepositBTCOperation {
   string sessionId = 1;
+  uint32 height = 2;
 }
 
 message PostTBTCMintOperation {
