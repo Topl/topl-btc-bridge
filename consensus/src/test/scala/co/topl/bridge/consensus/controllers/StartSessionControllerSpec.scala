@@ -2,7 +2,6 @@ package co.topl.bridge.consensus.controllers
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
-import cats.effect.std.Queue
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.dataApi.RpcChannelResource
@@ -15,27 +14,16 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.RegTest
 import co.topl.bridge.consensus.ToplPrivatenet
 import co.topl.bridge.consensus.managers.BTCWalletImpl
-import co.topl.bridge.consensus.managers.PeginSessionInfo
-import co.topl.bridge.consensus.managers.PegoutSessionInfo
-import co.topl.bridge.consensus.managers.SessionEvent
-import co.topl.bridge.consensus.managers.SessionInfo
-import co.topl.bridge.consensus.managers.SessionManagerImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
 import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.shared.InvalidHash
-import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
-import co.topl.shared.StartPegoutSessionRequest
 import munit.CatsEffectSuite
 
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.concurrent.ConcurrentHashMap
-import cats.effect.kernel.Resource
-import co.topl.bridge.consensus.persistence.StorageApiImpl
-import co.topl.bridge.consensus.persistence.StorageApi
 
 class StartSessionControllerSpec
     extends CatsEffectSuite

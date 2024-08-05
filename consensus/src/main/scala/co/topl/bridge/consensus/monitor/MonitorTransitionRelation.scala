@@ -34,9 +34,9 @@ import co.topl.bridge.consensus.monitor.{
   FSMTransitionTo,
   MintingTBTCConfirmation,
   WaitingForRedemption,
-  WaitingForBTC,
-  MintingTBTC,
-  WaitingForEscrowBTCConfirmation,
+  MWaitingForBTCDeposit,
+  MMintingTBTC,
+  MConfirmingBTCDeposit,
   FSMTransition,
   WaitingForClaimBTCConfirmation,
   PeginStateMachineState
@@ -44,7 +44,7 @@ import co.topl.bridge.consensus.monitor.{
 import co.topl.bridge.consensus.monitor.WaitingBTCOps
 import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
 
-object PeginTransitionRelation {
+object MonitorTransitionRelation {
 
   import WaitingBTCOps._
   import WaitingForRedemptionOps._
@@ -112,7 +112,7 @@ object PeginTransitionRelation {
             )
             .void
         case (
-              cs: WaitingForEscrowBTCConfirmation,
+              cs: MConfirmingBTCDeposit,
               newBTCBLock: NewBTCBlock
             ) =>
           if (isAboveThresholdBTC(newBTCBLock.height, cs.depositBTCBlockHeight))
@@ -122,7 +122,7 @@ object PeginTransitionRelation {
                   defaultFromFellowship,
                   defaultFromTemplate,
                   cs.redeemAddress,
-                  cs.amount
+                  cs.amount.satoshis.toLong
                 )
               )
               .void
@@ -176,6 +176,32 @@ object PeginTransitionRelation {
   ): Option[FSMTransition] =
     ((currentState, blockchainEvent) match {
       case (
+            cs: MWaitingForBTCDeposit,
+            ev: BTCFundsDeposited
+          ) =>
+        val bech32Address = Bech32Address.fromString(cs.escrowAddress)
+        if (ev.scriptPubKey == bech32Address.scriptPubKey.asmHex) {
+          Some(
+            FSMTransitionTo(
+              currentState,
+              MConfirmingBTCDeposit(
+                cs.currentBTCBlockHeight,
+                ev.fundsDepositedHeight,
+                cs.currentWalletIdx,
+                cs.scriptAsm,
+                cs.escrowAddress,
+                cs.redeemAddress,
+                cs.claimAddress,
+                ev.txId,
+                ev.vout,
+                ev.amount
+              ),
+              t2E(currentState, blockchainEvent)
+            )
+          )
+        } else
+          None
+      case (
             cs: WaitingForRedemption,
             ev: NewToplBlock
           ) =>
@@ -190,7 +216,7 @@ object PeginTransitionRelation {
         else
           None
       case (
-            cs: WaitingForEscrowBTCConfirmation,
+            cs: MConfirmingBTCDeposit,
             ev: NewBTCBlock
           ) =>
         // check that the confirmation threshold has been passed
@@ -198,8 +224,8 @@ object PeginTransitionRelation {
           Some(
             FSMTransitionTo(
               currentState,
-              MintingTBTC(
-                ev.height,
+              MMintingTBTC(
+                cs.startBTCBlockHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
                 cs.redeemAddress,
@@ -217,7 +243,7 @@ object PeginTransitionRelation {
           Some(
             FSMTransitionTo(
               currentState,
-              WaitingForBTC(
+              MWaitingForBTCDeposit(
                 cs.startBTCBlockHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
@@ -366,7 +392,7 @@ object PeginTransitionRelation {
           )
         } else None
       case (
-            cs: WaitingForBTC,
+            cs: MWaitingForBTCDeposit,
             ev: NewBTCBlock
           ) =>
         if (
@@ -380,7 +406,7 @@ object PeginTransitionRelation {
         else
           None
       case (
-            cs: MintingTBTC,
+            cs: MMintingTBTC,
             ev: NewBTCBlock
           ) =>
         if (
@@ -410,7 +436,8 @@ object PeginTransitionRelation {
             cs: MintingTBTCConfirmation,
             be: NewToplBlock
           ) =>
-        if (isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight))
+        if (isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight)) {
+          import co.topl.brambl.syntax._
           Some(
             FSMTransitionTo(
               currentState,
@@ -424,20 +451,23 @@ object PeginTransitionRelation {
                 cs.btcVout,
                 cs.utxoTxId,
                 cs.utxoIndex,
-                cs.amount
+                AssetToken(
+                  Encoding.encodeToBase58(groupId.value.toByteArray),
+                  Encoding.encodeToBase58(seriesId.value.toByteArray),
+                  cs.amount.satoshis.toBigInt
+                )
               ),
               t2E(currentState, blockchainEvent)
             )
           )
-        else if (be.height <= cs.depositTBTCBlockHeight) {
-          import co.topl.brambl.syntax._
+        } else if (be.height <= cs.depositTBTCBlockHeight) {
 
           // we are seeing the block where the transaction was found again
           // this can only mean that block is being unapplied
           Some(
             FSMTransitionTo(
               currentState,
-              MintingTBTC(
+              MMintingTBTC(
                 cs.startBTCBlockHeight,
                 cs.currentWalletIdx,
                 cs.scriptAsm,
@@ -445,7 +475,7 @@ object PeginTransitionRelation {
                 cs.claimAddress,
                 cs.btcTxId,
                 cs.btcVout,
-                cs.amount.amount.toLong
+                cs.amount
               ),
               t2E(currentState, blockchainEvent)
             )
@@ -454,7 +484,7 @@ object PeginTransitionRelation {
         } else
           None
       case (
-            cs: MintingTBTC,
+            cs: MMintingTBTC,
             be: BifrostFundsDeposited
           ) =>
         import co.topl.brambl.syntax._
@@ -464,7 +494,7 @@ object PeginTransitionRelation {
           AssetToken(
             Encoding.encodeToBase58(groupId.value.toByteArray),
             Encoding.encodeToBase58(seriesId.value.toByteArray),
-            cs.amount
+            cs.amount.satoshis.toBigInt
           ) == be.amount
         ) {
           Some(
@@ -481,38 +511,12 @@ object PeginTransitionRelation {
                 cs.btcVout,
                 be.utxoTxId,
                 be.utxoIndex,
-                be.amount
+                cs.amount
               ),
               Sync[F].unit
             )
           )
         } else None
-      case (
-            cs: WaitingForBTC,
-            ev: BTCFundsDeposited
-          ) =>
-        val bech32Address = Bech32Address.fromString(cs.escrowAddress)
-        if (ev.scriptPubKey == bech32Address.scriptPubKey.asmHex) {
-          Some(
-            FSMTransitionTo(
-              currentState,
-              WaitingForEscrowBTCConfirmation(
-                cs.currentBTCBlockHeight,
-                ev.fundsDepositedHeight,
-                cs.currentWalletIdx,
-                cs.scriptAsm,
-                cs.escrowAddress,
-                cs.redeemAddress,
-                cs.claimAddress,
-                ev.txId,
-                ev.vout,
-                ev.amount.satoshis.toLong
-              ),
-              t2E(currentState, blockchainEvent)
-            )
-          )
-        } else
-          None
       case (
             _: WaitingForRedemption,
             _
@@ -523,16 +527,16 @@ object PeginTransitionRelation {
             _
           ) =>
         None // No transition
-      case (_: MintingTBTC, _) =>
+      case (_: MMintingTBTC, _) =>
         None // No transition
-      case (_: WaitingForEscrowBTCConfirmation, _) =>
+      case (_: MConfirmingBTCDeposit, _) =>
         None // No transition
       case (_: WaitingForClaimBTCConfirmation, _) =>
         None // No transition
       case (_: MintingTBTCConfirmation, _) =>
         None // No transition
       case (
-            _: WaitingForBTC,
+            _: MWaitingForBTCDeposit,
             _
           ) =>
         None // No transition
