@@ -5,7 +5,16 @@ import co.topl.bridge.consensus.service.StateMachineReply
 
 package object shared {
 
-  
+  case class ClientId(
+      id: Int
+  )
+
+  class ClientNumber(val value: Int) extends AnyVal
+
+  case class ConsensusClientMessageId(
+      timestamp: Long
+  )
+
   class ReplicaCount(val value: Int) extends AnyVal {
 
     def maxFailures = (value - 1) / 3

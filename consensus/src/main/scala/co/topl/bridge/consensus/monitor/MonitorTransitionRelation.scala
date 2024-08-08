@@ -43,6 +43,9 @@ import co.topl.bridge.consensus.monitor.{
 }
 import co.topl.bridge.consensus.monitor.WaitingBTCOps
 import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.bridge.consensus.service.StateMachineRequest
+import co.topl.shared.ClientId
 
 object MonitorTransitionRelation {
 
@@ -65,6 +68,8 @@ object MonitorTransitionRelation {
       currentState: PeginStateMachineState,
       blockchainEvent: BlockchainEvent
   )(implicit
+      clientId: ClientId,
+      consensusClient: ConsensusClientGrpc[F],
       toplKeypair: KeyPair,
       walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
@@ -93,6 +98,12 @@ object MonitorTransitionRelation {
         Async[F].unit
     }) >>
       ((currentState, blockchainEvent) match {
+        case (
+              cs: MWaitingForBTCDeposit,
+              ev: BTCFundsDeposited
+            ) =>
+
+          ???
         case (
               cs: WaitingForRedemption,
               BifrostFundsWithdrawn(_, _, secret, amount)

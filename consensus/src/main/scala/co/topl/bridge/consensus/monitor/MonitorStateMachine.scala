@@ -52,6 +52,8 @@ import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.ClientId
 
 trait MonitorStateMachineAlgebra[F[_]] {
 
@@ -72,6 +74,8 @@ object MonitorStateMachine {
       currentToplNetworkHeight: Ref[F, Long],
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
+      clientId: ClientId,
+      consensusClient: ConsensusClientGrpc[F],
       walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
@@ -194,8 +198,8 @@ object MonitorStateMachine {
     private def fsmStateToSessionState(
         peginStateMachineState: PeginStateMachineState
     ): PeginSessionState = peginStateMachineState match {
-      case _: MMintingTBTC             => PeginSessionStateMintingTBTC
-      case _: MWaitingForBTCDeposit           => PeginSessionStateWaitingForBTC
+      case _: MMintingTBTC            => PeginSessionStateMintingTBTC
+      case _: MWaitingForBTCDeposit   => PeginSessionStateWaitingForBTC
       case _: WaitingForRedemption    => PeginSessionWaitingForRedemption
       case _: WaitingForClaim         => PeginSessionWaitingForClaim
       case _: MintingTBTCConfirmation => PeginSessionMintingTBTCConfirmation
@@ -207,7 +211,7 @@ object MonitorStateMachine {
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =
       Sync[F].delay(map.replace(sessionId, transition.nextState)) >>
-          transition.effect
+        transition.effect
 
     def innerStateConfigurer(
         sessionEvent: SessionEvent

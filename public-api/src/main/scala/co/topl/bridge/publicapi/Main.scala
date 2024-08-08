@@ -7,12 +7,15 @@ import cats.effect.IOApp
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.bridge.publicapi.ClientNumber
+import co.topl.shared.ClientNumber
+import co.topl.shared.ConsensusClientGrpc
 import co.topl.bridge.publicapi.modules.ApiServicesModule
 import co.topl.bridge.publicapi.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
+import co.topl.shared.ConsensusClientGrpcImpl
+import co.topl.shared.ConsensusClientMessageId
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._

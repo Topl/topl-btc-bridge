@@ -38,13 +38,7 @@ package object consensus {
   case class ReplicaId(
       id: Int
   )
-  case class ClientId(
-      id: Int
-  )
 
-  case class ConsensusClientMessageId(
-      timestamp: Long
-  )
 
   case class Lvl(amount: Int128) extends BifrostCurrencyUnit
   case class SeriesToken(id: String, amount: Int128) extends BifrostCurrencyUnit

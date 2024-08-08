@@ -122,23 +122,23 @@ case class PostRedemptionTxEvt(
   * @param vout
   *   the vout of the redemption.
   */
-case class PostClaimTxOperationEvt(
+case class PostClaimTxEvt(
     sessionId: String,
     height: Int,
     txId: String,
     vout: Int
 ) extends PBFTEvent
 
-case class TimeoutClaimTxOperationEvt(
+case class TimeoutClaimTxEvt(
     sessionId: String,
     height: Long
 ) extends PBFTEvent
 
-case class UndoClaimTxOperationEvt(
+case class UndoClaimTxEvt(
     sessionId: String
 ) extends PBFTEvent
 
-case class ConfirmClaimTxOperationEvt(
+case class ConfirmClaimTxEvt(
     sessionId: String,
     height: Int
 ) extends PBFTEvent

@@ -1,4 +1,4 @@
-package co.topl.bridge.publicapi
+package co.topl.shared
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
@@ -7,7 +7,6 @@ import co.topl.bridge.consensus.service.MintingStatusOperation
 import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.service.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import co.topl.bridge.publicapi.ConsensusClientMessageId
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse

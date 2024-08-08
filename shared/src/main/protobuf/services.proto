@@ -31,13 +31,11 @@ message StateMachineRequest {
     ConfirmTBTCMintOperation confirmTBTCMint = 12;
     PostRedemptionTxOperation postRedemptionTx = 13;
     TimeoutRedemptionTxOperation timeoutRedemptionTx = 14;
-    UndoRedemptionTxOperation undoRedemptionTx = 15;
-    ConfirmRedemptionTxOperation confirmRedemptionTx = 16;
-    PostClaimTxOperation postClaimTx = 17;
-    TimeoutClaimTxOperation timeoutClaimTx = 18;
-    UndoClaimTxOperation undoClaimTx = 19;
-    ConfirmClaimTxOperation confirmClaimTx = 20;
-    MintingStatusOperation mintingStatus = 21;
+    PostClaimTxOperation postClaimTx = 15;
+    TimeoutClaimTxOperation timeoutClaimTx = 16;
+    UndoClaimTxOperation undoClaimTx = 17;
+    ConfirmClaimTxOperation confirmClaimTx = 18;
+    MintingStatusOperation mintingStatus = 19;
   }
   
 }
@@ -65,7 +63,7 @@ message PostDepositBTCOperation {
   string sessionId = 1;
   uint32 height = 2;
   string txId = 3;
-  uint64 vout = 4;
+  uint32 vout = 4;
   bytes amount = 5;
 }
 
@@ -85,9 +83,10 @@ message ConfirmDepositBTCOperation {
 
 message PostTBTCMintOperation {
   string sessionId = 1;
-  string utxoTxId = 4;
-  uint32 utxoIndex = 5;
-  uint64 amount = 6;
+  uint64 height = 2;
+  string utxoTxId = 3;
+  uint32 utxoIndex = 4;
+  bytes amount = 5;
 }
 
 message TimeoutTBTCMintOperation {
@@ -100,12 +99,16 @@ message UndoTBTCMintOperation {
 
 message ConfirmTBTCMintOperation {
   string sessionId = 1;
+  uint64 height = 2;
 }
 
 message PostRedemptionTxOperation {
   string sessionId = 1;
+  string secret = 2;
+  uint64 height = 3;
   string utxoTxId = 4;
   uint32 utxoIndex = 5;
+  bytes amount = 6;
 }
 
 message TimeoutRedemptionTxOperation {
@@ -122,8 +125,9 @@ message ConfirmRedemptionTxOperation {
 
 message PostClaimTxOperation {
   string sessionId = 1;
-  string txId = 2;
-  uint64 vout = 3;
+  uint32 height = 3;
+  string txId = 4;
+  uint32 vout = 5;
 }
 
 message TimeoutClaimTxOperation {
@@ -136,6 +140,7 @@ message UndoClaimTxOperation {
 
 message ConfirmClaimTxOperation {
   string sessionId = 1;
+  uint32 height = 2;
 }
 
 message StartSessionRes {

@@ -50,6 +50,15 @@ import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import io.grpc.Metadata
 import co.topl.shared.ReplicaCount
 import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.shared.ConsensusClientGrpcImpl
+import cats.effect.std.Mutex
+import java.util.concurrent.ConcurrentHashMap
+import co.topl.shared.ConsensusClientMessageId
+import co.topl.shared.BridgeError
+import co.topl.shared.BridgeResponse
+import java.util.concurrent.atomic.LongAdder
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.ClientId
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -60,6 +69,8 @@ case class SystemGlobalState(
 sealed trait PeginSessionState
 
 case object PeginSessionState {
+  case object PeginSessionStateSuccessfulPegin extends PeginSessionState
+  case object PeginSessionStateTimeout extends PeginSessionState
   case object PeginSessionStateWaitingForBTC extends PeginSessionState
   case object PeginSessionStateMintingTBTC extends PeginSessionState
   case object PeginSessionWaitingForRedemption extends PeginSessionState
@@ -71,6 +82,10 @@ case object PeginSessionState {
       extends PeginSessionState
 
   def withName(s: String): Option[PeginSessionState] = s match {
+    case "PeginSessionStateSuccessfulPegin" =>
+      Some(PeginSessionStateSuccessfulPegin)
+    case "PeginSessionStateTimeout" =>
+      Some(PeginSessionStateTimeout)
     case "PeginSessionStateWaitingForBTC" =>
       Some(PeginSessionStateWaitingForBTC)
     case "PeginSessionStateMintingTBTC" => Some(PeginSessionStateMintingTBTC)
@@ -237,6 +252,7 @@ object Main
 
   def initializeForResources(
       storageApi: StorageApi[IO],
+      consensusClient: ConsensusClientGrpc[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       publicApiClientGrpcMap: Map[
         ClientId,
@@ -251,6 +267,7 @@ object Main
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      clientId: ClientId,
       replicaId: ReplicaId,
       replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
@@ -260,30 +277,33 @@ object Main
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId,
       logger: Logger[IO]
-  ) = for {
-    currentToplHeightVal <- currentToplHeight.get
-    currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
-    res <- createApp(
-      storageApi,
-      idReplicaClientMap,
-      params,
-      publicApiClientGrpcMap,
-      queue,
-      walletManager,
-      pegInWalletManager,
-      logger,
-      currentBitcoinNetworkHeight,
-      currentToplHeight,
-      currentView,
-      currentState
+  ) = {
+    implicit val consensusClientImpl = consensusClient
+    for {
+      currentToplHeightVal <- currentToplHeight.get
+      currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
+      res <- createApp(
+        storageApi,
+        idReplicaClientMap,
+        params,
+        publicApiClientGrpcMap,
+        queue,
+        walletManager,
+        pegInWalletManager,
+        logger,
+        currentBitcoinNetworkHeight,
+        currentToplHeight,
+        currentView,
+        currentState
+      )
+    } yield (
+      currentToplHeightVal,
+      currentBitcoinNetworkHeightVal,
+      res._1,
+      res._2,
+      res._3
     )
-  } yield (
-    currentToplHeightVal,
-    currentBitcoinNetworkHeightVal,
-    res._1,
-    res._2,
-    res._3
-  )
+  }
 
   def startResources(
       privateKeyFile: String,
@@ -304,10 +324,21 @@ object Main
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId,
       logger: Logger[IO],
+      clientId: ClientId,
       replicaId: ReplicaId,
       replicaCount: ReplicaCount
   ) = {
     import fs2.grpc.syntax.all._
+    val messageResponseMap =
+      new ConcurrentHashMap[ConsensusClientMessageId, ConcurrentHashMap[Either[
+        BridgeError,
+        BridgeResponse
+      ], LongAdder]]()
+    val messageVoterMap =
+      new ConcurrentHashMap[
+        ConsensusClientMessageId,
+        ConcurrentHashMap[Int, Int]
+      ]()
     for {
       replicaKeyPair <- BridgeCryptoUtils
         .getKeyPair[IO](privateKeyFile)
@@ -318,8 +349,19 @@ object Main
       replicaNodes <- loadReplicaNodeFromConfig[IO](conf).toResource
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
+      mutex <- Mutex[IO].toResource
+      replicaClients <- ConsensusClientGrpcImpl
+        .makeContainer[IO](
+          currentView,
+          replicaKeyPair,
+          mutex,
+          replicaNodes,
+          messageVoterMap,
+          messageResponseMap
+        )
       res <- initializeForResources(
         storageApi,
+        replicaClients,
         idReplicaClientMap,
         publicApiClientGrpcMap,
         params,
@@ -480,6 +522,9 @@ object Main
     implicit val conf = ConfigFactory.parseFile(params.configurationFile)
     implicit val replicaId = new ReplicaId(
       conf.getInt("bridge.replica.replicaId")
+    )
+    implicit val clientId = new ClientId(
+      conf.getInt("bridge.replica.clientId")
     )
     implicit val replicaCount =
       new ReplicaCount(conf.getInt("bridge.replica.consensus.replicaCount"))

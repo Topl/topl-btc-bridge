@@ -1,11 +1,11 @@
 package co.topl.bridge.consensus.pbft
 
-import cats.effect.kernel.Async
+
 
 object PBFTTransitionRelation {
   import cats.implicits._
 
-  def handlePBFTEvent[F[_]: Async](
+  def handlePBFTEvent(
       currentState: PBFTState,
       pbftEvent: PBFTEvent
   ): Option[PBFTState] =
@@ -132,7 +132,7 @@ object PBFTTransitionRelation {
         ).some
       case (
             cs: PSClaimingBTC,
-            evt: PostClaimTxOperationEvt
+            evt: PostClaimTxEvt
           ) =>
         PSConfirmingBTCClaim(
           claimBTCBlockHeight = evt.height,
@@ -144,7 +144,7 @@ object PBFTTransitionRelation {
           amount = cs.amount,
           claimAddress = cs.claimAddress
         ).some
-
+      case (_, _) => none
     }
 
 }

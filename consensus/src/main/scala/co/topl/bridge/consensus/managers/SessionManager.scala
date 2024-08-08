@@ -70,7 +70,8 @@ trait SessionManagerAlgebra[F[_]] {
   ): F[Unit]
 
   def removeSession(
-      sessionId: String
+      sessionId: String,
+      finalState: PeginSessionState
   ): F[Unit]
 }
 
@@ -80,8 +81,9 @@ object SessionManagerImpl {
       queue: Queue[F, SessionEvent]
   ): SessionManagerAlgebra[F] = new SessionManagerAlgebra[F] {
 
-    // FIXME: implement
-    override def removeSession(sessionId: String): F[Unit] = ???
+    override def removeSession(sessionId: String, finalState: PeginSessionState): F[Unit] = {
+      updateSession(sessionId, _.copy(mintingBTCState = finalState)) 
+    }
 
     def createNewSession(
         sessionId: String,

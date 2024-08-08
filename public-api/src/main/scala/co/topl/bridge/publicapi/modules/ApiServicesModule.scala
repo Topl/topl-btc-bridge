@@ -3,8 +3,8 @@ package co.topl.bridge.publicapi.modules
 import cats.effect.IO
 import co.topl.bridge.consensus.service.MintingStatusOperation
 import co.topl.bridge.consensus.service.StartSessionOperation
-import co.topl.bridge.publicapi.ClientNumber
-import co.topl.bridge.publicapi.ConsensusClientGrpc
+import co.topl.shared.ClientNumber
+import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
