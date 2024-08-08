@@ -15,9 +15,10 @@ import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCRetryThreshold
-import co.topl.bridge.consensus.ClientId
+import co.topl.shared.ClientId
 import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.PublicApiClientGrpc
+import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SystemGlobalState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
@@ -26,25 +27,22 @@ import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionManagerImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
 import co.topl.bridge.consensus.monitor.MonitorStateMachine
+import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.bridge.consensus.service.StateMachineReply.Result
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.ReplicaCount
+import io.grpc.Metadata
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.dsl.io._
 import org.typelevel.log4cats.Logger
-import co.topl.bridge.consensus.service.StateMachineReply.Result
-
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import io.grpc.Metadata
-import co.topl.bridge.consensus.ReplicaId
-import co.topl.shared.ReplicaCount
-import co.topl.bridge.consensus.persistence.StorageApi
 
-trait AppModule
-    extends WalletStateResource
-    with ApiServicesModule {
+trait AppModule extends WalletStateResource with ApiServicesModule {
 
   def webUI() = HttpRoutes.of[IO] { case request @ GET -> Root =>
     StaticFile
@@ -69,6 +67,8 @@ trait AppModule
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      clientId: ClientId,
+      consensusClient: ConsensusClientGrpc[IO],
       replicaId: ReplicaId,
       replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
@@ -144,12 +144,14 @@ trait AppModule
         grpcServices(
           idReplicaClientMap,
           lastReplyMap,
+          new ConcurrentHashMap(),
           publicApiClientGrpcMap,
           keyPair,
           sessionManagerPermanent,
           pegInWalletManager,
           walletManager,
           params.btcNetwork,
+          currentBitcoinNetworkHeight,
           currentView,
           currentToplHeight
         ),

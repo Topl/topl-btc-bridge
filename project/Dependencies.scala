@@ -146,6 +146,7 @@ object Dependencies {
 
     lazy val shared: Seq[ModuleID] =
       grpcNetty ++
+        log4cats ++
         cats ++
         grpcRuntime ++
         bouncycastle

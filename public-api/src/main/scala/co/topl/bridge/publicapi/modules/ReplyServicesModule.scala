@@ -9,7 +9,7 @@ import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.service.StateMachineReply.Result.MintingStatus
 import co.topl.bridge.consensus.service.StateMachineReply.Result.SessionNotFound
 import co.topl.bridge.consensus.service.StateMachineReply.Result.StartSession
-import co.topl.bridge.publicapi.ConsensusClientMessageId
+import co.topl.shared.ConsensusClientMessageId
 import co.topl.shared
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
