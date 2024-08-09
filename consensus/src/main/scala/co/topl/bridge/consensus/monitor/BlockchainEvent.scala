@@ -20,7 +20,7 @@ case class BTCFundsDeposited(
     fundsDepositedHeight: Int,
     scriptPubKey: String,
     txId: String,
-    vout: Long,
+    vout: Int,
     amount: CurrencyUnit
 ) extends BlockchainEvent
 case class BifrostFundsDeposited(
@@ -32,6 +32,7 @@ case class BifrostFundsDeposited(
 ) extends BlockchainEvent
 
 case class BifrostFundsWithdrawn(
+    fundsWithdrawnHeight: Long,
     txId: String,
     txIndex: Int,
     secret: String,

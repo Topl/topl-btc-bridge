@@ -1,12 +1,14 @@
 package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import cats.implicits._
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.AssetMintingStatement
+import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.Template
@@ -14,13 +16,10 @@ import co.topl.bridge.consensus.managers.ToplWalletAlgebra
 import co.topl.bridge.consensus.managers.TransactionAlgebra
 import co.topl.bridge.consensus.managers.WalletApiHelpers
 import co.topl.genus.services.Txo
-import com.google.protobuf.ByteString
-import quivr.models.Int128
-import quivr.models.KeyPair
-import co.topl.brambl.wallet.WalletApi
-import cats.effect.kernel.Resource
 import io.grpc.ManagedChannel
 import org.typelevel.log4cats.Logger
+import quivr.models.Int128
+import quivr.models.KeyPair
 
 object WaitingBTCOps {
 
@@ -43,7 +42,7 @@ object WaitingBTCOps {
   }
 
   private def computeAssetMintingStatement[F[_]: Async: Logger](
-      amount: Long,
+      amount: Int128,
       currentAddress: LockAddress,
       utxoAlgebra: GenusQueryAlgebra[F]
   ) = for {
@@ -55,11 +54,15 @@ object WaitingBTCOps {
       case Left(e) =>
         import scala.concurrent.duration._
         Async[F].sleep(5.second) >> Async[F].pure(e.asLeft[Seq[Txo]])
-      case Right(txos) => 
+      case Right(txos) =>
         if (txos.isEmpty) {
           import scala.concurrent.duration._
           import org.typelevel.log4cats.syntax._
-          Async[F].sleep(5.second) >> warn"No UTXO found while minting" >> Async[F].pure(new Throwable("No UTXOs found").asLeft[Seq[Txo]])
+          Async[F].sleep(
+            5.second
+          ) >> warn"No UTXO found while minting" >> Async[F].pure(
+            new Throwable("No UTXOs found").asLeft[Seq[Txo]]
+          )
         } else
           Async[F].pure(txos.asRight[Throwable])
     })
@@ -68,9 +71,7 @@ object WaitingBTCOps {
   } yield AssetMintingStatement(
     getGroupTokeUtxo(txos),
     getSeriesTokenUtxo(txos),
-    Int128(
-      ByteString.copyFrom(BigInt(amount).toByteArray)
-    )
+    amount
   )
 
   private def mintTBTC[F[_]: Async](
@@ -111,7 +112,7 @@ object WaitingBTCOps {
       fromFellowship: Fellowship,
       fromTemplate: Template,
       redeemAddress: String,
-      amount: Long
+      amount: Int128
   )(implicit
       keyPair: KeyPair,
       walletApi: WalletApi[F],

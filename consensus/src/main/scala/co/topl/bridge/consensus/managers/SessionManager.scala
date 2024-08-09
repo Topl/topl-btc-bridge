@@ -67,7 +67,7 @@ trait SessionManagerAlgebra[F[_]] {
   def updateSession(
       sessionId: String,
       sessionInfoTransformer: PeginSessionInfo => SessionInfo
-  ): F[Unit]
+  ): F[Option[SessionInfo]]
 
   def removeSession(
       sessionId: String,
@@ -81,8 +81,11 @@ object SessionManagerImpl {
       queue: Queue[F, SessionEvent]
   ): SessionManagerAlgebra[F] = new SessionManagerAlgebra[F] {
 
-    override def removeSession(sessionId: String, finalState: PeginSessionState): F[Unit] = {
-      updateSession(sessionId, _.copy(mintingBTCState = finalState)) 
+    override def removeSession(
+        sessionId: String,
+        finalState: PeginSessionState
+    ): F[Unit] = {
+      updateSession(sessionId, _.copy(mintingBTCState = finalState)).void
     }
 
     def createNewSession(
@@ -104,7 +107,7 @@ object SessionManagerImpl {
     def updateSession(
         sessionId: String,
         sessionInfoTransformer: PeginSessionInfo => SessionInfo
-    ): F[Unit] = {
+    ): F[Option[SessionInfo]] = {
       for {
         someSessionInfo <- storageApi.getSession(sessionId)
         someNewSessionInfo = someSessionInfo.flatMap(sessionInfo =>
@@ -120,7 +123,7 @@ object SessionManagerImpl {
               )
           )
           .getOrElse(Sync[F].unit)
-      } yield ()
+      } yield someSessionInfo
     }
 
   }

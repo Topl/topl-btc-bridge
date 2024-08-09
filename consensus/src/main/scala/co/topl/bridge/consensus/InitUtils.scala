@@ -54,6 +54,12 @@ trait InitUtils {
   def privateKeyFile(implicit conf: Config) =
     conf.getString("bridge.replica.security.privateKeyFile")
 
+  def responseHost(implicit conf: Config) =
+    conf.getString("bridge.replica.responses.host")
+
+  def responsePort(implicit conf: Config) =
+    conf.getInt("bridge.replica.responses.port")
+
   def printConfig[F[_]: Sync: Logger](implicit
       conf: Config,
       replicaId: ReplicaId

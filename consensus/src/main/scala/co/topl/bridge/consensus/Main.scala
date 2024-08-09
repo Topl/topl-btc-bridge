@@ -59,6 +59,7 @@ import co.topl.shared.BridgeResponse
 import java.util.concurrent.atomic.LongAdder
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.ClientId
+import co.topl.shared.modules.ReplyServicesModule
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -106,6 +107,7 @@ object Main
     extends IOApp
     with ConsensusParamsDescriptor
     with AppModule
+    with ReplyServicesModule
     with InitUtils {
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -305,6 +307,20 @@ object Main
     )
   }
 
+  private def createReplicaPublicKeyMap[F[_]: Sync](
+      conf: Config
+  )(implicit replicaCount: ReplicaCount): F[Map[Int, PublicKey]] = {
+    import cats.implicits._
+    (for (i <- 0 until replicaCount.value) yield {
+      val publicKeyFile = conf.getString(
+        s"bridge.replica.consensus.replicas.$i.publicKeyFile"
+      )
+      for {
+        keyPair <- BridgeCryptoUtils.getPublicKey(publicKeyFile).allocated
+      } yield (i, keyPair._1)
+    }).toList.sequence.map(x => Map(x: _*))
+  }
+
   def startResources(
       privateKeyFile: String,
       params: ToplBTCBridgeConsensusParamConfig,
@@ -313,7 +329,7 @@ object Main
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
       currentToplHeight: Ref[IO, Long],
-      currentView: Ref[IO, Long],
+      currentViewRef: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       conf: Config,
@@ -352,7 +368,7 @@ object Main
       mutex <- Mutex[IO].toResource
       replicaClients <- ConsensusClientGrpcImpl
         .makeContainer[IO](
-          currentView,
+          currentViewRef,
           replicaKeyPair,
           mutex,
           replicaNodes,
@@ -370,7 +386,7 @@ object Main
         pegInWalletManager,
         currentBitcoinNetworkHeight,
         currentToplHeight,
-        currentView,
+        currentViewRef,
         currentState
       ).toResource
       (
@@ -400,6 +416,13 @@ object Main
         bifrostQueryAlgebra
       )
       _ <- storageApi.initializeStorage().toResource
+      replicaKeysMap <- createReplicaPublicKeyMap[IO](conf).toResource
+      responsesService <- replyService[IO](
+        currentViewRef,
+        replicaKeysMap,
+        messageVoterMap,
+        messageResponseMap
+      )
       grpcService <- grpcServiceResource
       _ <- getAndSetCurrentToplHeight(
         currentToplHeight,
@@ -413,9 +436,13 @@ object Main
         currentToplHeight,
         bifrostQueryAlgebra
       ).toResource
-      grpcListener <- NettyServerBuilder
+      replicaGrpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(replicaHost, replicaPort))
         .addService(grpcService)
+        .resource[IO]
+      responsesGrpcListener <- NettyServerBuilder
+        .forAddress(new InetSocketAddress(responseHost, responsePort))
+        .addService(responsesService)
         .resource[IO]
       _ <- IO.asyncForIO
         .background(
@@ -428,8 +455,16 @@ object Main
       _ <- IO.asyncForIO
         .background(
           IO(
-            grpcListener.start
-          ) >> info"Netty-Server (grpc) service bound to address ${replicaHost}:${replicaPort}" (
+            replicaGrpcListener.start
+          ) >> info"Netty-Server (replica grpc) service bound to address ${replicaHost}:${replicaPort}" (
+            logger
+          )
+        )
+      _ <- IO.asyncForIO
+        .background(
+          IO(
+            responsesGrpcListener.start
+          ) >> info"Netty-Server (response grpc) service bound to address ${responseHost}:${responsePort}" (
             logger
           )
         )

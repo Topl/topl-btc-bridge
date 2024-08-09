@@ -50,7 +50,7 @@ object BlockProcessor {
                 b.height,
                 output.scriptPubKey.asmHex,
                 transaction.txIdBE.hex,
-                vout.toLong,
+                vout,
                 output.value
               )
             }
@@ -96,6 +96,7 @@ object BlockProcessor {
               .filter(x => isLvlSeriesGroupOrAsset(x.value.value))
               .map { input =>
                 BifrostFundsWithdrawn(
+                  b.height,
                   Encoding.encodeToBase58(input.address.id.value.toByteArray()),
                   input.address.index,
                   Try(extractFromToplTx(input.attestation))

@@ -113,6 +113,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
           .handleBlockchainEvent[IO](
             MWaitingForBTCDeposit(1, 1, "", escrowAddress, redeemAddress, claimAddress),
             BifrostFundsWithdrawn(
+              1L,
               "bifrostTxId",
               0,
               "topl-secret",
@@ -136,12 +137,13 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             redeemAddress = redeemAddress,
             claimAddress = claimAddress,
             btcTxId = "txId",
-            btcVout = 0L,
+            btcVout = 0,
             utxoTxId = "bifrostTxId",
             utxoIndex = 0, // Added missing utxoIndex parameter
             amount = AssetToken("groupId", "seriesId", 100L)
           ),
           BifrostFundsWithdrawn(
+            1L,
             "bifrostTxId",
             0,
             "topl-secret",
@@ -168,7 +170,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             redeemAddress = redeemAddress,
             claimAddress = claimAddress,
             btcTxId = "txId",
-            btcVout = 0L,
+            btcVout = 0,
             utxoTxId = "bifrostTxId",
             utxoIndex = 0,
             amount = AssetToken("groupId", "seriesId", 100L)
@@ -194,12 +196,13 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             redeemAddress = redeemAddress,
             claimAddress = claimAddress,
             btcTxId = "txId",
-            btcVout = 0L,
+            btcVout = 0,
             utxoTxId = "bifrostTxId",
             utxoIndex = 0,
             amount = AssetToken("groupId", "seriesId", 100L)
           ),
           BifrostFundsWithdrawn(
+            1L,
             "bifrostTxIdDifferent",
             0,
             "topl-secret",
@@ -216,12 +219,13 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
               redeemAddress = redeemAddress,
               claimAddress = claimAddress,
               btcTxId = "txId",
-              btcVout = 0L,
+              btcVout = 0,
               utxoTxId = "bifrostTxId",
               utxoIndex = 0,
               amount = AssetToken("groupId", "seriesId", 100L)
             ),
             BifrostFundsWithdrawn(
+              1L,
               "bifrostTxId",
               1,
               "topl-secret",
@@ -246,7 +250,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
             redeemAddress = redeemAddress,
             claimAddress = claimAddress,
             btcTxId = "txId",
-            btcVout = 0L,
+            btcVout = 0,
             utxoTxId = "bifrostTxId",
             utxoIndex = 0,
             amount = AssetToken("groupId", "seriesId", 100L)
@@ -263,7 +267,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
               redeemAddress = redeemAddress,
               claimAddress = claimAddress,
               btcTxId = "txId",
-              btcVout = 0L,
+              btcVout = 0,
               utxoTxId = "bifrostTxId",
               utxoIndex = 0,
               amount = AssetToken("groupId", "seriesId", 100L)
@@ -452,6 +456,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
               claimAddress = claimAddress
             ),
             BifrostFundsWithdrawn(
+              1L,
               "bifrostTxId",
               0,
               "topl-secret",

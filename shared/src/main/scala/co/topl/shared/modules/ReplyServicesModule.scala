@@ -1,4 +1,4 @@
-package co.topl.bridge.publicapi.modules
+package co.topl.shared.modules
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
