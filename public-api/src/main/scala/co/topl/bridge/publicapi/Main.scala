@@ -8,7 +8,6 @@ import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.bridge.publicapi.ClientNumber
-import co.topl.bridge.publicapi.ReplicaCount
 import co.topl.bridge.publicapi.modules.ApiServicesModule
 import co.topl.bridge.publicapi.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
@@ -33,6 +32,9 @@ import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
+import co.topl.shared.ReplicaNode
+import co.topl.shared.ReplicaCount
+import cats.effect.std.Mutex
 
 sealed trait PeginSessionState
 
@@ -112,10 +114,12 @@ object Main
       ]()
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
+      mutex <- Mutex[IO].toResource
       replicaClients <- ConsensusClientGrpcImpl
         .makeContainer(
           currentViewRef,
           keyPair,
+          mutex,
           replicaNodes,
           messageVoterMap,
           messageResponseMap
@@ -133,6 +137,7 @@ object Main
         .withLogger(logger)
         .build
       rService <- replyService[IO](
+        currentViewRef,
         replicaKeysMap,
         messageVoterMap,
         messageResponseMap

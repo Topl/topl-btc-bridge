@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.statemachine.pegin
+package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
@@ -43,6 +43,8 @@ import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.consensus.monitor.{EndTransition, WaitingForClaim, FSMTransitionTo, MintingTBTCConfirmation, WaitingForRedemption, WaitingForBTC, MintingTBTC, WaitingForEscrowBTCConfirmation, WaitingForClaimBTCConfirmation, PeginStateMachineState}
+import co.topl.bridge.consensus.monitor.PeginTransitionRelation
 
 trait PeginStateMachineAlgebra[F[_]] {
 

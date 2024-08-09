@@ -30,9 +30,7 @@ object PublicApiClientGrpcImpl {
       keyPair: KeyPair
   )(implicit replicaId: ReplicaId) = {
     for {
-      client <- ResponseServiceFs2Grpc.stubResource(
-        channel
-      )
+      client <- ResponseServiceFs2Grpc.stubResource(channel)
     } yield new PublicApiClientGrpc[F] {
       import cats.implicits._
 

@@ -22,7 +22,7 @@ import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.modules.AppModule
 import co.topl.bridge.consensus.persistence.StorageApiImpl
-import co.topl.bridge.consensus.statemachine.pegin.BlockProcessor
+import co.topl.bridge.consensus.monitor.BlockProcessor
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.shared.BridgeCryptoUtils
 import com.google.protobuf.ByteString
@@ -44,6 +44,11 @@ import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
+import co.topl.shared.ReplicaNode
+import cats.effect.kernel.Sync
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
+import io.grpc.Metadata
+import co.topl.shared.ReplicaCount
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -128,12 +133,11 @@ object Main
       replicaKeyPair: KeyPair,
       conf: Config
   )(implicit
-      replicaId: ReplicaId
+      replicaId: ReplicaId,
+      replicaCount: ReplicaCount
   ): Resource[F, Map[ClientId, (PublicApiClientGrpc[F], PublicKey)]] = {
     import cats.implicits._
-    val replicaCount =
-      conf.getInt("bridge.replica.clients.clientCount")
-    (for (i <- 0 until replicaCount) yield {
+    (for (i <- 0 until replicaCount.value) yield {
       val publicKeyFile = conf.getString(
         s"bridge.replica.clients.clients.$i.publicKeyFile"
       )
@@ -162,7 +166,60 @@ object Main
     }).toList.sequence.map(x => Map(x: _*))
   }
 
+  private def loadReplicaNodeFromConfig[F[_]: Sync: Logger](
+      conf: Config
+  )(implicit replicaCount: ReplicaCount): F[List[ReplicaNode[F]]] = {
+    import cats.implicits._
+    (for (i <- 0 until replicaCount.value) yield {
+      for {
+        host <- Sync[F].delay(
+          conf.getString(s"bridge.replica.consensus.replicas.$i.host")
+        )
+        port <- Sync[F].delay(
+          conf.getInt(s"bridge.replica.consensus.replicas.$i.port")
+        )
+        secure <- Sync[F].delay(
+          conf.getBoolean(s"bridge.replica.consensus.replicas.$i.secure")
+        )
+        _ <-
+          info"bridge.replica.consensus.replicas.$i.host: ${host}"
+        _ <-
+          info"bridge.replica.consensus.replicas.$i.port: ${port}"
+        _ <-
+          info"bridge.replica.consensus.replicas.$i.secure: ${secure}"
+      } yield ReplicaNode[F](i, host, port, secure)
+    }).toList.sequence
+  }
+
+  private def createReplicaClienMap[F[_]: Async](
+      replicaNodes: List[ReplicaNode[F]]
+  ) = {
+    import cats.implicits._
+    import fs2.grpc.syntax.all._
+    for {
+      idClientList <- (for {
+        replicaNode <- replicaNodes
+      } yield {
+        for {
+          channel <-
+            (if (replicaNode.backendSecure)
+               ManagedChannelBuilder
+                 .forAddress(replicaNode.backendHost, replicaNode.backendPort)
+                 .useTransportSecurity()
+             else
+               ManagedChannelBuilder
+                 .forAddress(replicaNode.backendHost, replicaNode.backendPort)
+                 .usePlaintext()).resource[F]
+          consensusClient <- StateMachineServiceFs2Grpc.stubResource(
+            channel
+          )
+        } yield (replicaNode.id -> consensusClient)
+      }).sequence.map(x => Map(x: _*))
+    } yield idClientList
+  }
+
   def initializeForResources(
+      idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       publicApiClientGrpcMap: Map[
         ClientId,
         (PublicApiClientGrpc[IO], PublicKey)
@@ -176,6 +233,8 @@ object Main
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      replicaId: ReplicaId,
+      replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
       fromTemplate: Template,
       bitcoindInstance: BitcoindRpcClient,
@@ -187,6 +246,7 @@ object Main
     currentToplHeightVal <- currentToplHeight.get
     currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
     res <- createApp(
+      idReplicaClientMap,
       params,
       publicApiClientGrpcMap,
       queue,
@@ -225,18 +285,22 @@ object Main
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId,
       logger: Logger[IO],
-      replicaId: ReplicaId
+      replicaId: ReplicaId,
+      replicaCount: ReplicaCount
   ) = {
     import fs2.grpc.syntax.all._
     for {
       replicaKeyPair <- BridgeCryptoUtils
         .getKeyPair[IO](privateKeyFile)
-      createClientMapResource <- createClientMap(
+      publicApiClientGrpcMap <- createClientMap(
         replicaKeyPair,
         conf
-      )(IO.asyncForIO, logger, replicaId)
+      )(IO.asyncForIO, logger, replicaId, replicaCount)
+      replicaNodes <- loadReplicaNodeFromConfig[IO](conf).toResource
+      idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       res <- initializeForResources(
-        createClientMapResource,
+        idReplicaClientMap,
+        publicApiClientGrpcMap,
         params,
         queue,
         walletManager,
@@ -397,6 +461,8 @@ object Main
     implicit val replicaId = new ReplicaId(
       conf.getInt("bridge.replica.replicaId")
     )
+    implicit val replicaCount =
+      new ReplicaCount(conf.getInt("bridge.replica.consensus.replicaCount"))
     implicit val logger =
       org.typelevel.log4cats.slf4j.Slf4jLogger
         .getLoggerFromName[IO]("consensus-" + f"${replicaId.id}%02d")

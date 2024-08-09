@@ -4,7 +4,21 @@ import co.topl.bridge.consensus.service.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineReply
 
 package object shared {
-    object implicits {
+
+  
+  class ReplicaCount(val value: Int) extends AnyVal {
+
+    def maxFailures = (value - 1) / 3
+  }
+
+  case class ReplicaNode[F[_]](
+      id: Int,
+      backendHost: String,
+      backendPort: Int,
+      backendSecure: Boolean
+  )
+
+  object implicits {
 
     // add extension method to StateMachineRequest
     implicit class StateMachineRequestOp(val request: StateMachineRequest)

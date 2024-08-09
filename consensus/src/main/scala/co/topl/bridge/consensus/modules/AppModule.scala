@@ -25,15 +25,21 @@ import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionManagerImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
-import co.topl.bridge.consensus.statemachine.pegin.PeginStateMachine
+import co.topl.bridge.consensus.monitor.PeginStateMachine
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.dsl.io._
 import org.typelevel.log4cats.Logger
+import co.topl.bridge.consensus.service.StateMachineReply.Result
+
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
+import io.grpc.Metadata
+import co.topl.bridge.consensus.ReplicaId
+import co.topl.shared.ReplicaCount
 
 trait AppModule
     extends WalletStateResource
@@ -46,6 +52,7 @@ trait AppModule
   }
 
   def createApp(
+      idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       params: ToplBTCBridgeConsensusParamConfig,
       publicApiClientGrpcMap: Map[
         ClientId,
@@ -60,6 +67,8 @@ trait AppModule
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      replicaId: ReplicaId,
+      replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
       fromTemplate: Template,
       bitcoindInstance: BitcoindRpcClient,
@@ -113,8 +122,8 @@ trait AppModule
         params.toplWalletSeedFile,
         params.toplWalletPassword
       )
-
     } yield {
+      val lastReplyMap = new ConcurrentHashMap[(ClientId, Long), Result]()
       implicit val kp = keyPair
       implicit val defaultFeePerByte = params.feePerByte
       implicit val iPeginWalletManager = pegInWalletManager
@@ -131,6 +140,8 @@ trait AppModule
         )
       (
         grpcServices(
+          idReplicaClientMap,
+          lastReplyMap,
           publicApiClientGrpcMap,
           keyPair,
           sessionManager,
