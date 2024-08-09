@@ -30,12 +30,10 @@ message StateMachineRequest {
     UndoTBTCMintOperation undoTBTCMint = 11;
     ConfirmTBTCMintOperation confirmTBTCMint = 12;
     PostRedemptionTxOperation postRedemptionTx = 13;
-    TimeoutRedemptionTxOperation timeoutRedemptionTx = 14;
-    PostClaimTxOperation postClaimTx = 15;
-    TimeoutClaimTxOperation timeoutClaimTx = 16;
-    UndoClaimTxOperation undoClaimTx = 17;
-    ConfirmClaimTxOperation confirmClaimTx = 18;
-    MintingStatusOperation mintingStatus = 19;
+    PostClaimTxOperation postClaimTx = 14;
+    ConfirmClaimTxOperation confirmClaimTx = 15;
+    UndoClaimTxOperation undoClaimTx = 16;
+    MintingStatusOperation mintingStatus = 17;
   }
   
 }
@@ -78,7 +76,8 @@ message UndoDepositBTCOperation {
 
 message ConfirmDepositBTCOperation {
   string sessionId = 1;
-  uint32 height = 2;
+  bytes amount     = 2;
+  uint32 height    = 3;
 }
 
 message PostTBTCMintOperation {
@@ -91,6 +90,7 @@ message PostTBTCMintOperation {
 
 message TimeoutTBTCMintOperation {
   string sessionId = 1;
+  uint32 height = 2;
 }
 
 message UndoTBTCMintOperation {
@@ -108,7 +108,9 @@ message PostRedemptionTxOperation {
   uint64 height = 3;
   string utxoTxId = 4;
   uint32 utxoIndex = 5;
-  bytes amount = 6;
+  string txId = 6;
+  uint32 vout = 7;
+  bytes amount = 8;
 }
 
 message TimeoutRedemptionTxOperation {

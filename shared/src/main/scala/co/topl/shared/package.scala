@@ -5,11 +5,13 @@ import co.topl.bridge.consensus.service.StateMachineReply
 
 package object shared {
 
+  case class SessionId(
+      id: String
+  )
+
   case class ClientId(
       id: Int
   )
-
-  class ClientNumber(val value: Int) extends AnyVal
 
   case class ConsensusClientMessageId(
       timestamp: Long

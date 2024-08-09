@@ -2,20 +2,13 @@ package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.brambl.builders.TransactionBuilderApi
-import co.topl.brambl.dataApi.GenusQueryAlgebra
-import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
-import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCConfirmationThreshold
 import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.BTCWaitExpirationTime
-import co.topl.bridge.consensus.Fellowship
-import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.PeginSessionState
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateMintingTBTC
@@ -24,7 +17,6 @@ import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaim
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
-import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
@@ -36,24 +28,23 @@ import co.topl.bridge.consensus.managers.SessionUpdated
 import co.topl.bridge.consensus.monitor.EndTransition
 import co.topl.bridge.consensus.monitor.FSMTransitionTo
 import co.topl.bridge.consensus.monitor.MConfirmingBTCDeposit
-import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
 import co.topl.bridge.consensus.monitor.MMintingTBTC
+import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
 import co.topl.bridge.consensus.monitor.MintingTBTCConfirmation
 import co.topl.bridge.consensus.monitor.MonitorTransitionRelation
 import co.topl.bridge.consensus.monitor.PeginStateMachineState
 import co.topl.bridge.consensus.monitor.WaitingForClaim
 import co.topl.bridge.consensus.monitor.WaitingForClaimBTCConfirmation
 import co.topl.bridge.consensus.monitor.WaitingForRedemption
-import io.grpc.ManagedChannel
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.SessionId
 import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
-import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.ClientId
 
 trait MonitorStateMachineAlgebra[F[_]] {
 
@@ -76,23 +67,14 @@ object MonitorStateMachine {
   )(implicit
       clientId: ClientId,
       consensusClient: ConsensusClientGrpc[F],
-      walletApi: WalletApi[F],
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
-      toplKeypair: KeyPair,
-      walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F],
-      utxoAlgebra: GenusQueryAlgebra[F],
-      defaultFromFellowship: Fellowship,
-      defaultFromTemplate: Template,
       defaultFeePerByte: BitcoinCurrencyUnit,
-      defaultMintingFee: Lvl,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcRetryThreshold: BTCRetryThreshold,
       btcConfirmationThreshold: BTCConfirmationThreshold,
       toplConfirmationThreshold: ToplConfirmationThreshold,
-      channelResource: Resource[F, ManagedChannel],
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId
   ) = new MonitorStateMachineAlgebra[F] {
@@ -149,19 +131,22 @@ object MonitorStateMachine {
           )
           sessionId = entry.getKey
           currentState = entry.getValue
-        } yield handleBlockchainEvent[F](
-          currentState,
-          blockchainEvent
-        )(transitionToEffect[F])
-          .orElse(
-            Some(
-              FSMTransitionTo(
-                currentState,
-                currentState,
-                transitionToEffect(currentState, blockchainEvent)
+        } yield {
+          implicit val sessionIdImplicit = new SessionId(sessionId)
+          handleBlockchainEvent[F](
+            currentState,
+            blockchainEvent
+          )(transitionToEffect[F])
+            .orElse(
+              Some(
+                FSMTransitionTo(
+                  currentState,
+                  currentState,
+                  transitionToEffect(currentState, blockchainEvent)
+                )
               )
             )
-          )
+        }
           .map(x =>
             x match {
               case EndTransition(effect) =>

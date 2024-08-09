@@ -1,175 +1,34 @@
 package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.brambl.builders.TransactionBuilderApi
-import co.topl.brambl.dataApi.GenusQueryAlgebra
-import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.utils.Encoding
-import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.AssetToken
 import co.topl.bridge.consensus.BTCConfirmationThreshold
 import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.BTCWaitExpirationTime
-import co.topl.bridge.consensus.Fellowship
-import co.topl.bridge.consensus.Lvl
-import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
-import io.grpc.ManagedChannel
-import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
+import co.topl.bridge.consensus.monitor.EndTransition
+import co.topl.bridge.consensus.monitor.FSMTransition
+import co.topl.bridge.consensus.monitor.FSMTransitionTo
+import co.topl.bridge.consensus.monitor.MConfirmingBTCDeposit
+import co.topl.bridge.consensus.monitor.MMintingTBTC
+import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
+import co.topl.bridge.consensus.monitor.MintingTBTCConfirmation
+import co.topl.bridge.consensus.monitor.PeginStateMachineState
+import co.topl.bridge.consensus.monitor.WaitingForClaim
+import co.topl.bridge.consensus.monitor.WaitingForClaimBTCConfirmation
+import co.topl.bridge.consensus.monitor.WaitingForRedemption
 import org.bitcoins.core.protocol.Bech32Address
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
-import quivr.models.KeyPair
-import co.topl.bridge.consensus.monitor.{
-  EndTransition,
-  WaitingForClaim,
-  FSMTransitionTo,
-  MintingTBTCConfirmation,
-  WaitingForRedemption,
-  MWaitingForBTCDeposit,
-  MMintingTBTC,
-  MConfirmingBTCDeposit,
-  FSMTransition,
-  WaitingForClaimBTCConfirmation,
-  PeginStateMachineState
-}
-import co.topl.bridge.consensus.monitor.WaitingBTCOps
-import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.bridge.consensus.service.StateMachineRequest
-import co.topl.shared.ClientId
 
-object MonitorTransitionRelation {
+object MonitorTransitionRelation extends TransitionToEffect{
 
-  import WaitingBTCOps._
-  import WaitingForRedemptionOps._
-
-  private def isAboveThresholdBTC(
-      currentHeight: Int,
-      startHeight: Int
-  )(implicit btcConfirmationThreshold: BTCConfirmationThreshold) =
-    currentHeight - startHeight > btcConfirmationThreshold.underlying
-
-  private def isAboveThresholdTopl(
-      currentHeight: Long,
-      startHeight: Long
-  )(implicit toplConfirmationThreshold: ToplConfirmationThreshold) =
-    currentHeight - startHeight > toplConfirmationThreshold.underlying
-
-  def transitionToEffect[F[_]: Async: Logger](
-      currentState: PeginStateMachineState,
-      blockchainEvent: BlockchainEvent
-  )(implicit
-      clientId: ClientId,
-      consensusClient: ConsensusClientGrpc[F],
-      toplKeypair: KeyPair,
-      walletApi: WalletApi[F],
-      bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F],
-      walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F],
-      channelResource: Resource[F, ManagedChannel],
-      defaultFromFellowship: Fellowship,
-      defaultFromTemplate: Template,
-      utxoAlgebra: GenusQueryAlgebra[F],
-      defaultFeePerByte: BitcoinCurrencyUnit,
-      defaultMintingFee: Lvl,
-      btcRetryThreshold: BTCRetryThreshold,
-      btcConfirmationThreshold: BTCConfirmationThreshold
-  ) =
-    (blockchainEvent match {
-      case SkippedToplBlock(height) =>
-        error"Error the processor skipped Topl block $height"
-      case SkippedBTCBlock(height) =>
-        error"Error the processor skipped BTC block $height"
-      case NewToplBlock(height) =>
-        debug"New Topl block $height"
-      case NewBTCBlock(height) =>
-        debug"New BTC block $height"
-      case _ =>
-        Async[F].unit
-    }) >>
-      ((currentState, blockchainEvent) match {
-        case (
-              cs: MWaitingForBTCDeposit,
-              ev: BTCFundsDeposited
-            ) =>
-
-          ???
-        case (
-              cs: WaitingForRedemption,
-              BifrostFundsWithdrawn(_, _, secret, amount)
-            ) =>
-          import co.topl.brambl.syntax._
-          Async[F]
-            .start(
-              startClaimingProcess(
-                secret,
-                cs.claimAddress,
-                cs.currentWalletIdx,
-                cs.btcTxId,
-                cs.btcVout,
-                cs.scriptAsm, // scriptAsm,
-                amount.amount.toLong // amount,
-              )
-            )
-            .void
-        case (
-              cs: MConfirmingBTCDeposit,
-              newBTCBLock: NewBTCBlock
-            ) =>
-          if (isAboveThresholdBTC(newBTCBLock.height, cs.depositBTCBlockHeight))
-            Async[F]
-              .start(
-                startMintingProcess[F](
-                  defaultFromFellowship,
-                  defaultFromTemplate,
-                  cs.redeemAddress,
-                  cs.amount.satoshis.toLong
-                )
-              )
-              .void
-          else Async[F].unit
-        case (
-              cs: WaitingForClaim,
-              ev: NewBTCBlock
-            ) =>
-          // if we the someStartBtcBlockHeight is empty, we need to set it
-          // if it is not empty, we need to check if the number of blocks since waiting is bigger than the threshold
-          cs.someStartBtcBlockHeight match {
-            case None =>
-              Async[F].unit
-            case Some(startBtcBlockHeight) =>
-              import co.topl.brambl.syntax._
-              if (
-                btcRetryThreshold.underlying < (ev.height - startBtcBlockHeight)
-              )
-                Async[F]
-                  .start(
-                    startClaimingProcess(
-                      cs.secret,
-                      cs.claimAddress,
-                      cs.currentWalletIdx,
-                      cs.btcTxId,
-                      cs.btcVout,
-                      cs.scriptAsm, // scriptAsm,
-                      cs.amount.amount.toLong
-                    )
-                  )
-                  .void
-              else
-                Async[F].unit
-          }
-        case (_, _) => Async[F].unit
-      })
 
   def handleBlockchainEvent[F[_]: Async: Logger](
       currentState: PeginStateMachineState,
@@ -231,7 +90,7 @@ object MonitorTransitionRelation {
             ev: NewBTCBlock
           ) =>
         // check that the confirmation threshold has been passed
-        if (isAboveThresholdBTC(ev.height, cs.depositBTCBlockHeight))
+        if (isAboveConfirmationThresholdBTC(ev.height, cs.depositBTCBlockHeight))
           Some(
             FSMTransitionTo(
               currentState,
@@ -271,7 +130,7 @@ object MonitorTransitionRelation {
             ev: NewBTCBlock
           ) =>
         // check that the confirmation threshold has been passed
-        if (isAboveThresholdBTC(ev.height, cs.claimBTCBlockHeight))
+        if (isAboveConfirmationThresholdBTC(ev.height, cs.claimBTCBlockHeight))
           // we have successfully claimed the BTC
           Some(
             EndTransition[F](
@@ -447,7 +306,7 @@ object MonitorTransitionRelation {
             cs: MintingTBTCConfirmation,
             be: NewToplBlock
           ) =>
-        if (isAboveThresholdTopl(be.height, cs.depositTBTCBlockHeight)) {
+        if (isAboveConfirmationThresholdTopl(be.height, cs.depositTBTCBlockHeight)) {
           import co.topl.brambl.syntax._
           Some(
             FSMTransitionTo(

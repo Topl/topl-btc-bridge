@@ -103,6 +103,7 @@ trait DeserializationOps {
         SkippedToplBlock(value.height)
       case BifrostFundsWithdrawnEvent(value) =>
         BifrostFundsWithdrawn(
+          value.currentToplBlockHeight,
           value.txId,
           value.txIndex,
           value.secret,

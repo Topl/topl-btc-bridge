@@ -24,7 +24,7 @@ case class MConfirmingBTCDeposit(
     redeemAddress: String,
     claimAddress: String,
     btcTxId: String,
-    btcVout: Long,
+    btcVout: Int,
     amount: CurrencyUnit
 ) extends PeginStateMachineState
 
@@ -35,7 +35,7 @@ case class MMintingTBTC(
     redeemAddress: String,
     claimAddress: String,
     btcTxId: String,
-    btcVout: Long,
+    btcVout: Int,
     amount: CurrencyUnit
 ) extends PeginStateMachineState
 
@@ -46,7 +46,7 @@ case class WaitingForRedemption(
     redeemAddress: String,
     claimAddress: String,
     btcTxId: String,
-    btcVout: Long,
+    btcVout: Int,
     utxoTxId: String,
     utxoIndex: Int,
     amount: BifrostCurrencyUnit
@@ -60,7 +60,7 @@ case class MintingTBTCConfirmation(
     redeemAddress: String,
     claimAddress: String,
     btcTxId: String,
-    btcVout: Long,
+    btcVout: Int,
     utxoTxId: String,
     utxoIndex: Int,
     amount: CurrencyUnit

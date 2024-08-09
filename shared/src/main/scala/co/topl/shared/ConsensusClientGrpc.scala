@@ -24,29 +24,103 @@ import java.security.KeyPair
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
 import cats.effect.std.Mutex
+import co.topl.bridge.consensus.service.PostDepositBTCOperation
+import co.topl.bridge.consensus.service.TimeoutDepositBTCOperation
+import co.topl.bridge.consensus.service.UndoDepositBTCOperation
+import co.topl.bridge.consensus.service.ConfirmDepositBTCOperation
+import co.topl.bridge.consensus.service.PostTBTCMintOperation
+import co.topl.bridge.consensus.service.TimeoutTBTCMintOperation
+import co.topl.bridge.consensus.service.UndoTBTCMintOperation
+import co.topl.bridge.consensus.service.ConfirmTBTCMintOperation
+import co.topl.bridge.consensus.service.PostRedemptionTxOperation
+import co.topl.bridge.consensus.service.PostClaimTxOperation
+import co.topl.bridge.consensus.service.ConfirmClaimTxOperation
+import co.topl.bridge.consensus.service.UndoClaimTxOperation
 
 trait ConsensusClientGrpc[F[_]] {
-
-  def prepareRequest(
-      operation: StateMachineRequest.Operation
-  )(implicit
-      clientNumber: ClientNumber
-  ): F[StateMachineRequest]
-
-  def executeRequest(
-      request: StateMachineRequest
-  ): F[Either[BridgeError, BridgeResponse]]
 
   def startPegin(
       startSessionOperation: StartSessionOperation
   )(implicit
-      clientNumber: ClientNumber
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def postDepositBTC(
+      postDepositBTCOperation: PostDepositBTCOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def timeoutDepositBTC(
+      timeoutDepositBTCOperation: TimeoutDepositBTCOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def undoDepositBTC(
+      undoDepositBTCOperation: UndoDepositBTCOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def confirmDepositBTC(
+      confirmDepositBTCOperation: ConfirmDepositBTCOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def postTBTCMint(
+      postTBTCMintOperation: PostTBTCMintOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def timeoutTBTCMint(
+      timeoutTBTCMintOperation: TimeoutTBTCMintOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def undoTBTCMint(
+      undoTBTCMintOperation: UndoTBTCMintOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def confirmTBTCMint(
+      confirmTBTCMintOperation: ConfirmTBTCMintOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def postRedemptionTx(
+      postRedemptionTxOperation: PostRedemptionTxOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def postClaimTx(
+      postClaimTxOperation: PostClaimTxOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def confirmClaimTx(
+      confirmClaimTxOperation: ConfirmClaimTxOperation
+  )(implicit
+      clientNumber: ClientId
+  ): F[Either[BridgeError, BridgeResponse]]
+
+  def undoClaimTx(
+      undoClaimTxOperation: UndoClaimTxOperation
+  )(implicit
+      clientNumber: ClientId
   ): F[Either[BridgeError, BridgeResponse]]
 
   def mintingStatus(
       mintingStatusOperation: MintingStatusOperation
   )(implicit
-      clientNumber: ClientNumber
+      clientNumber: ClientId
   ): F[Either[BridgeError, BridgeResponse]]
 }
 
@@ -95,10 +169,169 @@ object ConsensusClientGrpcImpl {
       clientMap = idClientList.toMap
     } yield new ConsensusClientGrpc[F] {
 
+      def undoClaimTx(
+          undoClaimTxOperation: UndoClaimTxOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] =
+        mutex.lock.surround(for {
+          request <- prepareRequest(
+            StateMachineRequest.Operation.UndoClaimTx(
+              undoClaimTxOperation
+            )
+          )
+          response <- executeRequest(request)
+        } yield response)
+
+      def confirmClaimTx(
+          confirmClaimTxOperation: ConfirmClaimTxOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] =
+        mutex.lock.surround(for {
+          request <- prepareRequest(
+            StateMachineRequest.Operation.ConfirmClaimTx(
+              confirmClaimTxOperation
+            )
+          )
+          response <- executeRequest(request)
+        } yield response)
+
+      def postClaimTx(
+          postClaimTxOperation: PostClaimTxOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] =
+        mutex.lock.surround(for {
+          request <- prepareRequest(
+            StateMachineRequest.Operation.PostClaimTx(
+              postClaimTxOperation
+            )
+          )
+          response <- executeRequest(request)
+        } yield response)
+
+      def postRedemptionTx(
+          postRedemptionTxOperation: PostRedemptionTxOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] =
+        mutex.lock.surround(for {
+          request <- prepareRequest(
+            StateMachineRequest.Operation.PostRedemptionTx(
+              postRedemptionTxOperation
+            )
+          )
+          response <- executeRequest(request)
+        } yield response)
+
+      def confirmTBTCMint(
+          confirmTBTCMintOperation: ConfirmTBTCMintOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.ConfirmTBTCMint(
+            confirmTBTCMintOperation
+          )
+        )
+        response <- executeRequest(request)
+      } yield response)
+
+      def undoTBTCMint(
+          undoTBTCMintOperation: UndoTBTCMintOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.UndoTBTCMint(
+            undoTBTCMintOperation
+          )
+        )
+        response <- executeRequest(request)
+      } yield response)
+
+      def timeoutTBTCMint(
+          timeoutTBTCMintOperation: TimeoutTBTCMintOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.TimeoutTBTCMint(
+            timeoutTBTCMintOperation
+          )
+        )
+        response <- executeRequest(request)
+      } yield response)
+
+      def postTBTCMint(
+          postTBTCMintOperation: PostTBTCMintOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.PostTBTCMint(
+            postTBTCMintOperation
+          )
+        )
+        response <- executeRequest(request)
+      } yield response)
+
+      def confirmDepositBTC(
+          confirmDepositBTCOperation: ConfirmDepositBTCOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.ConfirmDepositBTC(
+            confirmDepositBTCOperation
+          )
+        )
+        response <- executeRequest(request)
+      } yield response)
+
+      override def undoDepositBTC(
+          undoDepositBTCOperation: UndoDepositBTCOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.UndoDepositBTC(
+            undoDepositBTCOperation
+          )
+        )
+        response <- executeRequest(request)
+      } yield response)
+
+      override def timeoutDepositBTC(
+          timeoutDepositBTCOperation: TimeoutDepositBTCOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] =
+        mutex.lock.surround(for {
+          request <- prepareRequest(
+            StateMachineRequest.Operation.TimeoutDepositBTC(
+              timeoutDepositBTCOperation
+            )
+          )
+          response <- executeRequest(request)
+        } yield response)
+
+      override def postDepositBTC(
+          postDepositBTCOperation: PostDepositBTCOperation
+      )(implicit
+          clientNumber: ClientId
+      ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
+        request <- prepareRequest(
+          StateMachineRequest.Operation.PostDepositBTC(postDepositBTCOperation)
+        )
+        response <- executeRequest(request)
+      } yield response)
+
       def startPegin(
           startSessionOperation: StartSessionOperation
       )(implicit
-          clientNumber: ClientNumber
+          clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
@@ -110,7 +343,7 @@ object ConsensusClientGrpcImpl {
       def mintingStatus(
           mintingStatusOperation: MintingStatusOperation
       )(implicit
-          clientNumber: ClientNumber
+          clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
@@ -174,7 +407,7 @@ object ConsensusClientGrpcImpl {
         } yield winner
       }
 
-      override def executeRequest(
+      def executeRequest(
           request: StateMachineRequest
       ): F[Either[BridgeError, BridgeResponse]] =
         for {
@@ -216,14 +449,14 @@ object ConsensusClientGrpcImpl {
           )
         } yield someResponse.flatten
 
-      override def prepareRequest(
+      def prepareRequest(
           operation: StateMachineRequest.Operation
-      )(implicit clientNumber: ClientNumber): F[StateMachineRequest] =
+      )(implicit clientNumber: ClientId): F[StateMachineRequest] =
         for {
           timestamp <- Async[F].delay(System.currentTimeMillis())
           request = StateMachineRequest(
             timestamp = timestamp,
-            clientNumber = clientNumber.value,
+            clientNumber = clientNumber.id,
             operation = operation
           )
           signableBytes = request.signableBytes

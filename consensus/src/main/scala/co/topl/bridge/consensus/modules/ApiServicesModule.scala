@@ -55,14 +55,14 @@ import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostDeposi
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostRedemptionTx
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostTBTCMint
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.StartSession
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.TimeoutClaimTx
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.TimeoutDepositBTC
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.TimeoutRedemptionTx
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.TimeoutTBTCMint
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoClaimTx
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoDepositBTC
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoTBTCMint
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
+import co.topl.bridge.consensus.monitor.WaitingBTCOps
+import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
 import co.topl.shared.BridgeError
 import co.topl.shared.ReplicaCount
 import io.grpc.Metadata
@@ -74,6 +74,16 @@ import scodec.bits.ByteVector
 import java.security.PublicKey
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.consensus.Fellowship
+import co.topl.bridge.consensus.Template
+import cats.data.OptionT
+import co.topl.bridge.consensus.utils.MiscUtils
+import co.topl.brambl.dataApi.GenusQueryAlgebra
+import cats.effect.kernel.Resource
+import io.grpc.ManagedChannel
+import co.topl.bridge.consensus.Lvl
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
+import org.bitcoins.core.currency.CurrencyUnit
 
 trait ApiServicesModule {
 
@@ -85,15 +95,20 @@ trait ApiServicesModule {
         ClientId,
         (PublicApiClientGrpc[IO], PublicKey)
       ],
-      toplKeypair: KeyPair,
       sessionManager: SessionManagerAlgebra[IO],
-      pegInWalletManager: BTCWalletAlgebra[IO],
       bridgeWalletManager: BTCWalletAlgebra[IO],
       btcNetwork: BitcoinNetworkIdentifiers,
       currentBTCHeightRef: Ref[IO, Int],
       currentView: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long]
   )(implicit
+      toplKeypair: KeyPair,
+      bitcoindInstance: BitcoindRpcClient,
+      channelResource: Resource[IO, ManagedChannel],
+      pegInWalletManager: BTCWalletAlgebra[IO],
+      utxoAlgebra: GenusQueryAlgebra[IO],
+      defaultMintingFee: Lvl,
+      defaultFeePerByte: CurrencyUnit,
       replicaId: ReplicaId,
       replicaCount: ReplicaCount,
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[IO],
@@ -103,6 +118,8 @@ trait ApiServicesModule {
       wsa: WalletStateAlgebra[IO],
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
+      defaultFromFellowship: Fellowship,
+      defaultFromTemplate: Template,
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId,
       logger: Logger[IO]
@@ -110,6 +127,8 @@ trait ApiServicesModule {
     serviceImpl = new StateMachineServiceFs2Grpc[IO, Metadata] {
       // log4cats syntax
       import org.typelevel.log4cats.syntax._
+      import WaitingBTCOps._
+      import WaitingForRedemptionOps._
 
       private def mintingStatus(
           clientNumber: Int,
@@ -267,10 +286,6 @@ trait ApiServicesModule {
             )
           case TimeoutTBTCMint(_) =>
             throw new Exception("Invalid operation")
-          case TimeoutRedemptionTx(_) =>
-            throw new Exception("Invalid operation")
-          case TimeoutClaimTx(_) =>
-            throw new Exception("Invalid operation")
           case UndoTBTCMint(value) =>
             UndoTBTCMintEvt(
               sessionId = value.sessionId
@@ -325,7 +340,7 @@ trait ApiServicesModule {
               toEvt(value)
             )
           )
-          _ <- sessionManager.updateSession(
+          someSessionInfo <- sessionManager.updateSession(
             sessionId,
             _.copy(
               mintingBTCState = PeginSessionWaitingForEscrowBTCConfirmation
@@ -333,7 +348,7 @@ trait ApiServicesModule {
           )
           _ <- publicApiClientGrpcMap(ClientId(clientNumber))._1
             .replyStartPegin(timestamp, viewNumber, Result.Empty)
-        } yield Result.Empty
+        } yield someSessionInfo
       }
 
       def executeRequest(
@@ -404,13 +419,33 @@ trait ApiServicesModule {
                       ) >> IO.pure(Result.Empty)
                     case ConfirmDepositBTC(
                           value
-                        ) => // FIXME: this should start the minting
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
+                        ) =>
+                      import co.topl.brambl.syntax._
+                      for {
+                        someSessionInfo <- standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        )
+                        _ <- OptionT
+                          .fromOption[IO](
+                            someSessionInfo
+                              .flatMap(sessionInfo =>
+                                MiscUtils.sessionInfoPeginPrism
+                                  .getOption(sessionInfo)
+                                  .map(peginSessionInfo =>
+                                    startMintingProcess[IO](
+                                      defaultFromFellowship,
+                                      defaultFromTemplate,
+                                      peginSessionInfo.redeemAddress,
+                                      BigInt(value.amount.toByteArray())
+                                    )
+                                  )
+                              )
+                          )
+                          .value
+                      } yield Result.Empty
                     case PostTBTCMint(
                           value
                         ) => // FIXME: add checks before executing
@@ -453,22 +488,38 @@ trait ApiServicesModule {
                     case PostRedemptionTx(
                           value
                         ) => // FIXME: Add checks before executing
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case TimeoutRedemptionTx(value) =>
-                      IO(sessionState.remove(value.sessionId)) >>
-                        IO(
-                          sessionManager.removeSession(
-                            value.sessionId,
-                            PeginSessionStateTimeout
+                      for {
+                        someSessionInfo <- standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        )
+                        _ <- OptionT
+                          .fromOption[IO](
+                            someSessionInfo
+                              .flatMap(sessionInfo =>
+                                MiscUtils.sessionInfoPeginPrism
+                                  .getOption(sessionInfo)
+                                  .map(peginSessionInfo =>
+                                    startClaimingProcess[IO](
+                                      value.secret,
+                                      peginSessionInfo.claimAddress,
+                                      peginSessionInfo.btcBridgeCurrentWalletIdx,
+                                      value.txId,
+                                      value.vout,
+                                      peginSessionInfo.scriptAsm, // scriptAsm,
+                                      Satoshis
+                                        .fromBytes(
+                                          ByteVector(value.amount.toByteArray())
+                                        )
+                                    )
+                                  )
+                              )
                           )
-                        ) >> IO.pure(
-                          Result.Empty
-                        ) // FIXME: this is just a change of state at db level
+                          .value
+
+                      } yield Result.Empty
                     case PostClaimTx(value) =>
                       standardResponse(
                         request.clientNumber,
@@ -476,16 +527,6 @@ trait ApiServicesModule {
                         value.sessionId,
                         request.operation
                       ) >> IO.pure(Result.Empty)
-                    case TimeoutClaimTx(value) =>
-                      IO(sessionState.remove(value.sessionId)) >>
-                        IO(
-                          sessionManager.removeSession(
-                            value.sessionId,
-                            PeginSessionStateTimeout
-                          )
-                        ) >> IO.pure(
-                          Result.Empty
-                        ) // FIXME: this is just a change of state at db level
                     case UndoClaimTx(value) =>
                       standardResponse(
                         request.clientNumber,

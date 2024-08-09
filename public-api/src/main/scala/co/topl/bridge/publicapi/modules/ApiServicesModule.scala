@@ -3,7 +3,7 @@ package co.topl.bridge.publicapi.modules
 import cats.effect.IO
 import co.topl.bridge.consensus.service.MintingStatusOperation
 import co.topl.bridge.consensus.service.StartSessionOperation
-import co.topl.shared.ClientNumber
+import co.topl.shared.ClientId
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
@@ -27,7 +27,7 @@ trait ApiServicesModule {
       consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
-      clientNumber: ClientNumber
+      clientNumber: ClientId
   ) = {
     import org.http4s.dsl.io._
     implicit val bridgeErrorEntityEncoder: EntityEncoder[IO, BridgeError] =
