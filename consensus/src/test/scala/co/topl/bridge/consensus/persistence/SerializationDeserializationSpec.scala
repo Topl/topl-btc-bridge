@@ -6,6 +6,7 @@ import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.SeriesToken
 import munit.CatsEffectSuite
 import org.bitcoins.core.currency.Satoshis
+import co.topl.bridge.consensus.monitor._
 
 class SerializationDeserializationSpec
     extends CatsEffectSuite
@@ -64,15 +65,16 @@ class SerializationDeserializationSpec
 
   test("Serialization and Deserialization of BifrostFundsWithdrawn") {
     import co.topl.brambl.syntax._
-    val eventLvl = BifrostFundsWithdrawn("txId", 1, "secret", Lvl(1))
+    val eventLvl = BifrostFundsWithdrawn(1L, "txId", 1, "secret", Lvl(1))
     assertEquals(fromProtobuf(toProtobuf(eventLvl)), eventLvl)
     val eventSeriesToken =
-      BifrostFundsWithdrawn("txId", 1, "secret", SeriesToken("id", 1L))
+      BifrostFundsWithdrawn(1L, "txId", 1, "secret", SeriesToken("id", 1L))
     assertEquals(fromProtobuf(toProtobuf(eventSeriesToken)), eventSeriesToken)
     val eventGroupToken =
-      BifrostFundsWithdrawn("txId", 1, "secret", GroupToken("id", 1L))
+      BifrostFundsWithdrawn(1L, "txId", 1, "secret", GroupToken("id", 1L))
     assertEquals(fromProtobuf(toProtobuf(eventGroupToken)), eventGroupToken)
     val eventAssetToken = BifrostFundsWithdrawn(
+      1L,
       "txId",
       1,
       "secret",

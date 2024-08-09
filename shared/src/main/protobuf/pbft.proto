@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package co.topl.bridge.consensus.pbft;
+
+
+message PrePrepare {
+  uint64 viewNumber = 1;
+  uint64 sequenceNumber = 2;
+  bytes digest = 3;
+  bytes payload = 4;
+}

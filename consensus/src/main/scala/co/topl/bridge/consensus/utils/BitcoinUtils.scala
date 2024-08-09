@@ -150,11 +150,10 @@ object BitcoinUtils {
   def createRedeemingTx(
       inputTxId: String,
       inputTxVout: Long,
-      inputAmount: Long,
+      inputAmount: CurrencyUnit,
       feePerByte: CurrencyUnit,
       claimAddress: String
   ) = {
-    import org.bitcoins.core.currency.SatoshisLong
     val inputAmountSatoshis = inputAmount.satoshis
     val outpoint = TransactionOutPoint(
       DoubleSha256DigestBE.apply(inputTxId),
@@ -210,7 +209,7 @@ object BitcoinUtils {
       )
       .value
     val dummyUserPrivKey = ECPrivateKey.freshPrivateKey
-    val dummyUnprovenTx = createRedeemingTx(DoubleSha256DigestBE.empty.hex, 0L, inputAmount.satoshis.toLong, feePerByte.currencyUnit, dummyClaimAddr)
+    val dummyUnprovenTx = createRedeemingTx(DoubleSha256DigestBE.empty.hex, 0L, inputAmount.satoshis, feePerByte.currencyUnit, dummyClaimAddr)
     val dummyScript = RawScriptPubKey(
       buildScriptAsm(dummyUserPrivKey.publicKey, ECPublicKey.dummy, ByteVector(MessageDigest.getInstance("SHA-256").digest("dummy".getBytes)), btcWaitExpirationTime.underlying)
     )

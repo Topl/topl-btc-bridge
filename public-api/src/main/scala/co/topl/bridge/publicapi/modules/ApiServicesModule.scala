@@ -3,8 +3,8 @@ package co.topl.bridge.publicapi.modules
 import cats.effect.IO
 import co.topl.bridge.consensus.service.MintingStatusOperation
 import co.topl.bridge.consensus.service.StartSessionOperation
-import co.topl.bridge.publicapi.ClientNumber
-import co.topl.bridge.publicapi.ConsensusClientGrpc
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.BridgeContants
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
@@ -27,7 +27,7 @@ trait ApiServicesModule {
       consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
-      clientNumber: ClientNumber
+      clientNumber: ClientId
   ) = {
     import org.http4s.dsl.io._
     implicit val bridgeErrorEntityEncoder: EntityEncoder[IO, BridgeError] =
@@ -101,6 +101,7 @@ trait ApiServicesModule {
           x <- req.as[StartPeginSessionRequest]
           someResponse <- consensusGrpcClients.startPegin(
             StartSessionOperation(
+              None,
               x.pkey,
               x.sha256
             )

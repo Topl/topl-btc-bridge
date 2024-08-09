@@ -1,4 +1,4 @@
-package co.topl.bridge.publicapi.modules
+package co.topl.shared.modules
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
@@ -9,7 +9,7 @@ import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.service.StateMachineReply.Result.MintingStatus
 import co.topl.bridge.consensus.service.StateMachineReply.Result.SessionNotFound
 import co.topl.bridge.consensus.service.StateMachineReply.Result.StartSession
-import co.topl.bridge.publicapi.ConsensusClientMessageId
+import co.topl.shared.ConsensusClientMessageId
 import co.topl.shared
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
@@ -25,10 +25,12 @@ import org.typelevel.log4cats.syntax._
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
+import cats.effect.kernel.Ref
 
 trait ReplyServicesModule {
 
   def replyService[F[_]: Async: Logger](
+      currentViewRef: Ref[F, Long],
       replicaKeysMap: Map[Int, PublicKey],
       messageVotersMap: ConcurrentHashMap[
         ConsensusClientMessageId,
@@ -98,6 +100,9 @@ trait ReplyServicesModule {
                       )
                   }
                 for {
+                  _ <- currentViewRef.update(x =>
+                    if (x < request.viewNumber) request.viewNumber else x
+                  )
                   votersMap <- Sync[F].delay(
                     messageVotersMap
                       .get(

@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.statemachine.pegin
+package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
@@ -24,7 +24,7 @@ object WaitingForRedemptionOps {
       inputTxId: String,
       vout: Long,
       scriptAsm: String,
-      amountInSatoshis: Long,
+      amountInSatoshis: CurrencyUnit
       )(implicit
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],
