@@ -6,7 +6,6 @@ import co.topl.bridge.consensus.BTCConfirmationThreshold
 import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.monitor.MConfirmingBTCDeposit
 import co.topl.bridge.consensus.monitor.MMintingTBTC
 import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
@@ -14,33 +13,27 @@ import co.topl.bridge.consensus.monitor.MintingTBTCConfirmation
 import co.topl.bridge.consensus.monitor.PeginStateMachineState
 import co.topl.bridge.consensus.monitor.WaitingForClaim
 import co.topl.bridge.consensus.monitor.WaitingForRedemption
-import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
+import co.topl.bridge.consensus.service.ConfirmClaimTxOperation
 import co.topl.bridge.consensus.service.ConfirmDepositBTCOperation
 import co.topl.bridge.consensus.service.ConfirmTBTCMintOperation
+import co.topl.bridge.consensus.service.PostClaimTxOperation
 import co.topl.bridge.consensus.service.PostDepositBTCOperation
 import co.topl.bridge.consensus.service.PostRedemptionTxOperation
 import co.topl.bridge.consensus.service.PostTBTCMintOperation
 import co.topl.bridge.consensus.service.TimeoutDepositBTCOperation
 import co.topl.bridge.consensus.service.TimeoutTBTCMintOperation
+import co.topl.bridge.consensus.service.UndoClaimTxOperation
 import co.topl.bridge.consensus.service.UndoDepositBTCOperation
 import co.topl.bridge.consensus.service.UndoTBTCMintOperation
 import co.topl.shared.ClientId
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.SessionId
 import com.google.protobuf.ByteString
-import org.bitcoins.core.currency.Satoshis
-import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
-import scodec.bits.ByteVector
-import co.topl.bridge.consensus.service.PostClaimTxOperation
-import co.topl.bridge.consensus.service.ConfirmClaimTxOperation
-import co.topl.bridge.consensus.service.UndoClaimTxOperation
 
 trait TransitionToEffect {
 
-  import WaitingForRedemptionOps._
 
   def isAboveConfirmationThresholdBTC(
       currentHeight: Int,
@@ -61,11 +54,9 @@ trait TransitionToEffect {
       clientId: ClientId,
       session: SessionId,
       consensusClient: ConsensusClientGrpc[F],
-      bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F],
-      defaultFeePerByte: BitcoinCurrencyUnit,
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcRetryThreshold: BTCRetryThreshold,
+      toplConfirmationThreshold: ToplConfirmationThreshold,
       btcConfirmationThreshold: BTCConfirmationThreshold
   ) =
     (blockchainEvent match {
@@ -191,7 +182,23 @@ trait TransitionToEffect {
               cs: MintingTBTCConfirmation,
               be: NewToplBlock
             ) =>
-          if ( // FIXME: check that this is the right time to wait
+          if (
+            isAboveConfirmationThresholdTopl(
+              be.height,
+              cs.depositTBTCBlockHeight
+            )
+          ) {
+            Async[F]
+              .start(
+                consensusClient.confirmTBTCMint(
+                  ConfirmTBTCMintOperation(
+                    session.id,
+                    be.height
+                  )
+                )
+              )
+              .void
+          } else if ( // FIXME: check that this is the right time to wait
             toplWaitExpirationTime.underlying < (be.height - cs.depositTBTCBlockHeight)
           )
             Async[F]
@@ -203,17 +210,18 @@ trait TransitionToEffect {
                 )
               )
               .void
-          else
+          else if (be.height <= cs.depositTBTCBlockHeight)
             Async[F]
               .start(
-                consensusClient.confirmTBTCMint(
-                  ConfirmTBTCMintOperation(
-                    session.id,
-                    be.height
+                consensusClient.undoTBTCMint(
+                  UndoTBTCMintOperation(
+                    session.id
                   )
                 )
               )
               .void
+          else
+            Async[F].unit
         case (
               cs: WaitingForRedemption,
               ev: BifrostFundsWithdrawn
@@ -235,6 +243,25 @@ trait TransitionToEffect {
                       .copyFrom(int128AsBigInt(ev.amount.amount).toByteArray)
                   )
                 )
+            )
+            .void
+        case (
+              _: WaitingForRedemption,
+              ev: NewToplBlock
+            ) =>
+          Async[F]
+            .start(
+              Async[F]
+                .start(
+                  consensusClient.timeoutTBTCMint(
+                    TimeoutTBTCMintOperation(
+                      session.id,
+                      0,
+                      ev.height
+                    )
+                  )
+                )
+                .void
             )
             .void
         case (
@@ -296,16 +323,13 @@ trait TransitionToEffect {
               )
                 Async[F]
                   .start(
-                    startClaimingProcess(
-                      cs.secret,
-                      cs.claimAddress,
-                      cs.currentWalletIdx,
-                      cs.btcTxId,
-                      cs.btcVout,
-                      cs.scriptAsm, // scriptAsm,
-                      Satoshis
-                        .fromBytes(ByteVector(cs.amount.amount.toByteArray))
-                    )
+                    warn"Confirming claim tx" >>
+                      consensusClient.confirmClaimTx(
+                        ConfirmClaimTxOperation(
+                          session.id,
+                          ev.height
+                        )
+                      )
                   )
                   .void
               else

@@ -4,6 +4,7 @@ import cats.effect.IO
 import org.typelevel.log4cats.syntax._
 
 import scala.concurrent.duration._
+import co.topl.bridge.checkMintingStatus
 
 trait FailedPeginNoDepositModule {
 
@@ -16,13 +17,13 @@ trait FailedPeginNoDepositModule {
         newAddress <- getNewAddress
         startSessionResponse <- startSession(1)
         _ <- generateToAddress(1, 102, newAddress)
-        _ <- checkStatus(startSessionResponse.sessionID)
+        _ <- checkMintingStatus(startSessionResponse.sessionID)
           .flatMap(x =>
             generateToAddress(1, 1, newAddress) >> IO
               .sleep(5.second) >> IO.pure(x)
           )
           .iterateUntil(
-            _.code == 404
+            _.mintingStatus == "PeginSessionStateTimeout"
           )
         _ <-
           info"Session ${startSessionResponse.sessionID} was successfully removed"

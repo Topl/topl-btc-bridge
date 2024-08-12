@@ -2,8 +2,10 @@ package co.topl.bridge.consensus.modules
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
+import cats.effect.kernel.Resource
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.FellowshipStorageAlgebra
+import co.topl.brambl.dataApi.GenusQueryAlgebra
 import co.topl.brambl.dataApi.TemplateStorageAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.GroupId
@@ -13,23 +15,39 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.AssetToken
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.BitcoinNetworkIdentifiers
-import co.topl.shared.ClientId
+import co.topl.bridge.consensus.Fellowship
+import co.topl.bridge.consensus.Lvl
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateMintingTBTC
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateSuccessfulPegin
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateTimeout
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateWaitingForBTC
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaim
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.consensus.PublicApiClientGrpc
 import co.topl.bridge.consensus.ReplicaId
+import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.controllers.StartSessionController
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
+import co.topl.bridge.consensus.monitor.WaitingBTCOps
+import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
 import co.topl.bridge.consensus.pbft.ConfirmDepositBTCEvt
 import co.topl.bridge.consensus.pbft.ConfirmTBTCMintEvt
 import co.topl.bridge.consensus.pbft.PBFTEvent
 import co.topl.bridge.consensus.pbft.PBFTState
 import co.topl.bridge.consensus.pbft.PBFTTransitionRelation
+import co.topl.bridge.consensus.pbft.PSClaimingBTC
+import co.topl.bridge.consensus.pbft.PSConfirmingBTCClaim
+import co.topl.bridge.consensus.pbft.PSConfirmingBTCDeposit
+import co.topl.bridge.consensus.pbft.PSConfirmingTBTCMint
+import co.topl.bridge.consensus.pbft.PSMintingTBTC
 import co.topl.bridge.consensus.pbft.PSWaitingForBTCDeposit
+import co.topl.bridge.consensus.pbft.PSWaitingForRedemption
 import co.topl.bridge.consensus.pbft.PostClaimTxEvt
 import co.topl.bridge.consensus.pbft.PostDepositBTCEvt
 import co.topl.bridge.consensus.pbft.PostRedemptionTxEvt
@@ -61,12 +79,15 @@ import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoClaimT
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoDepositBTC
 import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoTBTCMint
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import co.topl.bridge.consensus.monitor.WaitingBTCOps
-import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
+import co.topl.bridge.consensus.utils.MiscUtils
 import co.topl.shared.BridgeError
+import co.topl.shared.ClientId
 import co.topl.shared.ReplicaCount
+import io.grpc.ManagedChannel
 import io.grpc.Metadata
+import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.Satoshis
+import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
 import scodec.bits.ByteVector
@@ -74,28 +95,6 @@ import scodec.bits.ByteVector
 import java.security.PublicKey
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.Fellowship
-import co.topl.bridge.consensus.Template
-import cats.data.OptionT
-import co.topl.bridge.consensus.utils.MiscUtils
-import co.topl.brambl.dataApi.GenusQueryAlgebra
-import cats.effect.kernel.Resource
-import io.grpc.ManagedChannel
-import co.topl.bridge.consensus.Lvl
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
-import org.bitcoins.core.currency.CurrencyUnit
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateWaitingForBTC
-import co.topl.bridge.consensus.pbft.PSConfirmingBTCDeposit
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateMintingTBTC
-import co.topl.bridge.consensus.pbft.PSMintingTBTC
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
-import co.topl.bridge.consensus.pbft.PSWaitingForRedemption
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaim
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
-import co.topl.bridge.consensus.pbft.PSConfirmingTBTCMint
-import co.topl.bridge.consensus.pbft.PSClaimingBTC
-import co.topl.bridge.consensus.pbft.PSConfirmingBTCClaim
-import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 
 trait ApiServicesModule {
 
@@ -149,7 +148,6 @@ trait ApiServicesModule {
       ) =
         for {
           session <- sessionManager.getSession(value.sessionId)
-          _ <- warn"Session in minting status: ${session}"
           viewNumber <- currentView.get
           somePegin <- session match {
             case Some(p: PeginSessionInfo) => IO.pure(Option(p))
@@ -446,11 +444,9 @@ trait ApiServicesModule {
                           value
                         ) => // FIXME: add checks before executing
                       IO(sessionState.remove(value.sessionId)) >>
-                        IO(
-                          sessionManager.removeSession(
-                            value.sessionId,
-                            PeginSessionStateTimeout
-                          )
+                        sessionManager.removeSession(
+                          value.sessionId,
+                          PeginSessionStateTimeout
                         ) >> IO.pure(
                           Result.Empty
                         ) // FIXME: this is just a change of state at db level
@@ -504,18 +500,16 @@ trait ApiServicesModule {
                           value
                         ) => // FIXME: Add checks before executing
                       IO(sessionState.remove(value.sessionId)) >>
-                        IO(
-                          sessionManager.removeSession(
-                            value.sessionId,
-                            PeginSessionStateTimeout
-                          )
+                        sessionManager.removeSession(
+                          value.sessionId,
+                          PeginSessionStateTimeout
                         ) >> IO.pure(
                           Result.Empty
                         ) // FIXME: this is just a change of state at db level
                     case UndoTBTCMint(
                           value
                         ) => // FIXME: Add checks before executing
-                      standardResponse(
+                      warn"Received undo mint" >> standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
@@ -565,7 +559,7 @@ trait ApiServicesModule {
                         request.operation
                       ) >> IO.pure(Result.Empty)
                     case UndoClaimTx(value) =>
-                      standardResponse(
+                      warn"Undo claim received" >> standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,

@@ -2,6 +2,7 @@ package co.topl.bridge
 import cats.effect.IO
 
 import scala.concurrent.duration._
+import co.topl.bridge.checkMintingStatus
 
 trait SuccessfulPeginWithClaimReorgRetryModule {
 
@@ -66,7 +67,10 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- IO.sleep(1.second)
         _ <- mintToplBlock(1, 1)
         _ <- IO.sleep(1.second)
-        utxo <- (mintToplBlock(1, 1) >> getCurrentUtxosFromAddress(2, mintingStatusResponse.address))
+        utxo <- (mintToplBlock(1, 1) >> getCurrentUtxosFromAddress(
+          2,
+          mintingStatusResponse.address
+        ))
           .iterateUntil(_.contains("LVL"))
         groupId = extractGroupId(utxo)
         seriesId = extractSeriesId(utxo)
@@ -113,13 +117,13 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
           .iterateUntil(
             _.mintingStatus == "PeginSessionWaitingForClaim"
           )
-          _ <- (for {
-            x <- checkStatus(startSessionResponse.sessionID)
-            _ <- generateToAddress(1, 2, newAddress)
+        _ <- (for {
+          x <- checkMintingStatus(startSessionResponse.sessionID)
+          _ <- generateToAddress(1, 2, newAddress)
           _ <- IO.sleep(5.second)
         } yield x)
           .iterateUntil(
-            _.code == 404
+            _.mintingStatus == "PeginSessionStateSuccessfulPegin"
           )
         _ <-
           info"Session ${startSessionResponse.sessionID} went back to PeginSessionWaitingForClaim again"

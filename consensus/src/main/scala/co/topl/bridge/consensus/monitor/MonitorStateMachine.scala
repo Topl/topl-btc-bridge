@@ -19,7 +19,6 @@ import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBT
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.PegoutSessionInfo
 import co.topl.bridge.consensus.managers.SessionCreated
@@ -39,8 +38,6 @@ import co.topl.bridge.consensus.monitor.WaitingForRedemption
 import co.topl.shared.ClientId
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.SessionId
-import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 
 import java.util.Map.Entry
@@ -67,9 +64,6 @@ object MonitorStateMachine {
   )(implicit
       clientId: ClientId,
       consensusClient: ConsensusClientGrpc[F],
-      bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F],
-      defaultFeePerByte: BitcoinCurrencyUnit,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcRetryThreshold: BTCRetryThreshold,

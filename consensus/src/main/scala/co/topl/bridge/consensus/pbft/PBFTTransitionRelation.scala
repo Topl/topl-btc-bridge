@@ -1,6 +1,6 @@
 package co.topl.bridge.consensus.pbft
 
-
+import org.bitcoins.core.currency.Satoshis
 
 object PBFTTransitionRelation {
   import cats.implicits._
@@ -86,21 +86,33 @@ object PBFTTransitionRelation {
           amount = cs.amount
         ).some
       case (
+            cs: PSConfirmingBTCClaim,
+            _: UndoClaimTxEvt
+          ) =>
+        PSClaimingBTC(
+          someStartBtcBlockHeight = None,
+          secret = cs.secret,
+          currentWalletIdx = cs.currentWalletIdx,
+          btcTxId = cs.btcTxId,
+          btcVout = cs.btcVout,
+          scriptAsm = cs.scriptAsm,
+          amount = cs.amount,
+          claimAddress = cs.claimAddress
+        ).some
+      case (
             cs: PSConfirmingTBTCMint,
             _: UndoTBTCMintEvt
           ) =>
-        PSConfirmingTBTCMint(
+        import co.topl.brambl.syntax._
+        PSMintingTBTC(
           startWaitingBTCBlockHeight = cs.startWaitingBTCBlockHeight,
-          depositTBTCBlockHeight = cs.depositTBTCBlockHeight,
           currentWalletIdx = cs.currentWalletIdx,
           scriptAsm = cs.scriptAsm,
           redeemAddress = cs.redeemAddress,
           claimAddress = cs.claimAddress,
           btcTxId = cs.btcTxId,
           btcVout = cs.btcVout,
-          utxoTxId = cs.utxoTxId,
-          utxoIndex = cs.utxoIndex,
-          amount = cs.amount
+          amount = Satoshis.fromLong(int128AsBigInt(cs.amount.amount).toLong)
         ).some
       case (
             cs: PSConfirmingTBTCMint,
