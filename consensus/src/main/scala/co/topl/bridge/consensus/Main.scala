@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.LongAdder
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.ClientId
 import co.topl.shared.modules.ReplyServicesModule
+import co.topl.shared.ClientCount
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -168,10 +169,10 @@ object Main
       conf: Config
   )(implicit
       replicaId: ReplicaId,
-      replicaCount: ReplicaCount
+      clientCount: ClientCount
   ): Resource[F, Map[ClientId, (PublicApiClientGrpc[F], PublicKey)]] = {
     import cats.implicits._
-    (for (i <- 0 until replicaCount.value) yield {
+    (for (i <- 0 until clientCount.value) yield {
       val publicKeyFile = conf.getString(
         s"bridge.replica.clients.clients.$i.publicKeyFile"
       )
@@ -342,6 +343,7 @@ object Main
       logger: Logger[IO],
       clientId: ClientId,
       replicaId: ReplicaId,
+      clientCount: ClientCount,
       replicaCount: ReplicaCount
   ) = {
     import fs2.grpc.syntax.all._
@@ -361,7 +363,7 @@ object Main
       publicApiClientGrpcMap <- createClientMap(
         replicaKeyPair,
         conf
-      )(IO.asyncForIO, logger, replicaId, replicaCount)
+      )(IO.asyncForIO, logger, replicaId, clientCount)
       replicaNodes <- loadReplicaNodeFromConfig[IO](conf).toResource
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
@@ -563,6 +565,8 @@ object Main
     )
     implicit val replicaCount =
       new ReplicaCount(conf.getInt("bridge.replica.consensus.replicaCount"))
+    implicit val clientCount =
+      new ClientCount(conf.getInt("bridge.replica.clients.clientCount"))
     implicit val logger =
       org.typelevel.log4cats.slf4j.Slf4jLogger
         .getLoggerFromName[IO]("consensus-" + f"${replicaId.id}%02d")

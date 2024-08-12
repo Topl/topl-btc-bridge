@@ -383,7 +383,7 @@ object MonitorTransitionRelation extends TransitionToEffect{
                 be.utxoIndex,
                 cs.amount
               ),
-              Sync[F].unit
+              t2E(currentState, blockchainEvent)
             )
           )
         } else None

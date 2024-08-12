@@ -148,15 +148,16 @@ trait TransitionToEffect {
             ) =>
           Async[F]
             .start(
-              consensusClient.postTBTCMint(
-                PostTBTCMintOperation(
-                  session.id,
-                  be.currentToplBlockHeight,
-                  be.utxoTxId,
-                  be.utxoIndex,
-                  ByteString.copyFrom(be.amount.amount.toByteArray)
+              warn"We are posting that TBTC was minted" >> consensusClient
+                .postTBTCMint(
+                  PostTBTCMintOperation(
+                    session.id,
+                    be.currentToplBlockHeight,
+                    be.utxoTxId,
+                    be.utxoIndex,
+                    ByteString.copyFrom(be.amount.amount.value.toByteArray)
+                  )
                 )
-              )
             )
             .void
         case (
@@ -217,20 +218,23 @@ trait TransitionToEffect {
               cs: WaitingForRedemption,
               ev: BifrostFundsWithdrawn
             ) =>
+          import co.topl.brambl.syntax._
           Async[F]
             .start(
-              consensusClient.postRedemptionTx(
-                PostRedemptionTxOperation(
-                  session.id,
-                  ev.secret,
-                  ev.fundsWithdrawnHeight,
-                  cs.utxoTxId,
-                  cs.utxoIndex,
-                  cs.btcTxId,
-                  cs.btcVout,
-                  ByteString.copyFrom(ev.amount.amount.toByteArray)
+              warn"Posting redemption" >>
+                consensusClient.postRedemptionTx(
+                  PostRedemptionTxOperation(
+                    session.id,
+                    ev.secret,
+                    ev.fundsWithdrawnHeight,
+                    cs.utxoTxId,
+                    cs.utxoIndex,
+                    cs.btcTxId,
+                    cs.btcVout,
+                    ByteString
+                      .copyFrom(int128AsBigInt(ev.amount.amount).toByteArray)
+                  )
                 )
-              )
             )
             .void
         case (
@@ -258,12 +262,13 @@ trait TransitionToEffect {
           )
             Async[F]
               .start(
-                consensusClient.confirmClaimTx(
-                  ConfirmClaimTxOperation(
-                    session.id,
-                    ev.height
+                warn"Confirming claim tx" >>
+                  consensusClient.confirmClaimTx(
+                    ConfirmClaimTxOperation(
+                      session.id,
+                      ev.height
+                    )
                   )
-                )
               )
               .void
           else

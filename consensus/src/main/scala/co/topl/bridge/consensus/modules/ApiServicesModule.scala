@@ -84,6 +84,18 @@ import io.grpc.ManagedChannel
 import co.topl.bridge.consensus.Lvl
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.bitcoins.core.currency.CurrencyUnit
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateWaitingForBTC
+import co.topl.bridge.consensus.pbft.PSConfirmingBTCDeposit
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateMintingTBTC
+import co.topl.bridge.consensus.pbft.PSMintingTBTC
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
+import co.topl.bridge.consensus.pbft.PSWaitingForRedemption
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaim
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
+import co.topl.bridge.consensus.pbft.PSConfirmingTBTCMint
+import co.topl.bridge.consensus.pbft.PSClaimingBTC
+import co.topl.bridge.consensus.pbft.PSConfirmingBTCClaim
+import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 
 trait ApiServicesModule {
 
@@ -137,6 +149,7 @@ trait ApiServicesModule {
       ) =
         for {
           session <- sessionManager.getSession(value.sessionId)
+          _ <- warn"Session in minting status: ${session}"
           viewNumber <- currentView.get
           somePegin <- session match {
             case Some(p: PeginSessionInfo) => IO.pure(Option(p))
@@ -176,7 +189,10 @@ trait ApiServicesModule {
             currentState,
             pbftEvent
           )
-        } yield sessionState.put(sessionId, newState) // update the state
+          _ <- Option(
+            sessionState.put(sessionId, newState)
+          )
+        } yield newState // update the state
       }
 
       private def startSession(
@@ -187,7 +203,7 @@ trait ApiServicesModule {
         import StartSessionController._
         for {
           _ <-
-            warn"Received start session request from client ${clientNumber}"
+            info"Received start session request from client ${clientNumber}"
           sessionId <- IO(
             sc.sessionId.getOrElse(UUID.randomUUID().toString)
           )
@@ -326,6 +342,19 @@ trait ApiServicesModule {
 
       }
 
+      private def pbftStateToPeginSessionState(pbftState: PBFTState) =
+        pbftState match {
+          case _: PSWaitingForBTCDeposit => PeginSessionStateWaitingForBTC
+          case _: PSConfirmingBTCDeposit =>
+            PeginSessionWaitingForEscrowBTCConfirmation
+          case _: PSMintingTBTC          => PeginSessionStateMintingTBTC
+          case _: PSWaitingForRedemption => PeginSessionWaitingForRedemption
+          case _: PSConfirmingTBTCMint   => PeginSessionMintingTBTCConfirmation
+          case _: PSClaimingBTC          => PeginSessionWaitingForClaim
+          case _: PSConfirmingBTCClaim =>
+            PeginSessionWaitingForClaimBTCConfirmation
+        }
+
       private def standardResponse(
           clientNumber: Int,
           timestamp: Long,
@@ -334,7 +363,7 @@ trait ApiServicesModule {
       ) = {
         for {
           viewNumber <- currentView.get
-          _ <- IO(
+          newState <- IO(
             executeStateMachine(
               sessionId,
               toEvt(value)
@@ -342,13 +371,29 @@ trait ApiServicesModule {
           )
           someSessionInfo <- sessionManager.updateSession(
             sessionId,
-            _.copy(
-              mintingBTCState = PeginSessionWaitingForEscrowBTCConfirmation
-            )
+            x =>
+              newState
+                .map(y =>
+                  x.copy(
+                    mintingBTCState = pbftStateToPeginSessionState(y)
+                  )
+                )
+                .getOrElse(x)
           )
           _ <- publicApiClientGrpcMap(ClientId(clientNumber))._1
             .replyStartPegin(timestamp, viewNumber, Result.Empty)
         } yield someSessionInfo
+      }
+
+      private def sendResponse(
+          clientNumber: Int,
+          timestamp: Long
+      ) = {
+        for {
+          viewNumber <- currentView.get
+          _ <- publicApiClientGrpcMap(ClientId(clientNumber))._1
+            .replyStartPegin(timestamp, viewNumber, Result.Empty)
+        } yield Result.Empty
       }
 
       def executeRequest(
@@ -361,6 +406,7 @@ trait ApiServicesModule {
           case Some(result) => // we had a cached response
             for {
               viewNumber <- currentView.get
+              _ <- debug"Request.clientNumber: ${request.clientNumber}"
               _ <- publicApiClientGrpcMap(ClientId(request.clientNumber))._1
                 .replyStartPegin(request.timestamp, viewNumber, result)
             } yield Empty()
@@ -422,34 +468,33 @@ trait ApiServicesModule {
                         ) =>
                       import co.topl.brambl.syntax._
                       for {
+                        _ <- trace"Deposit has been confirmed"
                         someSessionInfo <- standardResponse(
                           request.clientNumber,
                           request.timestamp,
                           value.sessionId,
                           request.operation
                         )
-                        _ <- OptionT
-                          .fromOption[IO](
-                            someSessionInfo
-                              .flatMap(sessionInfo =>
-                                MiscUtils.sessionInfoPeginPrism
-                                  .getOption(sessionInfo)
-                                  .map(peginSessionInfo =>
-                                    startMintingProcess[IO](
-                                      defaultFromFellowship,
-                                      defaultFromTemplate,
-                                      peginSessionInfo.redeemAddress,
-                                      BigInt(value.amount.toByteArray())
-                                    )
-                                  )
+                        _ <- trace"Minting: ${BigInt(value.amount.toByteArray())}"
+                        _ <- someSessionInfo
+                          .flatMap(sessionInfo =>
+                            MiscUtils.sessionInfoPeginPrism
+                              .getOption(sessionInfo)
+                              .map(peginSessionInfo =>
+                                startMintingProcess[IO](
+                                  defaultFromFellowship,
+                                  defaultFromTemplate,
+                                  peginSessionInfo.redeemAddress,
+                                  BigInt(value.amount.toByteArray())
+                                )
                               )
                           )
-                          .value
+                          .getOrElse(IO.unit)
                       } yield Result.Empty
                     case PostTBTCMint(
                           value
                         ) => // FIXME: add checks before executing
-                      standardResponse(
+                      warn"Minting has succeeded" >> standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
@@ -495,33 +540,25 @@ trait ApiServicesModule {
                           value.sessionId,
                           request.operation
                         )
-                        _ <- OptionT
-                          .fromOption[IO](
-                            someSessionInfo
-                              .flatMap(sessionInfo =>
-                                MiscUtils.sessionInfoPeginPrism
-                                  .getOption(sessionInfo)
-                                  .map(peginSessionInfo =>
-                                    startClaimingProcess[IO](
-                                      value.secret,
-                                      peginSessionInfo.claimAddress,
-                                      peginSessionInfo.btcBridgeCurrentWalletIdx,
-                                      value.txId,
-                                      value.vout,
-                                      peginSessionInfo.scriptAsm, // scriptAsm,
-                                      Satoshis
-                                        .fromBytes(
-                                          ByteVector(value.amount.toByteArray())
-                                        )
-                                    )
-                                  )
-                              )
-                          )
-                          .value
-
+                        _ <- (for {
+                          sessionInfo <- someSessionInfo
+                          peginSessionInfo <- MiscUtils.sessionInfoPeginPrism
+                            .getOption(sessionInfo)
+                        } yield startClaimingProcess[IO](
+                          value.secret,
+                          peginSessionInfo.claimAddress,
+                          peginSessionInfo.btcBridgeCurrentWalletIdx,
+                          value.txId,
+                          value.vout,
+                          peginSessionInfo.scriptAsm, // scriptAsm,
+                          Satoshis
+                            .fromLong(
+                              BigInt(value.amount.toByteArray()).toLong
+                            )
+                        )).getOrElse(IO.unit)
                       } yield Result.Empty
                     case PostClaimTx(value) =>
-                      standardResponse(
+                      warn"Claimed TX" >> standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
@@ -535,14 +572,15 @@ trait ApiServicesModule {
                         request.operation
                       ) >> IO.pure(Result.Empty)
                     case ConfirmClaimTx(value) =>
-                      IO(sessionState.remove(value.sessionId)) >>
-                        IO(
-                          sessionManager.removeSession(
-                            value.sessionId,
-                            PeginSessionStateSuccessfulPegin
-                          )
-                        ) >> IO.pure(
-                          Result.Empty
+                      warn"Confirmation received" >> IO(
+                        sessionState.remove(value.sessionId)
+                      ) >> warn"Removed session from map" >>
+                        sessionManager.removeSession(
+                          value.sessionId,
+                          PeginSessionStateSuccessfulPegin
+                        ) >> warn"Updated session ${value.sessionId} on DB" >> sendResponse(
+                          request.clientNumber,
+                          request.timestamp
                         ) // FIXME: this is just a change of state at db level
                   }).flatMap(x =>
                     IO(

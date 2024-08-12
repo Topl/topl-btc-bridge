@@ -22,6 +22,8 @@ package object shared {
     def maxFailures = (value - 1) / 3
   }
 
+  class ClientCount(val value: Int) extends AnyVal
+  
   case class ReplicaNode[F[_]](
       id: Int,
       backendHost: String,

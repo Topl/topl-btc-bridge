@@ -110,18 +110,20 @@ object SessionManagerImpl {
     ): F[Option[SessionInfo]] = {
       for {
         someSessionInfo <- storageApi.getSession(sessionId)
+        _ <- Sync[F].delay(println("session to update: " + someSessionInfo))
         someNewSessionInfo = someSessionInfo.flatMap(sessionInfo =>
           MiscUtils.sessionInfoPeginPrism
             .getOption(sessionInfo)
             .map(sessionInfoTransformer)
         )
         _ <- someNewSessionInfo
-          .map(x =>
+          .map { x =>
+            println("updateSession: " + x)
             storageApi.updateSession(sessionId, x) >> queue
               .offer(
                 SessionUpdated(sessionId, x)
               )
-          )
+          }
           .getOrElse(Sync[F].unit)
       } yield someSessionInfo
     }

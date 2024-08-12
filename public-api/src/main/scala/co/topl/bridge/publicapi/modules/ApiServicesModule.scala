@@ -120,18 +120,19 @@ trait ApiServicesModule {
             case Right(response) =>
               Ok(response)
           }
-        } yield res).handleErrorWith(e =>
-          error"Error in start pegin session request: ${e.getMessage}" >> BadRequest(
-            "Error starting pegin session"
-          )
-        )
+        } yield res).handleErrorWith { e =>
+          IO(e.printStackTrace()) >>
+            error"Error in start pegin session request: ${e.getMessage}" >> BadRequest(
+              "Error starting pegin session"
+            )
+        }
       case req @ POST -> Root / BridgeContants.TOPL_MINTING_STATUS =>
         implicit val mintingStatusRequestDecoder
             : EntityDecoder[IO, MintingStatusRequest] =
           jsonOf[IO, MintingStatusRequest]
 
         for {
-          _ <-  trace"Received request for minting status"
+          _ <- trace"Received request for minting status"
           x <- req.as[MintingStatusRequest]
           someResponse <- consensusGrpcClients.mintingStatus(
             MintingStatusOperation(

@@ -150,8 +150,14 @@ object MonitorStateMachine {
           .map(x =>
             x match {
               case EndTransition(effect) =>
-                info"Session $sessionId ended successfully" >> effect
-                  .asInstanceOf[F[Unit]] // FIXME: only update the session
+                info"Session $sessionId ended successfully" >>
+                  Sync[F].delay(map.remove(sessionId)) >>
+                  Sync[F]
+                    .delay(
+                      map
+                        .remove(sessionId)
+                    )
+                    .flatMap(_ => effect.asInstanceOf[F[Unit]])
               case FSMTransitionTo(prevState, nextState, effect)
                   if (prevState != nextState) =>
                 info"Transitioning session $sessionId from ${currentState

@@ -430,7 +430,10 @@ object ConsensusClientGrpcImpl {
             )
           )
           currentView <- currentViewRef.get
+          _ <- info"Current view is $currentView"
+          _ <- info"Replica count is ${replicaCount.value}"
           currentPrimary = (currentView % replicaCount.value).toInt
+          _ <- info"Current primary is $currentPrimary"
           _ <- clientMap(currentPrimary).executeRequest(request, new Metadata())
           _ <- trace"Waiting for response from backend"
           someResponse <- Async[F].race(
