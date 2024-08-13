@@ -139,7 +139,7 @@ trait TransitionToEffect {
             ) =>
           Async[F]
             .start(
-              warn"We are posting that TBTC was minted" >> consensusClient
+              consensusClient
                 .postTBTCMint(
                   PostTBTCMintOperation(
                     session.id,
@@ -229,8 +229,7 @@ trait TransitionToEffect {
           import co.topl.brambl.syntax._
           Async[F]
             .start(
-              warn"Posting redemption" >>
-                consensusClient.postRedemptionTx(
+              consensusClient.postRedemptionTx(
                   PostRedemptionTxOperation(
                     session.id,
                     ev.secret,
@@ -289,7 +288,6 @@ trait TransitionToEffect {
           )
             Async[F]
               .start(
-                warn"Confirming claim tx" >>
                   consensusClient.confirmClaimTx(
                     ConfirmClaimTxOperation(
                       session.id,

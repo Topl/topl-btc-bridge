@@ -491,7 +491,7 @@ trait ApiServicesModule {
                     case PostTBTCMint(
                           value
                         ) => // FIXME: add checks before executing
-                      warn"Minting has succeeded" >> standardResponse(
+                      standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
@@ -511,7 +511,7 @@ trait ApiServicesModule {
                     case UndoTBTCMint(
                           value
                         ) => // FIXME: Add checks before executing
-                      warn"Received undo mint" >> standardResponse(
+                      standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
@@ -554,27 +554,26 @@ trait ApiServicesModule {
                         )).getOrElse(IO.unit)
                       } yield Result.Empty
                     case PostClaimTx(value) =>
-                      warn"Claimed TX" >> standardResponse(
+                      standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
                         request.operation
                       ) >> IO.pure(Result.Empty)
                     case UndoClaimTx(value) =>
-                      warn"Undo claim received" >> standardResponse(
+                      standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
                         request.operation
                       ) >> IO.pure(Result.Empty)
                     case ConfirmClaimTx(value) =>
-                      warn"Confirmation received" >> IO(
+                      IO(
                         sessionState.remove(value.sessionId)
-                      ) >> warn"Removed session from map" >>
-                        sessionManager.removeSession(
+                      ) >> sessionManager.removeSession(
                           value.sessionId,
                           PeginSessionStateSuccessfulPegin
-                        ) >> warn"Updated session ${value.sessionId} on DB" >> sendResponse(
+                        ) >> sendResponse(
                           request.clientNumber,
                           request.timestamp
                         ) // FIXME: this is just a change of state at db level
