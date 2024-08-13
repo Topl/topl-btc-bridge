@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add two new fields to the `StartPeginSessionResponse` message: `minHeight` and `maxHeight`.
 This is needed to know the range of blocks to wait for the redemption.
 - Added parameters `--abtc-group-id` and `--abtc-series-id` to specify the group and series of the asset to mint.
+- Added `replica.clientId` key in `consensus` module configuration.
+- Added `responses` configurat ion key in `consensus` module configuration.
 
 
 ### Changed
@@ -40,6 +42,7 @@ This is needed to know the range of blocks to wait for the redemption.
 - Update the contract for the redemption to include the height. The new contract
 `threshold(1, sha256($sha256) and height($min, $max))`.
 - We now require the group and series tokens to be present at start time.
+- Final state is not 404, added new states for successful finish and failure.
 
 
 ### Removed
