@@ -447,8 +447,9 @@ trait ApiServicesModule {
                         sessionManager.removeSession(
                           value.sessionId,
                           PeginSessionStateTimeout
-                        ) >> IO.pure(
-                          Result.Empty
+                        ) >> sendResponse(
+                          request.clientNumber,
+                          request.timestamp
                         ) // FIXME: this is just a change of state at db level
                     case UndoDepositBTC(
                           value
@@ -503,8 +504,9 @@ trait ApiServicesModule {
                         sessionManager.removeSession(
                           value.sessionId,
                           PeginSessionStateTimeout
-                        ) >> IO.pure(
-                          Result.Empty
+                        ) >> sendResponse(
+                          request.clientNumber,
+                          request.timestamp
                         ) // FIXME: this is just a change of state at db level
                     case UndoTBTCMint(
                           value
