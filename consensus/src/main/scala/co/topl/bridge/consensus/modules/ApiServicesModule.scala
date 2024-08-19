@@ -55,7 +55,7 @@ import co.topl.bridge.consensus.pbft.PostTBTCMintEvt
 import co.topl.bridge.consensus.pbft.UndoClaimTxEvt
 import co.topl.bridge.consensus.pbft.UndoDepositBTCEvt
 import co.topl.bridge.consensus.pbft.UndoTBTCMintEvt
-import co.topl.bridge.consensus.service.Empty
+import co.topl.bridge.shared.Empty
 import co.topl.bridge.consensus.service.InvalidInputRes
 import co.topl.bridge.consensus.service.MintingStatusOperation
 import co.topl.bridge.consensus.service.MintingStatusRes

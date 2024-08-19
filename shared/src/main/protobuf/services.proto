@@ -1,18 +1,17 @@
 syntax = "proto3";
 
+
+import "shared.proto";
+
 package co.topl.bridge.consensus.service;
 
-message Empty {
-
-}
-
 service StateMachineService {
-  rpc ExecuteRequest(StateMachineRequest) returns (Empty);
+  rpc ExecuteRequest(StateMachineRequest) returns (co.topl.bridge.shared.Empty);
 }
 
 
 service ResponseService {
-  rpc DeliverResponse(StateMachineReply) returns (Empty);
+  rpc DeliverResponse(StateMachineReply) returns (co.topl.bridge.shared.Empty);
 }
 
 message StateMachineRequest {

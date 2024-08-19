@@ -1,11 +1,33 @@
 syntax = "proto3";
 
+import "shared.proto";
+
 package co.topl.bridge.consensus.pbft;
 
 
-message PrePrepare {
-  uint64 viewNumber = 1;
+message PrePrepareRequest {
+  uint64 viewNumber     = 1;
   uint64 sequenceNumber = 2;
-  bytes digest = 3;
-  bytes payload = 4;
+  bytes digest          = 3;
+  bytes payload         = 4;
+}
+
+message PrepareRequest {
+  uint64 viewNumber     = 1;
+  uint64 sequenceNumber = 2;
+  bytes  digest         = 3;
+  int32  replicaId      = 4;
+}
+
+message CommitRequest {
+  uint64 viewNumber     = 1;
+  uint64 sequenceNumber = 2;
+  bytes  digest         = 3;
+  int32  replicaId      = 4;
+}
+
+service PBFTInternalService {
+  rpc PrePrepare(PrePrepareRequest) returns (co.topl.bridge.shared.Empty);
+  rpc Prepare(PrepareRequest) returns (co.topl.bridge.shared.Empty);
+  rpc Commit(CommitRequest) returns (co.topl.bridge.shared.Empty);
 }

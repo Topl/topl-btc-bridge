@@ -3,7 +3,7 @@ package co.topl.shared.modules
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.bridge.consensus.service.Empty
+import co.topl.bridge.shared.Empty
 import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
 import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.service.StateMachineReply.Result.MintingStatus

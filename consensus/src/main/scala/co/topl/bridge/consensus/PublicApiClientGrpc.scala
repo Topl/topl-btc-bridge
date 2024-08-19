@@ -1,7 +1,7 @@
 package co.topl.bridge.consensus
 
 import cats.effect.kernel.Async
-import co.topl.bridge.consensus.service.Empty
+import co.topl.bridge.shared.Empty
 import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
 import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.shared.BridgeCryptoUtils
