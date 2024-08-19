@@ -42,7 +42,7 @@ import org.typelevel.log4cats.Logger
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
 
-trait AppModule extends WalletStateResource with ApiServicesModule {
+trait AppModule extends WalletStateResource with StateMachineServiceModule {
 
   def webUI() = HttpRoutes.of[IO] { case request @ GET -> Root =>
     StaticFile
@@ -141,7 +141,7 @@ trait AppModule extends WalletStateResource with ApiServicesModule {
           new ConcurrentHashMap()
         )
       (
-        grpcServices(
+        stateMachineService(
           idReplicaClientMap,
           lastReplyMap,
           new ConcurrentHashMap(),

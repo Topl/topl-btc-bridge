@@ -96,9 +96,9 @@ import java.security.PublicKey
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-trait ApiServicesModule {
+trait StateMachineServiceModule {
 
-  def grpcServices(
+  def stateMachineService(
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       lastReplyMap: ConcurrentHashMap[(ClientId, Long), Result],
       sessionState: ConcurrentHashMap[String, PBFTState],
