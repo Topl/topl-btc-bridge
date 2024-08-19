@@ -5,7 +5,6 @@ import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor.BitcoinBlockSync
 import co.topl.brambl.utils.Encoding
-import co.topl.bridge.consensus.persistence._
 
 import scala.util.Try
 
@@ -51,7 +50,7 @@ object BlockProcessor {
                 b.height,
                 output.scriptPubKey.asmHex,
                 transaction.txIdBE.hex,
-                vout.toLong,
+                vout,
                 output.value
               )
             }
@@ -97,6 +96,7 @@ object BlockProcessor {
               .filter(x => isLvlSeriesGroupOrAsset(x.value.value))
               .map { input =>
                 BifrostFundsWithdrawn(
+                  b.height,
                   Encoding.encodeToBase58(input.address.id.value.toByteArray()),
                   input.address.index,
                   Try(extractFromToplTx(input.attestation))

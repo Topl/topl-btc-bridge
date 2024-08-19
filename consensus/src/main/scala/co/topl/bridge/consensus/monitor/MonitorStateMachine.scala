@@ -2,20 +2,13 @@ package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.brambl.builders.TransactionBuilderApi
-import co.topl.brambl.dataApi.GenusQueryAlgebra
-import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
-import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCConfirmationThreshold
 import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.BTCWaitExpirationTime
-import co.topl.bridge.consensus.Fellowship
-import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.PeginSessionState
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionMintingTBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionStateMintingTBTC
@@ -24,29 +17,33 @@ import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaim
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
-import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplConfirmationThreshold
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.PegoutSessionInfo
 import co.topl.bridge.consensus.managers.SessionCreated
 import co.topl.bridge.consensus.managers.SessionEvent
-import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.managers.SessionUpdated
-import co.topl.bridge.consensus.persistence._
-import io.grpc.ManagedChannel
-import org.bitcoins.core.currency.{CurrencyUnit => BitcoinCurrencyUnit}
-import org.bitcoins.rpc.client.common.BitcoindRpcClient
+import co.topl.bridge.consensus.monitor.EndTransition
+import co.topl.bridge.consensus.monitor.FSMTransitionTo
+import co.topl.bridge.consensus.monitor.MConfirmingBTCDeposit
+import co.topl.bridge.consensus.monitor.MMintingTBTC
+import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
+import co.topl.bridge.consensus.monitor.MintingTBTCConfirmation
+import co.topl.bridge.consensus.monitor.MonitorTransitionRelation
+import co.topl.bridge.consensus.monitor.PeginStateMachineState
+import co.topl.bridge.consensus.monitor.WaitingForClaim
+import co.topl.bridge.consensus.monitor.WaitingForClaimBTCConfirmation
+import co.topl.bridge.consensus.monitor.WaitingForRedemption
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.SessionId
 import org.typelevel.log4cats.Logger
-import quivr.models.KeyPair
 
 import java.util.Map.Entry
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.monitor.{EndTransition, WaitingForClaim, FSMTransitionTo, MintingTBTCConfirmation, WaitingForRedemption, WaitingForBTC, MintingTBTC, WaitingForEscrowBTCConfirmation, WaitingForClaimBTCConfirmation, PeginStateMachineState}
-import co.topl.bridge.consensus.monitor.PeginTransitionRelation
 
-trait PeginStateMachineAlgebra[F[_]] {
+trait MonitorStateMachineAlgebra[F[_]] {
 
   def handleBlockchainEventInContext(
       blockchainEvent: BlockchainEvent
@@ -58,37 +55,26 @@ trait PeginStateMachineAlgebra[F[_]] {
 
 }
 
-object PeginStateMachine {
+object MonitorStateMachine {
 
   def make[F[_]: Async: Logger](
       currentBitcoinNetworkHeight: Ref[F, Int],
       currentToplNetworkHeight: Ref[F, Long],
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
-      sessionManager: SessionManagerAlgebra[F],
-      walletApi: WalletApi[F],
-      bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F],
-      toplKeypair: KeyPair,
-      walletStateApi: WalletStateAlgebra[F],
-      transactionBuilderApi: TransactionBuilderApi[F],
-      utxoAlgebra: GenusQueryAlgebra[F],
-      defaultFromFellowship: Fellowship,
-      defaultFromTemplate: Template,
-      defaultFeePerByte: BitcoinCurrencyUnit,
-      defaultMintingFee: Lvl,
+      clientId: ClientId,
+      consensusClient: ConsensusClientGrpc[F],
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcRetryThreshold: BTCRetryThreshold,
       btcConfirmationThreshold: BTCConfirmationThreshold,
       toplConfirmationThreshold: ToplConfirmationThreshold,
-      channelResource: Resource[F, ManagedChannel],
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId
-  ) = new PeginStateMachineAlgebra[F] {
+  ) = new MonitorStateMachineAlgebra[F] {
 
     import org.typelevel.log4cats.syntax._
-    import PeginTransitionRelation._
+    import MonitorTransitionRelation._
 
     private def updateBTCHeight(
         blockchainEvent: BlockchainEvent
@@ -99,7 +85,7 @@ object PeginStateMachine {
             for {
               x <- currentBitcoinNetworkHeight.get
               _ <-
-                if (height > x) // TODO: handle reorgs
+                if (height > x)
                   currentBitcoinNetworkHeight.set(height)
                 else Sync[F].unit
             } yield ()
@@ -139,26 +125,32 @@ object PeginStateMachine {
           )
           sessionId = entry.getKey
           currentState = entry.getValue
-        } yield handleBlockchainEvent[F](
-          currentState,
-          blockchainEvent
-        )(transitionToEffect[F])
-          .orElse(
-            Some(
-              FSMTransitionTo(
-                currentState,
-                currentState,
-                transitionToEffect(currentState, blockchainEvent)
+        } yield {
+          implicit val sessionIdImplicit = new SessionId(sessionId)
+          handleBlockchainEvent[F](
+            currentState,
+            blockchainEvent
+          )(transitionToEffect[F])
+            .orElse(
+              Some(
+                FSMTransitionTo(
+                  currentState,
+                  currentState,
+                  transitionToEffect(currentState, blockchainEvent)
+                )
               )
             )
-          )
+        }
           .map(x =>
             x match {
               case EndTransition(effect) =>
                 info"Session $sessionId ended successfully" >>
                   Sync[F].delay(map.remove(sessionId)) >>
-                  sessionManager
-                    .removeSession(sessionId)
+                  Sync[F]
+                    .delay(
+                      map
+                        .remove(sessionId)
+                    )
                     .flatMap(_ => effect.asInstanceOf[F[Unit]])
               case FSMTransitionTo(prevState, nextState, effect)
                   if (prevState != nextState) =>
@@ -191,12 +183,12 @@ object PeginStateMachine {
     private def fsmStateToSessionState(
         peginStateMachineState: PeginStateMachineState
     ): PeginSessionState = peginStateMachineState match {
-      case _: MintingTBTC             => PeginSessionStateMintingTBTC
-      case _: WaitingForBTC           => PeginSessionStateWaitingForBTC
+      case _: MMintingTBTC            => PeginSessionStateMintingTBTC
+      case _: MWaitingForBTCDeposit   => PeginSessionStateWaitingForBTC
       case _: WaitingForRedemption    => PeginSessionWaitingForRedemption
       case _: WaitingForClaim         => PeginSessionWaitingForClaim
       case _: MintingTBTCConfirmation => PeginSessionMintingTBTCConfirmation
-      case _: WaitingForEscrowBTCConfirmation =>
+      case _: MConfirmingBTCDeposit =>
         PeginSessionWaitingForEscrowBTCConfirmation
       case _: WaitingForClaimBTCConfirmation =>
         PeginSessionWaitingForClaimBTCConfirmation
@@ -204,10 +196,7 @@ object PeginStateMachine {
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =
       Sync[F].delay(map.replace(sessionId, transition.nextState)) >>
-        sessionManager.updateSession(
-          sessionId,
-          _.copy(mintingBTCState = fsmStateToSessionState(transition.nextState))
-        ) >> transition.effect
+        transition.effect
 
     def innerStateConfigurer(
         sessionEvent: SessionEvent
@@ -219,7 +208,7 @@ object PeginStateMachine {
               Sync[F].delay(
                 map.put(
                   sessionId,
-                  WaitingForBTC(
+                  MWaitingForBTCDeposit(
                     cHeight,
                     psi.btcPeginCurrentWalletIdx,
                     psi.scriptAsm,

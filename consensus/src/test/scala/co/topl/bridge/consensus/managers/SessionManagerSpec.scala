@@ -1,11 +1,16 @@
 package co.topl.bridge.consensus.managers
 
-import munit.CatsEffectSuite
-import java.util.concurrent.ConcurrentHashMap
 import cats.effect.IO
-import java.util.UUID
-import co.topl.bridge.consensus.PeginSessionState
 import cats.effect.std.Queue
+import co.topl.bridge.consensus.PeginSessionState
+import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.bridge.consensus.persistence.StorageApiImpl
+import munit.CatsEffectSuite
+
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.util.UUID
+import cats.effect.kernel.Resource
 
 class SessionManagerSpec extends CatsEffectSuite {
 
@@ -23,15 +28,31 @@ class SessionManagerSpec extends CatsEffectSuite {
     PeginSessionState.PeginSessionStateWaitingForBTC
   )
 
-  test("SessionManagerAlgebra should create and retrieve a session") {
+  val testdb = "test.db"
+
+  val cleanupDir = ResourceFunFixture[StorageApi[IO]](
+    for {
+      _ <- Resource
+        .make(IO(Files.delete(Paths.get(testdb))).handleError(_ => ()))(_ =>
+          IO(Files.delete(Paths.get(testdb)))
+        )
+      storageApi <- StorageApiImpl.make[IO](testdb)
+      _ <- storageApi.initializeStorage().toResource
+    } yield storageApi
+  )
+
+  cleanupDir.test(
+    "SessionManagerAlgebra should create and retrieve a session"
+  ) { storageApi =>
     assertIO(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
-        sut = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
+        sut = SessionManagerImpl.makePermanent[IO](
+          storageApi,
+          queue
         )
-        sessionId <- sut.createNewSession(sessionInfo)
+        sessionId <- IO(UUID.randomUUID().toString)
+        _ <- sut.createNewSession(sessionId, sessionInfo)
         retrievedSession <- sut.getSession(sessionId)
       } yield {
         retrievedSession
@@ -40,15 +61,18 @@ class SessionManagerSpec extends CatsEffectSuite {
     )
   }
 
-  test("SessionManagerAlgebra should fail to retrieve a non existing session") {
+  cleanupDir.test(
+    "SessionManagerAlgebra should fail to retrieve a non existing session"
+  ) { storageApi =>
     assertIO(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
-        sut = SessionManagerImpl.make[IO](
-          queue,
-          new ConcurrentHashMap[String, SessionInfo]()
+        sut = SessionManagerImpl.makePermanent[IO](
+          storageApi,
+          queue
         )
-        _ <- sut.createNewSession(sessionInfo)
+        sessionId <- IO(UUID.randomUUID().toString)
+        _ <- sut.createNewSession(sessionId, sessionInfo)
         res <- sut.getSession(UUID.randomUUID().toString)
       } yield {
         res

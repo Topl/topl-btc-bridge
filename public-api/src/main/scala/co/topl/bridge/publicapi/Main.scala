@@ -7,12 +7,15 @@ import cats.effect.IOApp
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.bridge.publicapi.ClientNumber
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
 import co.topl.bridge.publicapi.modules.ApiServicesModule
-import co.topl.bridge.publicapi.modules.ReplyServicesModule
+import co.topl.shared.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
+import co.topl.shared.ConsensusClientGrpcImpl
+import co.topl.shared.ConsensusClientMessageId
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
@@ -60,7 +63,7 @@ object Main
       consensusGrpcClients: ConsensusClientGrpc[IO]
   )(implicit
       l: Logger[IO],
-      clientNumber: ClientNumber
+      clientNumber: ClientId
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val router = Router.define(
@@ -99,7 +102,7 @@ object Main
       currentViewRef: Ref[IO, Long]
   )(implicit
       replicaCount: ReplicaCount,
-      clientNumber: ClientNumber,
+      clientNumber: ClientId,
       logger: Logger[IO]
   ) = {
     val messageResponseMap =
@@ -154,7 +157,7 @@ object Main
     } yield grpcShutdown
   }
 
-  private def createPublicKeyMap[F[_]: Sync](
+  private def createReplicaPublicKeyMap[F[_]: Sync](
       conf: Config
   )(implicit replicaCount: ReplicaCount): F[Map[Int, PublicKey]] = {
     (for (i <- 0 until replicaCount.value) yield {
@@ -201,7 +204,7 @@ object Main
     ) match {
       case Some(configuration) =>
         val conf = ConfigFactory.parseFile(configuration.configurationFile)
-        implicit val clientId = new ClientNumber(
+        implicit val client = new ClientId(
           conf.getInt("bridge.client.clientId")
         )
         implicit val replicaCount = new ReplicaCount(
@@ -209,7 +212,7 @@ object Main
         )
         implicit val logger =
           org.typelevel.log4cats.slf4j.Slf4jLogger
-            .getLoggerFromName[IO](s"public-api-" + f"${clientId.value}%02d")
+            .getLoggerFromName[IO](s"public-api-" + f"${client.id}%02d")
         for {
           _ <- info"Configuration parameters"
           _ <- IO(Security.addProvider(new BouncyCastleProvider()))
@@ -223,10 +226,10 @@ object Main
             conf.getString("bridge.client.security.privateKeyFile")
           )
           _ <- info"bridge.client.security.privateKeyFile: ${privateKeyFile}"
-          _ <- info"bridge.client.clientId: ${clientId.value}"
+          _ <- info"bridge.client.clientId: ${client.id}"
           _ <- info"bridge.client.responses.host: ${clientHost}"
           _ <- info"bridge.client.responses.port: ${clientPort}"
-          replicaKeysMap <- createPublicKeyMap[IO](conf)
+          replicaKeysMap <- createReplicaPublicKeyMap[IO](conf)
           replicaNodes <- loadReplicaNodeFromConfig[IO](conf)
           currentView <- Ref.of[IO, Long](0)
           _ <- setupServices(

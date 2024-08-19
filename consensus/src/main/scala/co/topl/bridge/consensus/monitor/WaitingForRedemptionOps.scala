@@ -24,7 +24,7 @@ object WaitingForRedemptionOps {
       inputTxId: String,
       vout: Long,
       scriptAsm: String,
-      amountInSatoshis: Long,
+      amountInSatoshis: CurrencyUnit
       )(implicit
       bitcoindInstance: BitcoindRpcClient,
       pegInWalletManager: BTCWalletAlgebra[F],

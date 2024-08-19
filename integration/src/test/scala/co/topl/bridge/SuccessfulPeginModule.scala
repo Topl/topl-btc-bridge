@@ -15,7 +15,10 @@ trait SuccessfulPeginModule {
     assertIO(
       for {
         _ <- pwd
-        _ <- mintToplBlock(1, 1) // this will update the current topl height on the node, node should not work without this
+        _ <- mintToplBlock(
+          1,
+          1
+        ) // this will update the current topl height on the node, node should not work without this
         _ <- initToplWallet(1)
         _ <- addFellowship(1)
         _ <- addSecret(1)
@@ -79,13 +82,17 @@ trait SuccessfulPeginModule {
         _ <- getCurrentUtxosFromAddress(1, currentAddress)
           .iterateUntil(_.contains("Asset"))
         _ <- generateToAddress(1, 3, newAddress)
-        _ <- checkStatus(startSessionResponse.sessionID)
+        _ <- checkMintingStatus(startSessionResponse.sessionID)
           .flatMap(x =>
-            generateToAddress(1, 1, newAddress) >> IO
+            generateToAddress(
+              1,
+              1,
+              newAddress
+            ) >> warn"x.mintingStatus = ${x.mintingStatus}" >> IO
               .sleep(5.second) >> IO.pure(x)
           )
           .iterateUntil(
-            _.code == 404
+            _.mintingStatus == "PeginSessionStateSuccessfulPegin"
           )
         _ <-
           info"Session ${startSessionResponse.sessionID} was successfully removed"

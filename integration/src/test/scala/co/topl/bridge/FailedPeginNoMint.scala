@@ -27,15 +27,16 @@ trait FailedPeginNoMintModule {
         signedTxHex <- signTransaction(bitcoinTx)
         _ <- sendTransaction(signedTxHex)
         _ <- generateToAddress(1, 52, newAddress)
-        _ <- checkStatus(startSessionResponse.sessionID)
+        _ <- checkMintingStatus(startSessionResponse.sessionID)
           .flatMap(x =>
             for {
               _ <- generateToAddress(1, 5, newAddress)
               _ <- IO.sleep(1.second)
             } yield x
           )
+
           .iterateUntil(
-            _.code == 404
+            _.mintingStatus == "PeginSessionStateTimeout"
           )
         _ <-
           info"Session ${startSessionResponse.sessionID} was successfully removed"

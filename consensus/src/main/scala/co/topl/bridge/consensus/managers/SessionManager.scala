@@ -1,13 +1,10 @@
 package co.topl.bridge.consensus.managers
 
 import cats.effect.kernel.Sync
-
-import java.util.UUID
-import java.util.concurrent.ConcurrentMap
-import co.topl.bridge.consensus.PeginSessionState
 import cats.effect.std.Queue
-
 import cats.implicits._
+import co.topl.bridge.consensus.PeginSessionState
+import co.topl.bridge.consensus.persistence.StorageApi
 import co.topl.bridge.consensus.utils.MiscUtils
 
 sealed trait SessionEvent
@@ -59,6 +56,7 @@ case class PegoutSessionInfo(
 
 trait SessionManagerAlgebra[F[_]] {
   def createNewSession(
+      sessionId: String,
       sessionInfo: SessionInfo
   ): F[String]
 
@@ -69,24 +67,33 @@ trait SessionManagerAlgebra[F[_]] {
   def updateSession(
       sessionId: String,
       sessionInfoTransformer: PeginSessionInfo => SessionInfo
-  ): F[Unit]
+  ): F[Option[SessionInfo]]
 
   def removeSession(
-      sessionId: String
+      sessionId: String,
+      finalState: PeginSessionState
   ): F[Unit]
 }
 
 object SessionManagerImpl {
-  def make[F[_]: Sync](
-      queue: Queue[F, SessionEvent],
-      map: ConcurrentMap[String, SessionInfo]
+  def makePermanent[F[_]: Sync](
+      storageApi: StorageApi[F],
+      queue: Queue[F, SessionEvent]
   ): SessionManagerAlgebra[F] = new SessionManagerAlgebra[F] {
+
+    override def removeSession(
+        sessionId: String,
+        finalState: PeginSessionState
+    ): F[Unit] = {
+      updateSession(sessionId, _.copy(mintingBTCState = finalState)).void
+    }
+
     def createNewSession(
+        sessionId: String,
         sessionInfo: SessionInfo
     ): F[String] = {
       for {
-        sessionId <- Sync[F].delay(UUID.randomUUID().toString)
-        _ <- Sync[F].delay(map.put(sessionId, sessionInfo))
+        _ <- storageApi.insertNewSession(sessionId, sessionInfo)
         _ <- queue.offer(SessionCreated(sessionId, sessionInfo))
       } yield sessionId
     }
@@ -94,32 +101,30 @@ object SessionManagerImpl {
     def getSession(
         sessionId: String
     ): F[Option[SessionInfo]] = {
-      Sync[F].delay(
-        Option(map.get(sessionId))
-      )
+      storageApi.getSession(sessionId)
     }
 
     def updateSession(
         sessionId: String,
         sessionInfoTransformer: PeginSessionInfo => SessionInfo
-    ): F[Unit] = {
+    ): F[Option[SessionInfo]] = {
       for {
-        sessionInfo <- Sync[F].delay(map.get(sessionId))
-        someNewSessionInfo = MiscUtils.sessionInfoPeginPrism
-          .getOption(sessionInfo)
-          .map(sessionInfoTransformer)
+        someSessionInfo <- storageApi.getSession(sessionId)
+        someNewSessionInfo = someSessionInfo.flatMap(sessionInfo =>
+          MiscUtils.sessionInfoPeginPrism
+            .getOption(sessionInfo)
+            .map(sessionInfoTransformer)
+        )
         _ <- someNewSessionInfo
-          .map(x =>
-            Sync[F].delay(map.replace(sessionId, x)) >> queue.offer(
-              SessionUpdated(sessionId, x)
-            )
-          )
+          .map { x =>
+            storageApi.updateSession(sessionId, x) >> queue
+              .offer(
+                SessionUpdated(sessionId, x)
+              )
+          }
           .getOrElse(Sync[F].unit)
-      } yield ()
+      } yield someSessionInfo
     }
-
-    def removeSession(sessionId: String): F[Unit] =
-      Sync[F].delay(map.remove(sessionId))
 
   }
 }

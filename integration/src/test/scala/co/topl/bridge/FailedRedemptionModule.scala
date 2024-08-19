@@ -34,13 +34,13 @@ trait FailedRedemptionModule {
           } yield status)
             .iterateUntil(_.mintingStatus == "PeginSessionWaitingForRedemption")
         _ <- info"We are in the waiting for redemption state"
-        _ <- checkStatus(startSessionResponse.sessionID)
+        _ <- checkMintingStatus(startSessionResponse.sessionID)
           .flatMap(x =>
             List.fill(5)(mintToplBlock(1, 1)).sequence >> IO
               .sleep(1.second) >> IO.pure(x)
           )
           .iterateUntil(
-            _.code == 404
+            _.mintingStatus == "PeginSessionStateTimeout"
           )
         _ <-
           info"Session ${startSessionResponse.sessionID} was successfully removed"

@@ -52,7 +52,7 @@ message BTCFundsDeposited {
   uint32 fundsDepositedHeight = 1;
   string address = 2;
   string txId = 3;
-  uint64 vout = 4;
+  uint32 vout = 4;
   bytes amount = 5; // sats
 }
 
@@ -70,10 +70,11 @@ message BifrostFundsDeposited {
 }
 
 message BifrostFundsWithdrawn {
-  string txId = 1;
-  uint32 txIndex = 2;
-  string secret = 3;
-  BifrostCurrencyUnit amount = 4;
+  uint64 currentToplBlockHeight = 1;
+  string txId = 2;
+  uint32 txIndex = 3;
+  string secret = 4;
+  BifrostCurrencyUnit amount = 5;
 }
 
 message BlockchainEvent {

@@ -15,9 +15,10 @@ import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCRetryThreshold
-import co.topl.bridge.consensus.ClientId
+import co.topl.shared.ClientId
 import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.PublicApiClientGrpc
+import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SystemGlobalState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
@@ -25,25 +26,23 @@ import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.managers.SessionManagerImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
-import co.topl.bridge.consensus.monitor.PeginStateMachine
+import co.topl.bridge.consensus.monitor.MonitorStateMachine
+import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.bridge.consensus.service.StateMachineReply.Result
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.ReplicaCount
+import io.grpc.Metadata
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.dsl.io._
 import org.typelevel.log4cats.Logger
-import co.topl.bridge.consensus.service.StateMachineReply.Result
-
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import io.grpc.Metadata
-import co.topl.bridge.consensus.ReplicaId
-import co.topl.shared.ReplicaCount
 
-trait AppModule
-    extends WalletStateResource
-    with ApiServicesModule {
+trait AppModule extends WalletStateResource with ApiServicesModule {
 
   def webUI() = HttpRoutes.of[IO] { case request @ GET -> Root =>
     StaticFile
@@ -52,6 +51,7 @@ trait AppModule
   }
 
   def createApp(
+      storageApi: StorageApi[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       params: ToplBTCBridgeConsensusParamConfig,
       publicApiClientGrpcMap: Map[
@@ -67,6 +67,8 @@ trait AppModule
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
+      clientId: ClientId,
+      consensusClient: ConsensusClientGrpc[IO],
       replicaId: ReplicaId,
       replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
@@ -95,8 +97,8 @@ trait AppModule
     )
     implicit val fellowshipStorageApi = FellowshipStorageApi.make(walletRes)
     implicit val templateStorageApi = TemplateStorageApi.make(walletRes)
-    implicit val sessionManager =
-      SessionManagerImpl.make[IO](queue, new ConcurrentHashMap())
+    val sessionManagerPermanent =
+      SessionManagerImpl.makePermanent[IO](storageApi, queue)
     val walletManagementUtils = new WalletManagementUtils(
       walletApi,
       walletKeyApi
@@ -132,7 +134,7 @@ trait AppModule
         params.toplPort,
         params.toplSecureConnection
       )
-      val peginStateMachine = PeginStateMachine
+      val peginStateMachine = MonitorStateMachine
         .make[IO](
           currentBitcoinNetworkHeight,
           currentToplHeight,
@@ -142,12 +144,12 @@ trait AppModule
         grpcServices(
           idReplicaClientMap,
           lastReplyMap,
+          new ConcurrentHashMap(),
           publicApiClientGrpcMap,
-          keyPair,
-          sessionManager,
-          pegInWalletManager,
+          sessionManagerPermanent,
           walletManager,
           params.btcNetwork,
+          currentBitcoinNetworkHeight,
           currentView,
           currentToplHeight
         ),
