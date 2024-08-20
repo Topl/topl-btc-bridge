@@ -57,27 +57,27 @@ import co.topl.bridge.consensus.pbft.UndoDepositBTCEvt
 import co.topl.bridge.consensus.pbft.UndoTBTCMintEvt
 import co.topl.bridge.shared.Empty
 import co.topl.bridge.consensus.service.InvalidInputRes
-import co.topl.bridge.consensus.service.MintingStatusOperation
+import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.bridge.consensus.service.MintingStatusRes
 import co.topl.bridge.consensus.service.SessionNotFoundRes
-import co.topl.bridge.consensus.service.StartSessionOperation
+import co.topl.bridge.shared.StartSessionOperation
 import co.topl.bridge.consensus.service.StartSessionRes
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.service.StateMachineRequest
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.ConfirmClaimTx
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.ConfirmDepositBTC
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.ConfirmTBTCMint
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.MintingStatus
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostClaimTx
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostDepositBTC
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostRedemptionTx
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.PostTBTCMint
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.StartSession
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.TimeoutDepositBTC
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.TimeoutTBTCMint
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoClaimTx
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoDepositBTC
-import co.topl.bridge.consensus.service.StateMachineRequest.Operation.UndoTBTCMint
+import co.topl.bridge.shared.OperationWrapper.Operation.ConfirmClaimTx
+import co.topl.bridge.shared.OperationWrapper.Operation.ConfirmDepositBTC
+import co.topl.bridge.shared.OperationWrapper.Operation.ConfirmTBTCMint
+import co.topl.bridge.shared.OperationWrapper.Operation.MintingStatus
+import co.topl.bridge.shared.OperationWrapper.Operation.PostClaimTx
+import co.topl.bridge.shared.OperationWrapper.Operation.PostDepositBTC
+import co.topl.bridge.shared.OperationWrapper.Operation.PostRedemptionTx
+import co.topl.bridge.shared.OperationWrapper.Operation.PostTBTCMint
+import co.topl.bridge.shared.OperationWrapper.Operation.StartSession
+import co.topl.bridge.shared.OperationWrapper.Operation.TimeoutDepositBTC
+import co.topl.bridge.shared.OperationWrapper.Operation.TimeoutTBTCMint
+import co.topl.bridge.shared.OperationWrapper.Operation.UndoClaimTx
+import co.topl.bridge.shared.OperationWrapper.Operation.UndoDepositBTC
+import co.topl.bridge.shared.OperationWrapper.Operation.UndoTBTCMint
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.utils.MiscUtils
 import co.topl.shared.BridgeError
@@ -95,6 +95,7 @@ import scodec.bits.ByteVector
 import java.security.PublicKey
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.shared.OperationWrapper
 
 trait StateMachineServiceModule {
 
@@ -258,9 +259,9 @@ trait StateMachineServiceModule {
         } yield resp
       }
 
-      private def toEvt(op: StateMachineRequest.Operation) = {
+      private def toEvt(op: OperationWrapper.Operation) = {
         op match {
-          case StateMachineRequest.Operation.Empty =>
+          case OperationWrapper.Operation.Empty =>
             throw new Exception("Invalid operation")
           case MintingStatus(_) =>
             throw new Exception("Invalid operation")
@@ -357,7 +358,7 @@ trait StateMachineServiceModule {
           clientNumber: Int,
           timestamp: Long,
           sessionId: String,
-          value: StateMachineRequest.Operation
+          value: OperationWrapper.Operation
       ) = {
         for {
           viewNumber <- currentView.get
@@ -420,8 +421,8 @@ trait StateMachineServiceModule {
                   ).executeRequest(request, ctx)
                 else {
                   // we are the primary, process the request
-                  (request.operation match {
-                    case StateMachineRequest.Operation.Empty =>
+                  (request.operation.get.operation match {
+                    case OperationWrapper.Operation.Empty =>
                       warn"Received empty message" >> IO.pure(Result.Empty)
                     case MintingStatus(value) =>
                       mintingStatus(
@@ -438,7 +439,7 @@ trait StateMachineServiceModule {
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case TimeoutDepositBTC(
                           value
@@ -458,7 +459,7 @@ trait StateMachineServiceModule {
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case ConfirmDepositBTC(
                           value
@@ -470,7 +471,7 @@ trait StateMachineServiceModule {
                           request.clientNumber,
                           request.timestamp,
                           value.sessionId,
-                          request.operation
+                          request.operation.get.operation
                         )
                         _ <- trace"Minting: ${BigInt(value.amount.toByteArray())}"
                         _ <- someSessionInfo
@@ -495,7 +496,7 @@ trait StateMachineServiceModule {
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case TimeoutTBTCMint(
                           value
@@ -515,7 +516,7 @@ trait StateMachineServiceModule {
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case ConfirmTBTCMint(
                           value
@@ -524,7 +525,7 @@ trait StateMachineServiceModule {
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case PostRedemptionTx(
                           value
@@ -534,7 +535,7 @@ trait StateMachineServiceModule {
                           request.clientNumber,
                           request.timestamp,
                           value.sessionId,
-                          request.operation
+                          request.operation.get.operation
                         )
                         _ <- (for {
                           sessionInfo <- someSessionInfo
@@ -558,14 +559,14 @@ trait StateMachineServiceModule {
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case UndoClaimTx(value) =>
                       standardResponse(
                         request.clientNumber,
                         request.timestamp,
                         value.sessionId,
-                        request.operation
+                        request.operation.get.operation
                       ) >> IO.pure(Result.Empty)
                     case ConfirmClaimTx(value) =>
                       IO(

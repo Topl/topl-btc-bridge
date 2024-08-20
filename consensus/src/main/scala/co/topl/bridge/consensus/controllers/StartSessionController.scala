@@ -11,23 +11,17 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.PeginSessionState
-import co.topl.bridge.consensus.ToplNetworkIdentifiers
 import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
-import co.topl.bridge.consensus.managers.PegoutSessionInfo
-import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.managers.ToplWalletAlgebra
-import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.utils.BitcoinUtils
+import co.topl.bridge.shared.StartSessionOperation
 import co.topl.shared.BridgeError
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
 import co.topl.shared.StartPeginSessionResponse
-import co.topl.shared.StartPegoutSessionRequest
-import co.topl.shared.StartPegoutSessionResponse
-import co.topl.shared.WalletSetupError
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
@@ -42,7 +36,6 @@ import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
-import co.topl.bridge.consensus.managers.SessionInfo
 
 object StartSessionController {
 

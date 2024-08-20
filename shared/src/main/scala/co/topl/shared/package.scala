@@ -39,10 +39,10 @@ package object shared {
       def signableBytes: Array[Byte] = {
         BigInt(request.timestamp).toByteArray ++
           BigInt(request.clientNumber).toByteArray ++
-          request.operation.startSession
+          request.operation.get.operation.startSession
             .map(x => x.pkey.getBytes() ++ x.sha256.getBytes())
             .getOrElse(Array.emptyByteArray) ++
-          request.operation.mintingStatus
+          request.operation.get.operation.mintingStatus
             .map(_.sessionId.getBytes())
             .getOrElse(Array.emptyByteArray)
       }
