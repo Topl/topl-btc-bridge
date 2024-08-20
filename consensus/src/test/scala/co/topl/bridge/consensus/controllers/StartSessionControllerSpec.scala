@@ -15,7 +15,7 @@ import co.topl.bridge.consensus.RegTest
 import co.topl.bridge.consensus.ToplPrivatenet
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
-import co.topl.bridge.consensus.service.StartSessionOperation
+import co.topl.bridge.shared.StartSessionOperation
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidKey
