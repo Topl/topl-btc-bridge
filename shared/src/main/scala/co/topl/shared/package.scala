@@ -1,6 +1,6 @@
 package co.topl
 
-import co.topl.bridge.consensus.service.StateMachineRequest
+import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineReply
 
 package object shared {
@@ -39,10 +39,10 @@ package object shared {
       def signableBytes: Array[Byte] = {
         BigInt(request.timestamp).toByteArray ++
           BigInt(request.clientNumber).toByteArray ++
-          request.operation.get.operation.startSession
+          request.operation.startSession
             .map(x => x.pkey.getBytes() ++ x.sha256.getBytes())
             .getOrElse(Array.emptyByteArray) ++
-          request.operation.get.operation.mintingStatus
+          request.operation.mintingStatus
             .map(_.sessionId.getBytes())
             .getOrElse(Array.emptyByteArray)
       }

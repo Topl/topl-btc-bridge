@@ -7,6 +7,27 @@ message Empty {
 
 }
 
+message StateMachineRequest {
+  uint64 timestamp = 1;
+  uint32  clientNumber = 2;
+  bytes signature = 3;
+  oneof operation {
+    StartSessionOperation startSession = 4;
+    PostDepositBTCOperation postDepositBTC = 5;
+    TimeoutDepositBTCOperation timeoutDepositBTC = 6;
+    UndoDepositBTCOperation undoDepositBTC = 7;
+    ConfirmDepositBTCOperation confirmDepositBTC = 8;
+    PostTBTCMintOperation postTBTCMint = 9;
+    TimeoutTBTCMintOperation timeoutTBTCMint = 10;
+    UndoTBTCMintOperation undoTBTCMint = 11;
+    ConfirmTBTCMintOperation confirmTBTCMint = 12;
+    PostRedemptionTxOperation postRedemptionTx = 13;
+    PostClaimTxOperation postClaimTx = 14;
+    ConfirmClaimTxOperation confirmClaimTx = 15;
+    UndoClaimTxOperation undoClaimTx = 16;
+    MintingStatusOperation mintingStatus = 17;
+  }
+}
 
 message MintingStatusOperation {
   string sessionId = 1;
@@ -105,23 +126,4 @@ message UndoClaimTxOperation {
 message ConfirmClaimTxOperation {
  string sessionId = 1;
  uint32 height = 2;
-}
-
-message OperationWrapper {
-  oneof operation {
-    StartSessionOperation startSession = 1;
-    PostDepositBTCOperation postDepositBTC = 2;
-    TimeoutDepositBTCOperation timeoutDepositBTC = 3;
-    UndoDepositBTCOperation undoDepositBTC = 4;
-    ConfirmDepositBTCOperation confirmDepositBTC = 5;
-    PostTBTCMintOperation postTBTCMint = 6;
-    TimeoutTBTCMintOperation timeoutTBTCMint = 7;
-    UndoTBTCMintOperation undoTBTCMint = 8;
-    ConfirmTBTCMintOperation confirmTBTCMint = 9;
-    PostRedemptionTxOperation postRedemptionTx = 10;
-    PostClaimTxOperation postClaimTx = 11;
-    ConfirmClaimTxOperation confirmClaimTx = 12;
-    UndoClaimTxOperation undoClaimTx = 13;
-    MintingStatusOperation mintingStatus = 14;
-  }
 }

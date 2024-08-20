@@ -12,6 +12,16 @@ import java.security.PublicKey
 
 trait PbftServiceModule {
 
+  private def checkSignatures(
+      replicaKeysMap: Map[Int, PublicKey],
+      request: PrePrepareRequest
+  ): Boolean = {
+    // val replicaId = request.p
+    // val replicaKey = replicaKeysMap(replicaId)
+    // Verify the signature
+    true
+  }
+
   def pbftService(
     replicaKeysMap: Map[Int, PublicKey],
     currentView: Ref[IO, Long]) =

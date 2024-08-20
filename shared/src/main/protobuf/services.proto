@@ -6,7 +6,7 @@ import "shared.proto";
 package co.topl.bridge.consensus.service;
 
 service StateMachineService {
-  rpc ExecuteRequest(StateMachineRequest) returns (co.topl.bridge.shared.Empty);
+  rpc ExecuteRequest(co.topl.bridge.shared.StateMachineRequest) returns (co.topl.bridge.shared.Empty);
 }
 
 
@@ -14,12 +14,6 @@ service ResponseService {
   rpc DeliverResponse(StateMachineReply) returns (co.topl.bridge.shared.Empty);
 }
 
-message StateMachineRequest {
-  uint64 timestamp = 1;
-  uint32  clientNumber = 2;
-  bytes signature = 3;
-  co.topl.bridge.shared.OperationWrapper operation = 4;
-}
 
 message StateMachineReply {
   uint64 viewNumber = 1; // current view number

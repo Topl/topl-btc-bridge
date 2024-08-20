@@ -9,7 +9,7 @@ message PrePrepareRequest {
   uint64 viewNumber     = 1;
   uint64 sequenceNumber = 2;
   bytes digest          = 3;
-  co.topl.bridge.shared.OperationWrapper payload = 4;
+  co.topl.bridge.shared.StateMachineRequest payload = 4;
 }
 
 message PrepareRequest {

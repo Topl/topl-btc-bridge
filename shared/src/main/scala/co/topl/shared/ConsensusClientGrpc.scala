@@ -5,7 +5,7 @@ import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.bridge.shared.StartSessionOperation
-import co.topl.bridge.consensus.service.StateMachineRequest
+import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
@@ -36,7 +36,6 @@ import co.topl.bridge.shared.PostRedemptionTxOperation
 import co.topl.bridge.shared.PostClaimTxOperation
 import co.topl.bridge.shared.ConfirmClaimTxOperation
 import co.topl.bridge.shared.UndoClaimTxOperation
-import co.topl.bridge.shared.OperationWrapper
 
 trait ConsensusClientGrpc[F[_]] {
 
@@ -177,7 +176,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.UndoClaimTx(
+            StateMachineRequest.Operation.UndoClaimTx(
               undoClaimTxOperation
             )
           )
@@ -191,7 +190,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.ConfirmClaimTx(
+            StateMachineRequest.Operation.ConfirmClaimTx(
               confirmClaimTxOperation
             )
           )
@@ -205,7 +204,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.PostClaimTx(
+            StateMachineRequest.Operation.PostClaimTx(
               postClaimTxOperation
             )
           )
@@ -219,7 +218,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.PostRedemptionTx(
+            StateMachineRequest.Operation.PostRedemptionTx(
               postRedemptionTxOperation
             )
           )
@@ -232,7 +231,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.ConfirmTBTCMint(
+          StateMachineRequest.Operation.ConfirmTBTCMint(
             confirmTBTCMintOperation
           )
         )
@@ -245,7 +244,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.UndoTBTCMint(
+          StateMachineRequest.Operation.UndoTBTCMint(
             undoTBTCMintOperation
           )
         )
@@ -258,7 +257,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.TimeoutTBTCMint(
+          StateMachineRequest.Operation.TimeoutTBTCMint(
             timeoutTBTCMintOperation
           )
         )
@@ -271,7 +270,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.PostTBTCMint(
+          StateMachineRequest.Operation.PostTBTCMint(
             postTBTCMintOperation
           )
         )
@@ -284,7 +283,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.ConfirmDepositBTC(
+          StateMachineRequest.Operation.ConfirmDepositBTC(
             confirmDepositBTCOperation
           )
         )
@@ -297,7 +296,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.UndoDepositBTC(
+          StateMachineRequest.Operation.UndoDepositBTC(
             undoDepositBTCOperation
           )
         )
@@ -311,7 +310,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.TimeoutDepositBTC(
+            StateMachineRequest.Operation.TimeoutDepositBTC(
               timeoutDepositBTCOperation
             )
           )
@@ -324,7 +323,7 @@ object ConsensusClientGrpcImpl {
           clientNumber: ClientId
       ): F[Either[BridgeError, BridgeResponse]] = mutex.lock.surround(for {
         request <- prepareRequest(
-          OperationWrapper.Operation.PostDepositBTC(postDepositBTCOperation)
+          StateMachineRequest.Operation.PostDepositBTC(postDepositBTCOperation)
         )
         response <- executeRequest(request)
       } yield response)
@@ -336,7 +335,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.StartSession(startSessionOperation)
+            StateMachineRequest.Operation.StartSession(startSessionOperation)
           )
           response <- executeRequest(request)
         } yield response)
@@ -348,7 +347,7 @@ object ConsensusClientGrpcImpl {
       ): F[Either[BridgeError, BridgeResponse]] =
         mutex.lock.surround(for {
           request <- prepareRequest(
-            OperationWrapper.Operation.MintingStatus(mintingStatusOperation)
+            StateMachineRequest.Operation.MintingStatus(mintingStatusOperation)
           )
           response <- executeRequest(request)
         } yield response)
@@ -454,14 +453,14 @@ object ConsensusClientGrpcImpl {
         } yield someResponse.flatten
 
       def prepareRequest(
-          operation: OperationWrapper.Operation
+          operation: StateMachineRequest.Operation
       )(implicit clientNumber: ClientId): F[StateMachineRequest] =
         for {
           timestamp <- Async[F].delay(System.currentTimeMillis())
           request = StateMachineRequest(
             timestamp = timestamp,
             clientNumber = clientNumber.id,
-            operation = Some(OperationWrapper(operation))
+            operation = operation
           )
           signableBytes = request.signableBytes
           signedBytes <- BridgeCryptoUtils.signBytes[F](
