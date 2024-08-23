@@ -8,8 +8,9 @@ package co.topl.bridge.consensus.pbft;
 message PrePrepareRequest {
   uint64 viewNumber     = 1;
   uint64 sequenceNumber = 2;
-  bytes digest          = 3;
-  co.topl.bridge.shared.StateMachineRequest payload = 4;
+  bytes  digest         = 4;
+  bytes  signature      = 5;
+  co.topl.bridge.shared.StateMachineRequest payload = 6;
 }
 
 message PrepareRequest {
@@ -17,6 +18,7 @@ message PrepareRequest {
   uint64 sequenceNumber = 2;
   bytes  digest         = 3;
   int32  replicaId      = 4;
+  bytes signature       = 5;
 }
 
 message CommitRequest {
@@ -24,10 +26,11 @@ message CommitRequest {
   uint64 sequenceNumber = 2;
   bytes  digest         = 3;
   int32  replicaId      = 4;
+  bytes signature       = 5;
 }
 
 service PBFTInternalService {
   rpc PrePrepare(PrePrepareRequest) returns (co.topl.bridge.shared.Empty);
-  rpc Prepare(PrepareRequest) returns (co.topl.bridge.shared.Empty);
-  rpc Commit(CommitRequest) returns (co.topl.bridge.shared.Empty);
+  rpc Prepare(PrepareRequest)       returns (co.topl.bridge.shared.Empty);
+  rpc Commit(CommitRequest)         returns (co.topl.bridge.shared.Empty);
 }

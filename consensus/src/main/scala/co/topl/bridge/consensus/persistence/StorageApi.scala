@@ -10,8 +10,43 @@ import co.topl.bridge.consensus.utils.MiscUtils
 import com.google.common.io.BaseEncoding
 
 import java.sql.DriverManager
+import co.topl.bridge.consensus.pbft.PrePrepareRequest
+import co.topl.brambl.utils.Encoding
+
+import cats.implicits._
+import com.google.protobuf.ByteString
+import co.topl.bridge.shared.StateMachineRequest
+import co.topl.bridge.consensus.pbft.PrepareRequest
+import co.topl.bridge.consensus.pbft.CommitRequest
 
 trait StorageApi[F[_]] {
+
+  def getPrePrepareMessage(
+      viewNumber: Long,
+      sequenceNumber: Long
+  ): F[Option[PrePrepareRequest]]
+
+  def getPrepareMessages(
+      viewNumber: Long,
+      sequenceNumber: Long
+  ): F[Seq[PrepareRequest]]
+
+  def getCommitMessages(
+      viewNumber: Long,
+      sequenceNumber: Long
+  ): F[Seq[CommitRequest]]
+
+  def insertPrePrepareMessage(
+      prePrepare: PrePrepareRequest
+  ): F[Boolean]
+
+  def insertPrepareMessage(
+      prepare: PrepareRequest
+  ): F[Boolean]
+
+  def insertCommitMessage(
+      commit: CommitRequest
+  ): F[Boolean]
 
   def insertNewSession(
       sessionId: String,
@@ -49,6 +84,201 @@ object StorageApiImpl {
     conn <- createResource(fileName)
   } yield new StorageApi[F] {
 
+    override def getCommitMessages(
+        viewNumber: Long,
+        sequenceNumber: Long
+    ): F[Seq[CommitRequest]] = {
+      val selectCommitStmnt =
+        s"SELECT * FROM commit_message WHERE view_number = ${viewNumber} AND sequence_number = ${sequenceNumber}"
+      statementResource.use { stmnt =>
+        for {
+          rs <- Sync[F]
+            .blocking(
+              stmnt.executeQuery(
+                selectCommitStmnt
+              )
+            )
+          commitMessages <- Sync[F].blocking {
+            val commitMessages =
+              scala.collection.mutable.ArrayBuffer.empty[CommitRequest]
+            while (rs.next()) {
+              val digest = rs.getString("digest")
+              val signature = rs.getString("signature")
+              val replicaId = rs.getInt("replica_id")
+              val commit = CommitRequest(
+                viewNumber = viewNumber,
+                sequenceNumber = sequenceNumber,
+                digest = ByteString.copyFrom(
+                  Encoding.decodeFromHex(digest).toOption.get
+                ),
+                replicaId = replicaId,
+                signature = ByteString.copyFrom(
+                  Encoding.decodeFromHex(signature).toOption.get
+                )
+              )
+              commitMessages += commit
+            }
+            commitMessages.toSeq
+          }
+        } yield commitMessages
+      }
+    }
+
+    override def insertCommitMessage(commit: CommitRequest): F[Boolean] = {
+      val insertCommitStmnt =
+        s"INSERT INTO commit_message (" +
+          "view_number, " +
+          "sequence_number, " +
+          "replica_id, " +
+          "digest, " +
+          "signature" +
+          ") VALUES " +
+          "(" +
+          s"${commit.viewNumber}," +
+          s"${commit.sequenceNumber}," +
+          s"${commit.replicaId}," +
+          s"'${Encoding.encodeToHex(commit.digest.toByteArray)}'," +
+          s"'${Encoding.encodeToHex(commit.signature.toByteArray)}'" +
+          ")"
+      statementResource.use { stmnt =>
+        Sync[F]
+          .blocking(
+            stmnt.execute(insertCommitStmnt)
+          )
+      }
+    }
+
+    override def getPrepareMessages(
+        viewNumber: Long,
+        sequenceNumber: Long
+    ): F[Seq[PrepareRequest]] = {
+      val selectPrepareStmnt =
+        s"SELECT * FROM prepare_message WHERE view_number = ${viewNumber} AND sequence_number = ${sequenceNumber}"
+      statementResource.use { stmnt =>
+        for {
+          rs <- Sync[F]
+            .blocking(
+              stmnt.executeQuery(
+                selectPrepareStmnt
+              )
+            )
+          prepareMessages <- Sync[F].blocking {
+            val prepareMessages =
+              scala.collection.mutable.ArrayBuffer.empty[PrepareRequest]
+            while (rs.next()) {
+              val digest = rs.getString("digest")
+              val signature = rs.getString("signature")
+              val replicaId = rs.getInt("replica_id")
+              val prepare = PrepareRequest(
+                viewNumber = viewNumber,
+                sequenceNumber = sequenceNumber,
+                digest = ByteString.copyFrom(
+                  Encoding.decodeFromHex(digest).toOption.get
+                ),
+                replicaId = replicaId,
+                signature = ByteString.copyFrom(
+                  Encoding.decodeFromHex(signature).toOption.get
+                )
+              )
+              prepareMessages += prepare
+            }
+            prepareMessages.toSeq
+          }
+        } yield prepareMessages
+      }
+    }
+
+    override def insertPrepareMessage(prepare: PrepareRequest): F[Boolean] =
+      statementResource.use { stmnt =>
+        val insertPrepareStmnt =
+          s"INSERT INTO prepare_message (" +
+            "view_number, " +
+            "sequence_number, " +
+            "replica_id" +
+            "digest, " +
+            "signature, " +
+            ") VALUES " +
+            "(" +
+            s"${prepare.viewNumber}," +
+            s"${prepare.sequenceNumber}," +
+            s"${prepare.replicaId}," +
+            s"'${Encoding.encodeToHex(prepare.digest.toByteArray)}'," +
+            s"'${Encoding.encodeToHex(prepare.signature.toByteArray)}'" +
+            ")"
+        Sync[F]
+          .blocking(
+            stmnt.execute(insertPrepareStmnt)
+          )
+      }
+
+    private def selectPrePrepareStmnt(viewNumber: Long, sequenceNumber: Long) =
+      s"SELECT digest FROM pre_prepare_message WHERE view_number = ${viewNumber} AND sequence_number = ${sequenceNumber}"
+
+    def getPrePrepareMessage(
+        viewNumber: Long,
+        sequenceNumber: Long
+    ): F[Option[PrePrepareRequest]] =
+      statementResource.use { stmnt =>
+        for {
+          rs <- Sync[F]
+            .blocking(
+              stmnt.executeQuery(
+                selectPrePrepareStmnt(viewNumber, sequenceNumber)
+              )
+            )
+          hasNext <- Sync[F].blocking(rs.next())
+        } yield
+          if (hasNext) {
+            val digest = rs.getString("digest")
+            val signature = rs.getString("signature")
+            val payload = rs.getString("payload")
+            val prePrepare = PrePrepareRequest(
+              viewNumber,
+              sequenceNumber,
+              ByteString.copyFrom(
+                Encoding.decodeFromHex(digest).toOption.get
+              ),
+              ByteString.copyFrom(
+                Encoding.decodeFromHex(signature).toOption.get
+              ),
+              Encoding
+                .decodeFromHex(payload)
+                .map(StateMachineRequest.parseFrom(_))
+                .toOption
+            )
+            Some(prePrepare)
+          } else {
+            None
+          }
+      }
+
+    def insertPrePrepareMessage(
+        prePrepare: PrePrepareRequest
+    ): F[Boolean] = {
+      val insertPrePrepareStmnt =
+        s"INSERT INTO pre_prepare_message (" +
+          "view_number, " +
+          "sequence_number, " +
+          "digest, " +
+          "signature, " +
+          "payload" +
+          ") VALUES " +
+          "(" +
+          s"${prePrepare.viewNumber}," +
+          s"${prePrepare.sequenceNumber}," +
+          s"'${Encoding.encodeToHex(prePrepare.digest.toByteArray)}'," +
+          s"'${Encoding.encodeToHex(prePrepare.signature.toByteArray)}'," +
+          s"'${Encoding.encodeToHex(prePrepare.payload.get.toByteArray)}'" +
+          ")"
+
+      statementResource.use { stmnt =>
+        Sync[F]
+          .blocking(
+            stmnt.execute(insertPrePrepareStmnt)
+          )
+      }
+    }
+
     override def insertNewSession(
         sessionId: String,
         sInfo: SessionInfo
@@ -78,22 +308,22 @@ object StorageApiImpl {
               "max_height, " +
               "claim_address, " +
               "minting_status " +
-          " ) VALUES " +
-            "(" +
-            s"'${sessionId}'," +
-            "'pegin'," +
-            s"${sessionInfo.btcPeginCurrentWalletIdx}," +
-            s"${sessionInfo.btcBridgeCurrentWalletIdx}," +
-            s"'${sessionInfo.mintTemplateName}'," +
-            s"'${sessionInfo.redeemAddress}'," +
-            s"'${sessionInfo.escrowAddress}'," +
-            s"'${sessionInfo.scriptAsm}'," +
-            s"'${sessionInfo.sha256}'," +
-            s"${sessionInfo.minHeight}," +
-            s"${sessionInfo.maxHeight}," +
-            s"'${sessionInfo.claimAddress}'," +
-            s"'${sessionInfo.mintingBTCState.toString()}'" +
-            ")"
+              " ) VALUES " +
+              "(" +
+              s"'${sessionId}'," +
+              "'pegin'," +
+              s"${sessionInfo.btcPeginCurrentWalletIdx}," +
+              s"${sessionInfo.btcBridgeCurrentWalletIdx}," +
+              s"'${sessionInfo.mintTemplateName}'," +
+              s"'${sessionInfo.redeemAddress}'," +
+              s"'${sessionInfo.escrowAddress}'," +
+              s"'${sessionInfo.scriptAsm}'," +
+              s"'${sessionInfo.sha256}'," +
+              s"${sessionInfo.minHeight}," +
+              s"${sessionInfo.maxHeight}," +
+              s"'${sessionInfo.claimAddress}'," +
+              s"'${sessionInfo.mintingBTCState.toString()}'" +
+              ")"
           import cats.implicits._
           statementResource.use { stmnt =>
             Sync[F]
@@ -234,8 +464,38 @@ object StorageApiImpl {
         "min_height            INTEGER NOT NULL, " +
         "max_height            INTEGER NOT NULL, " +
         "claim_address         TEXT NOT NULL, " +
-        "minting_status TEXT NOT NULL" + 
-    ")"
+        "minting_status TEXT NOT NULL" +
+        ")"
+
+    val createPrePrepareTableStmt =
+      "CREATE TABLE IF NOT EXISTS pre_prepare_message (" +
+        "view_number INTEGER NOT NULL, " +
+        "sequence_number INTEGER NOT NULL, " +
+        "digest TEXT NOT NULL, " +
+        "signature TEXT NOT NULL, " +
+        "payload TEXT NOT NULL, " +
+        "PRIMARY KEY (view_number, sequence_number)" +
+        ")"
+
+    val createPrepareTableStmt =
+      "CREATE TABLE IF NOT EXISTS prepare_message (" +
+        "view_number INTEGER NOT NULL, " +
+        "sequence_number INTEGER NOT NULL, " +
+        "digest TEXT NOT NULL, " +
+        "replica_id INTEGER NOT NULL, " +
+        "signature TEXT NOT NULL, " +
+        "PRIMARY KEY (view_number, sequence_number, replica_id)" +
+        ")"
+
+    val createCommitTableStmt =
+      "CREATE TABLE IF NOT EXISTS commit_message (" +
+        "view_number INTEGER NOT NULL, " +
+        "sequence_number INTEGER NOT NULL, " +
+        "replica_id INTEGER NOT NULL, " +
+        "digest TEXT NOT NULL, " +
+        "signature TEXT NOT NULL, " +
+        "PRIMARY KEY (view_number, sequence_number, replica_id)" +
+        ")"
 
     val BLOCKCHAIN_EVENT_ID = "blockchain_event"
 
@@ -267,10 +527,15 @@ object StorageApiImpl {
       import cats.implicits._
       Sync[F].blocking(
         stmnt.execute(createEvtTableStmnt)
-      ) >>
-        Sync[F].blocking(
-          stmnt.execute(createSessionTableStmt)
-        )
+      ) >> Sync[F].blocking(
+        stmnt.execute(createSessionTableStmt)
+      ) >> Sync[F].blocking(
+        stmnt.execute(createPrePrepareTableStmt)
+      ) >> Sync[F].blocking(
+        stmnt.execute(createPrepareTableStmt)
+      ) >> Sync[F].blocking(
+        stmnt.execute(createCommitTableStmt)
+      )
     }
 
   }

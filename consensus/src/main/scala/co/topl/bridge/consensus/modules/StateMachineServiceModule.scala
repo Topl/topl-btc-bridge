@@ -90,15 +90,26 @@ import org.bitcoins.core.currency.Satoshis
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import quivr.models.KeyPair
+import java.security.{KeyPair => JKeyPair}
 import scodec.bits.ByteVector
 
 import java.security.PublicKey
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import co.topl.consensus.PBFTProtocolClientGrpc
+import co.topl.bridge.consensus.pbft.PrePrepareRequest
+import com.google.protobuf.ByteString
+import java.security.MessageDigest
+import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.shared.BridgeCryptoUtils
+import co.topl.bridge.consensus.pbft.PrepareRequest
+import co.topl.bridge.consensus.pbft.CommitRequest
 
 trait StateMachineServiceModule {
 
   def stateMachineService(
+      keyPair: JKeyPair,
+      pbftProtocolClientGrpc: PBFTProtocolClientGrpc[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       lastReplyMap: ConcurrentHashMap[(ClientId, Long), Result],
       sessionState: ConcurrentHashMap[String, PBFTState],
@@ -111,9 +122,11 @@ trait StateMachineServiceModule {
       btcNetwork: BitcoinNetworkIdentifiers,
       currentBTCHeightRef: Ref[IO, Int],
       currentView: Ref[IO, Long],
+      currentSequenceRef: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long]
   )(implicit
       toplKeypair: KeyPair,
+      storageApi: StorageApi[IO],
       bitcoindInstance: BitcoindRpcClient,
       channelResource: Resource[IO, ManagedChannel],
       pegInWalletManager: BTCWalletAlgebra[IO],
@@ -409,8 +422,10 @@ trait StateMachineServiceModule {
                 .replyStartPegin(request.timestamp, viewNumber, result)
             } yield Empty()
           case None =>
+            import scala.concurrent.duration._
             for {
               currentView <- currentView.get
+              currentSequence <- currentSequenceRef.updateAndGet(_ + 1)
               currentPrimary = currentView % replicaCount.value
               _ <-
                 if (currentPrimary != replicaId.id)
@@ -419,172 +434,244 @@ trait StateMachineServiceModule {
                     replicaId.id
                   ).executeRequest(request, ctx)
                 else {
-                  // we are the primary, process the request
-                  (request.operation match {
-                    case StateMachineRequest.Operation.Empty =>
-                      warn"Received empty message" >> IO.pure(Result.Empty)
-                    case MintingStatus(value) =>
-                      mintingStatus(
-                        request.clientNumber,
-                        request.timestamp,
-                        value
+                  import co.topl.shared.implicits._
+                  val prePrepareRequest = PrePrepareRequest(
+                    viewNumber = currentView,
+                    sequenceNumber = currentSequence,
+                    digest = ByteString.copyFrom(
+                      MessageDigest
+                        .getInstance("SHA-256")
+                        .digest(request.signableBytes)
+                    ),
+                    payload = Some(request)
+                  )
+                  val prepareRequest = PrepareRequest(
+                    viewNumber = currentView,
+                    sequenceNumber = currentSequence,
+                    digest = prePrepareRequest.digest,
+                    replicaId = replicaId.id
+                  )
+                  (for {
+                    signedPrePreparedBytes <- BridgeCryptoUtils.signBytes[IO](
+                      keyPair.getPrivate(),
+                      prePrepareRequest.signableBytes
+                    )
+                    signedPreparedBytes <- BridgeCryptoUtils.signBytes[IO](
+                      keyPair.getPrivate(),
+                      prepareRequest.signableBytes
+                    )
+                    signedprePrepareRequest = prePrepareRequest.withSignature(
+                      ByteString.copyFrom(signedPrePreparedBytes)
+                    )
+                    signedPrepareRequest = prepareRequest.withSignature(
+                      ByteString.copyFrom(signedPreparedBytes)
+                    )
+                    _ <- pbftProtocolClientGrpc.prePrepare(
+                      signedprePrepareRequest
+                    )
+                    _ <- storageApi.insertPrePrepareMessage(
+                      signedprePrepareRequest
+                    )
+                    _ <- pbftProtocolClientGrpc.prepare(
+                      signedPrepareRequest
+                    )
+                    _ <- storageApi.insertPrepareMessage(signedPrepareRequest)
+                    _ <- (IO.sleep(2.seconds) >>
+                      isPrepared[IO](
+                        currentView,
+                        currentSequence
+                      )).iterateUntil(identity)
+                    commitRequest = CommitRequest(
+                      viewNumber = currentView,
+                      sequenceNumber = currentSequence,
+                      digest = prePrepareRequest.digest,
+                      replicaId = replicaId.id
+                    )
+                    signedBytes <- BridgeCryptoUtils.signBytes[IO](
+                      keyPair.getPrivate(),
+                      commitRequest.signableBytes
+                    )
+                    _ <- pbftProtocolClientGrpc.commit(
+                      commitRequest.withSignature(
+                        ByteString.copyFrom(signedBytes)
                       )
-                    case StartSession(sc) =>
-                      startSession(request.clientNumber, request.timestamp, sc)
-                    case PostDepositBTC(
-                          value
-                        ) => // FIXME: add checks before executing
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case TimeoutDepositBTC(
-                          value
-                        ) => // FIXME: add checks before executing
-                      IO(sessionState.remove(value.sessionId)) >>
-                        sessionManager.removeSession(
-                          value.sessionId,
-                          PeginSessionStateTimeout
-                        ) >> sendResponse(
+                    )
+                    _ <- storageApi.insertCommitMessage(commitRequest)
+                    _ <- (IO.sleep(2.second) >> isCommitted[IO](
+                      currentView,
+                      currentSequence
+                    )).iterateUntil(identity)
+                  } yield ()) >>
+                    // we are the primary, process the request
+                    (request.operation match {
+                      case StateMachineRequest.Operation.Empty =>
+                        warn"Received empty message" >> IO.pure(Result.Empty)
+                      case MintingStatus(value) =>
+                        mintingStatus(
                           request.clientNumber,
-                          request.timestamp
-                        ) // FIXME: this is just a change of state at db level
-                    case UndoDepositBTC(
+                          request.timestamp,
                           value
-                        ) => // FIXME: add checks before executing
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case ConfirmDepositBTC(
-                          value
-                        ) =>
-                      import co.topl.brambl.syntax._
-                      for {
-                        _ <- trace"Deposit has been confirmed"
-                        someSessionInfo <- standardResponse(
+                        )
+                      case StartSession(sc) =>
+                        startSession(
+                          request.clientNumber,
+                          request.timestamp,
+                          sc
+                        )
+                      case PostDepositBTC(
+                            value
+                          ) => // FIXME: add checks before executing
+                        standardResponse(
                           request.clientNumber,
                           request.timestamp,
                           value.sessionId,
                           request.operation
-                        )
-                        _ <- trace"Minting: ${BigInt(value.amount.toByteArray())}"
-                        _ <- someSessionInfo
-                          .flatMap(sessionInfo =>
-                            MiscUtils.sessionInfoPeginPrism
-                              .getOption(sessionInfo)
-                              .map(peginSessionInfo =>
-                                startMintingProcess[IO](
-                                  defaultFromFellowship,
-                                  defaultFromTemplate,
-                                  peginSessionInfo.redeemAddress,
-                                  BigInt(value.amount.toByteArray())
-                                )
-                              )
+                        ) >> IO.pure(Result.Empty)
+                      case TimeoutDepositBTC(
+                            value
+                          ) => // FIXME: add checks before executing
+                        IO(sessionState.remove(value.sessionId)) >>
+                          sessionManager.removeSession(
+                            value.sessionId,
+                            PeginSessionStateTimeout
+                          ) >> sendResponse(
+                            request.clientNumber,
+                            request.timestamp
+                          ) // FIXME: this is just a change of state at db level
+                      case UndoDepositBTC(
+                            value
+                          ) => // FIXME: add checks before executing
+                        standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        ) >> IO.pure(Result.Empty)
+                      case ConfirmDepositBTC(
+                            value
+                          ) =>
+                        import co.topl.brambl.syntax._
+                        for {
+                          _ <- trace"Deposit has been confirmed"
+                          someSessionInfo <- standardResponse(
+                            request.clientNumber,
+                            request.timestamp,
+                            value.sessionId,
+                            request.operation
                           )
-                          .getOrElse(IO.unit)
-                      } yield Result.Empty
-                    case PostTBTCMint(
-                          value
-                        ) => // FIXME: add checks before executing
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case TimeoutTBTCMint(
-                          value
-                        ) => // FIXME: Add checks before executing
-                      IO(sessionState.remove(value.sessionId)) >>
-                        sessionManager.removeSession(
-                          value.sessionId,
-                          PeginSessionStateTimeout
-                        ) >> sendResponse(
-                          request.clientNumber,
-                          request.timestamp
-                        ) // FIXME: this is just a change of state at db level
-                    case UndoTBTCMint(
-                          value
-                        ) => // FIXME: Add checks before executing
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case ConfirmTBTCMint(
-                          value
-                        ) => // FIXME: Add checks before executing
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case PostRedemptionTx(
-                          value
-                        ) => // FIXME: Add checks before executing
-                      for {
-                        someSessionInfo <- standardResponse(
+                          _ <- trace"Minting: ${BigInt(value.amount.toByteArray())}"
+                          _ <- someSessionInfo
+                            .flatMap(sessionInfo =>
+                              MiscUtils.sessionInfoPeginPrism
+                                .getOption(sessionInfo)
+                                .map(peginSessionInfo =>
+                                  startMintingProcess[IO](
+                                    defaultFromFellowship,
+                                    defaultFromTemplate,
+                                    peginSessionInfo.redeemAddress,
+                                    BigInt(value.amount.toByteArray())
+                                  )
+                                )
+                            )
+                            .getOrElse(IO.unit)
+                        } yield Result.Empty
+                      case PostTBTCMint(
+                            value
+                          ) => // FIXME: add checks before executing
+                        standardResponse(
                           request.clientNumber,
                           request.timestamp,
                           value.sessionId,
                           request.operation
-                        )
-                        _ <- (for {
-                          sessionInfo <- someSessionInfo
-                          peginSessionInfo <- MiscUtils.sessionInfoPeginPrism
-                            .getOption(sessionInfo)
-                        } yield startClaimingProcess[IO](
-                          value.secret,
-                          peginSessionInfo.claimAddress,
-                          peginSessionInfo.btcBridgeCurrentWalletIdx,
-                          value.txId,
-                          value.vout,
-                          peginSessionInfo.scriptAsm, // scriptAsm,
-                          Satoshis
-                            .fromLong(
-                              BigInt(value.amount.toByteArray()).toLong
-                            )
-                        )).getOrElse(IO.unit)
-                      } yield Result.Empty
-                    case PostClaimTx(value) =>
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case UndoClaimTx(value) =>
-                      standardResponse(
-                        request.clientNumber,
-                        request.timestamp,
-                        value.sessionId,
-                        request.operation
-                      ) >> IO.pure(Result.Empty)
-                    case ConfirmClaimTx(value) =>
-                      IO(
-                        sessionState.remove(value.sessionId)
-                      ) >> sessionManager.removeSession(
+                        ) >> IO.pure(Result.Empty)
+                      case TimeoutTBTCMint(
+                            value
+                          ) => // FIXME: Add checks before executing
+                        IO(sessionState.remove(value.sessionId)) >>
+                          sessionManager.removeSession(
+                            value.sessionId,
+                            PeginSessionStateTimeout
+                          ) >> sendResponse(
+                            request.clientNumber,
+                            request.timestamp
+                          ) // FIXME: this is just a change of state at db level
+                      case UndoTBTCMint(
+                            value
+                          ) => // FIXME: Add checks before executing
+                        standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        ) >> IO.pure(Result.Empty)
+                      case ConfirmTBTCMint(
+                            value
+                          ) => // FIXME: Add checks before executing
+                        standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        ) >> IO.pure(Result.Empty)
+                      case PostRedemptionTx(
+                            value
+                          ) => // FIXME: Add checks before executing
+                        for {
+                          someSessionInfo <- standardResponse(
+                            request.clientNumber,
+                            request.timestamp,
+                            value.sessionId,
+                            request.operation
+                          )
+                          _ <- (for {
+                            sessionInfo <- someSessionInfo
+                            peginSessionInfo <- MiscUtils.sessionInfoPeginPrism
+                              .getOption(sessionInfo)
+                          } yield startClaimingProcess[IO](
+                            value.secret,
+                            peginSessionInfo.claimAddress,
+                            peginSessionInfo.btcBridgeCurrentWalletIdx,
+                            value.txId,
+                            value.vout,
+                            peginSessionInfo.scriptAsm, // scriptAsm,
+                            Satoshis
+                              .fromLong(
+                                BigInt(value.amount.toByteArray()).toLong
+                              )
+                          )).getOrElse(IO.unit)
+                        } yield Result.Empty
+                      case PostClaimTx(value) =>
+                        standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        ) >> IO.pure(Result.Empty)
+                      case UndoClaimTx(value) =>
+                        standardResponse(
+                          request.clientNumber,
+                          request.timestamp,
+                          value.sessionId,
+                          request.operation
+                        ) >> IO.pure(Result.Empty)
+                      case ConfirmClaimTx(value) =>
+                        IO(
+                          sessionState.remove(value.sessionId)
+                        ) >> sessionManager.removeSession(
                           value.sessionId,
                           PeginSessionStateSuccessfulPegin
                         ) >> sendResponse(
                           request.clientNumber,
                           request.timestamp
                         ) // FIXME: this is just a change of state at db level
-                  }).flatMap(x =>
-                    IO(
-                      lastReplyMap.put(
-                        (ClientId(request.clientNumber), request.timestamp),
-                        x
+                    }).flatMap(x =>
+                      IO(
+                        lastReplyMap.put(
+                          (ClientId(request.clientNumber), request.timestamp),
+                          x
+                        )
                       )
-                    )
-                  ) >> IO.pure(Empty())
+                    ) >> IO.pure(Empty())
                 }
             } yield Empty()
 

@@ -394,9 +394,7 @@ object ConsensusClientGrpcImpl {
               ) {
                 trace"Waiting for more votes" >> Async[F].sleep(
                   2.second
-                ) >> checkVoteResult(
-                  timestamp
-                )
+                ) >> checkVoteResult(timestamp)
               } else
                 clearVoteTable(timestamp) >> Async[F].delay(winner.getKey())
             case None => // there are no votes

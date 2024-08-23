@@ -38,6 +38,8 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
+import java.security.{KeyPair => JKeyPair}
+
 import java.net.InetSocketAddress
 import java.security.KeyPair
 import java.security.PublicKey
@@ -61,6 +63,8 @@ import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.ClientId
 import co.topl.shared.modules.ReplyServicesModule
 import co.topl.shared.ClientCount
+import co.topl.consensus.PBFTProtocolClientGrpcImpl
+import co.topl.consensus.PBFTProtocolClientGrpc
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -254,6 +258,8 @@ object Main
   }
 
   def initializeForResources(
+      replicaKeyPair: JKeyPair,
+      pbftProtocolClient: PBFTProtocolClientGrpc[IO],
       storageApi: StorageApi[IO],
       consensusClient: ConsensusClientGrpc[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
@@ -266,6 +272,7 @@ object Main
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentSequenceRef: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long],
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
@@ -282,11 +289,13 @@ object Main
       logger: Logger[IO]
   ) = {
     implicit val consensusClientImpl = consensusClient
+    implicit val storageApiImpl = storageApi
     for {
       currentToplHeightVal <- currentToplHeight.get
       currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
       res <- createApp(
-        storageApi,
+        replicaKeyPair,
+        pbftProtocolClient,
         idReplicaClientMap,
         params,
         publicApiClientGrpcMap,
@@ -295,6 +304,7 @@ object Main
         pegInWalletManager,
         logger,
         currentBitcoinNetworkHeight,
+        currentSequenceRef,
         currentToplHeight,
         currentView,
         currentState
@@ -329,6 +339,7 @@ object Main
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentSequenceRef: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long],
       currentViewRef: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
@@ -368,6 +379,9 @@ object Main
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       mutex <- Mutex[IO].toResource
+      pbftProtocolClientGrpc <- PBFTProtocolClientGrpcImpl.make[IO](
+        replicaNodes
+      )
       replicaClients <- ConsensusClientGrpcImpl
         .makeContainer[IO](
           currentViewRef,
@@ -378,6 +392,8 @@ object Main
           messageResponseMap
         )
       res <- initializeForResources(
+        replicaKeyPair,
+        pbftProtocolClientGrpc,
         storageApi,
         replicaClients,
         idReplicaClientMap,
@@ -387,6 +403,7 @@ object Main
         walletManager,
         pegInWalletManager,
         currentBitcoinNetworkHeight,
+        currentSequenceRef,
         currentToplHeight,
         currentViewRef,
         currentState
@@ -585,6 +602,7 @@ object Main
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
       currentView <- Ref[IO].of(0L)
+      currentSequenceRef <- Ref[IO].of(0L)
       _ <- startResources(
         privateKeyFile,
         params,
@@ -592,6 +610,7 @@ object Main
         walletManager,
         pegInWalletManager,
         currentBitcoinNetworkHeight,
+        currentSequenceRef,
         currentToplHeight,
         currentView,
         globalState
