@@ -36,6 +36,10 @@ import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
+import co.topl.bridge.consensus.BridgeWalletManager
+import co.topl.bridge.consensus.PeginWalletManager
+import co.topl.bridge.consensus.CurrentToplHeight
+import co.topl.bridge.consensus.ToplKeypair
 
 object StartSessionController {
 
@@ -115,12 +119,12 @@ object StartSessionController {
   def startPeginSession[F[_]: Async: Logger](
       sessionId: String,
       req: StartSessionOperation,
-      pegInWalletManager: BTCWalletAlgebra[F],
-      bridgeWalletManager: BTCWalletAlgebra[F],
-      keyPair: KeyPair,
-      currentToplHeight: Ref[F, Long],
-      btcNetwork: BitcoinNetworkIdentifiers
-  )(implicit
+      )(implicit
+      toplKeypair: ToplKeypair,
+      btcNetwork: BitcoinNetworkIdentifiers,
+      currentToplHeight: CurrentToplHeight[F],
+      pegInWalletManager: PeginWalletManager[F],
+      bridgeWalletManager: BridgeWalletManager[F],
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
       toplWaitExpirationTime: ToplWaitExpirationTime,
@@ -135,13 +139,13 @@ object StartSessionController {
     import org.typelevel.log4cats.syntax._
 
     (for {
-      idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
+      idxAndnewKey <- pegInWalletManager.underlying.getCurrentPubKeyAndPrepareNext()
       (btcPeginCurrentWalletIdx, btcPeginBridgePKey) = idxAndnewKey
-      bridgeIdxAndnewKey <- bridgeWalletManager.getCurrentPubKeyAndPrepareNext()
+      bridgeIdxAndnewKey <- bridgeWalletManager.underlying.getCurrentPubKeyAndPrepareNext()
       (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
-      minToplHeight <- currentToplHeight.get
+      minToplHeight <- currentToplHeight.underlying.get
       _ <-
         if (minToplHeight == 0)
           Sync[F].raiseError(new IllegalStateException("Topl height is 0"))
@@ -150,7 +154,7 @@ object StartSessionController {
       someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,
         mintTemplateName,
-        keyPair,
+        toplKeypair.underlying,
         req.sha256,
         minToplHeight,
         maxToplHeight

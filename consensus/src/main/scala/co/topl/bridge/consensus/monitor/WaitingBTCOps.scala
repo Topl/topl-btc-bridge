@@ -20,6 +20,7 @@ import io.grpc.ManagedChannel
 import org.typelevel.log4cats.Logger
 import quivr.models.Int128
 import quivr.models.KeyPair
+import co.topl.bridge.consensus.ToplKeypair
 
 object WaitingBTCOps {
 
@@ -114,7 +115,7 @@ object WaitingBTCOps {
       redeemAddress: String,
       amount: Int128
   )(implicit
-      keyPair: KeyPair,
+      toplKeypair: ToplKeypair,
       walletApi: WalletApi[F],
       walletStateApi: WalletStateAlgebra[F],
       transactionBuilderApi: TransactionBuilderApi[F],
@@ -139,7 +140,7 @@ object WaitingBTCOps {
         fromFellowship,
         fromTemplate,
         assetMintingStatement,
-        keyPair,
+        toplKeypair.underlying,
         defaultMintingFee
       )
     } yield ()

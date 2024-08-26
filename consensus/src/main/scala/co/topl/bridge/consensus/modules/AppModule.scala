@@ -39,9 +39,9 @@ import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.dsl.io._
 import org.typelevel.log4cats.Logger
-import java.security.{KeyPair => JKeyPair}
 
 import java.security.PublicKey
+import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
 
 trait AppModule extends WalletStateResource with StateMachineServiceModule {
@@ -151,15 +151,9 @@ trait AppModule extends WalletStateResource with StateMachineServiceModule {
           pbftProtocolClient,
           idReplicaClientMap,
           lastReplyMap,
-          new ConcurrentHashMap(),
           publicApiClientGrpcMap,
-          sessionManagerPermanent,
-          walletManager,
-          params.btcNetwork,
-          currentBitcoinNetworkHeight,
           currentView,
-          currentSequenceRef,
-          currentToplHeight
+          currentSequenceRef
         ),
         InitializationModule
           .make[IO](currentBitcoinNetworkHeight, currentState),

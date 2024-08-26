@@ -14,6 +14,7 @@ import org.bitcoins.crypto._
 import scodec.bits.ByteVector
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.bitcoins.core.currency.CurrencyUnit
+import co.topl.bridge.consensus.PeginWalletManager
 
 object WaitingForRedemptionOps {
 
@@ -25,9 +26,9 @@ object WaitingForRedemptionOps {
       vout: Long,
       scriptAsm: String,
       amountInSatoshis: CurrencyUnit
-      )(implicit
+  )(implicit
       bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F],
+      pegInWalletManager: PeginWalletManager[F],
       feePerByte: CurrencyUnit
   ) = {
 
@@ -49,7 +50,7 @@ object WaitingForRedemptionOps {
       )
     val signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
     for {
-      signature <- pegInWalletManager.signForIdx(
+      signature <- pegInWalletManager.underlying.signForIdx(
         currentWalletIdx,
         signableBytes.bytes
       )
