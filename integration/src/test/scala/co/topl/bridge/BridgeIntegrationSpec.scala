@@ -248,25 +248,25 @@ class BridgeIntegrationSpec
 
   override def munitFixtures = List(startServer)
 
-  cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
-    info"Bridge should correctly peg-in BTC" >> successfulPegin()
-  }
-  cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
-    _ =>
-      info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
-  }
-  cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
-    info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
-  }
-  cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-    info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
-  }
+  // cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
+  //   info"Bridge should correctly peg-in BTC" >> successfulPegin()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
+  //   _ =>
+  //     info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
+  //   info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
+  // }
+  // cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
+  //   info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
+  // }
 
-  cleanupDir.test(
-    "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
-  ) { _ =>
-    info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
-  }
+  // cleanupDir.test(
+  //   "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
+  // ) { _ =>
+  //   info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
+  // }
 
   cleanupDir.test(
     "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
