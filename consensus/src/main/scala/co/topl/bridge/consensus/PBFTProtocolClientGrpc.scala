@@ -58,7 +58,13 @@ object PBFTProtocolClientGrpcImpl {
       backupMap = idBackupMap.toMap
     } yield new PBFTProtocolClientGrpc[F] {
 
-      override def commit(request: CommitRequest): F[Empty] = ???
+      override def commit(request: CommitRequest): F[Empty] =
+        for {
+          _ <- trace"Sending CommitRequest to all replicas"
+          _ <- backupMap.toList.traverse { case (_, backup) =>
+            backup.commit(request, new Metadata())
+          }
+        } yield Empty()
 
       override def prePrepare(request: PrePrepareRequest): F[Empty] =
         for {

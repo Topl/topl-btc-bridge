@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import co.topl.bridge.consensus.persistence.StorageApi
 import co.topl.shared.ReplicaCount
 
-package object modules {
+package object pbft {
 
   def isPrepared[F[_]: Sync](
       viewNumber: Long,

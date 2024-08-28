@@ -465,8 +465,8 @@ object ConsensusClientGrpcImpl {
             keyPair.getPrivate(),
             signableBytes
           )
-          signedRequest = request.copy(signature =
-            ByteString.copyFrom(signableBytes)
+          signedRequest = request.withSignature(
+            ByteString.copyFrom(signedBytes)
           )
         } yield signedRequest
     }

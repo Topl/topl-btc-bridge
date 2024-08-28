@@ -11,6 +11,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.UUID
 import cats.effect.kernel.Resource
+import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 class SessionManagerSpec extends CatsEffectSuite {
 
@@ -27,6 +28,9 @@ class SessionManagerSpec extends CatsEffectSuite {
     "claimAddress",
     PeginSessionState.PeginSessionStateWaitingForBTC
   )
+  implicit val logger: SelfAwareStructuredLogger[IO] =
+    org.typelevel.log4cats.slf4j.Slf4jLogger
+      .getLoggerFromName[IO]("test")
 
   val testdb = "test.db"
 

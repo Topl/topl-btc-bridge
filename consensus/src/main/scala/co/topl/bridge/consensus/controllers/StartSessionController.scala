@@ -1,7 +1,6 @@
 package co.topl.bridge.consensus.controllers
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.FellowshipStorageAlgebra
@@ -10,9 +9,12 @@ import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.BitcoinNetworkIdentifiers
+import co.topl.bridge.consensus.BridgeWalletManager
+import co.topl.bridge.consensus.CurrentToplHeight
 import co.topl.bridge.consensus.PeginSessionState
+import co.topl.bridge.consensus.PeginWalletManager
+import co.topl.bridge.consensus.ToplKeypair
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.ToplWalletAlgebra
 import co.topl.bridge.consensus.utils.BitcoinUtils
@@ -32,14 +34,9 @@ import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import org.typelevel.log4cats.Logger
-import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
-import co.topl.bridge.consensus.BridgeWalletManager
-import co.topl.bridge.consensus.PeginWalletManager
-import co.topl.bridge.consensus.CurrentToplHeight
-import co.topl.bridge.consensus.ToplKeypair
 
 object StartSessionController {
 

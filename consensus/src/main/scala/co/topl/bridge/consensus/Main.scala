@@ -6,6 +6,8 @@ import cats.effect.IOApp
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Resource
+import cats.effect.kernel.Sync
+import cats.effect.std.Mutex
 import cats.effect.std.Queue
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.brambl.models.GroupId
@@ -21,14 +23,29 @@ import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.modules.AppModule
-import co.topl.bridge.consensus.persistence.StorageApiImpl
 import co.topl.bridge.consensus.monitor.BlockProcessor
+import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.bridge.consensus.persistence.StorageApiImpl
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
+import co.topl.consensus.PBFTProtocolClientGrpc
+import co.topl.consensus.PBFTProtocolClientGrpcImpl
 import co.topl.shared.BridgeCryptoUtils
+import co.topl.shared.BridgeError
+import co.topl.shared.BridgeResponse
+import co.topl.shared.ClientCount
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.ConsensusClientGrpcImpl
+import co.topl.shared.ConsensusClientMessageId
+import co.topl.shared.ReplicaCount
+import co.topl.shared.ReplicaNode
+import co.topl.shared.modules.ReplyServicesModule
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Metadata
 import io.grpc.netty.NettyServerBuilder
 import org.bitcoins.keymanager.bip39.BIP39KeyManager
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
@@ -38,33 +55,15 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
-import java.security.{KeyPair => JKeyPair}
-
 import java.net.InetSocketAddress
 import java.security.KeyPair
 import java.security.PublicKey
 import java.security.Security
-import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
-import co.topl.shared.ReplicaNode
-import cats.effect.kernel.Sync
-import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import io.grpc.Metadata
-import co.topl.shared.ReplicaCount
-import co.topl.bridge.consensus.persistence.StorageApi
-import co.topl.shared.ConsensusClientGrpcImpl
-import cats.effect.std.Mutex
+import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.ConsensusClientMessageId
-import co.topl.shared.BridgeError
-import co.topl.shared.BridgeResponse
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.LongAdder
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.ClientId
-import co.topl.shared.modules.ReplyServicesModule
-import co.topl.shared.ClientCount
-import co.topl.consensus.PBFTProtocolClientGrpcImpl
-import co.topl.consensus.PBFTProtocolClientGrpc
+import scala.concurrent.ExecutionContext
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -206,10 +205,11 @@ object Main
   }
 
   private def loadReplicaNodeFromConfig[F[_]: Sync: Logger](
-      conf: Config
+      conf: Config,
+      replicaId: ReplicaId
   )(implicit replicaCount: ReplicaCount): F[List[ReplicaNode[F]]] = {
     import cats.implicits._
-    (for (i <- 0 until replicaCount.value) yield {
+    (for (i <- 0 until replicaCount.value if (replicaId.id != i)) yield {
       for {
         host <- Sync[F].delay(
           conf.getString(s"bridge.replica.consensus.replicas.$i.host")
@@ -258,6 +258,7 @@ object Main
   }
 
   def initializeForResources(
+      replicaKeysMap: Map[Int, PublicKey],
       replicaKeyPair: JKeyPair,
       pbftProtocolClient: PBFTProtocolClientGrpc[IO],
       storageApi: StorageApi[IO],
@@ -290,15 +291,18 @@ object Main
   ) = {
     implicit val consensusClientImpl = consensusClient
     implicit val storageApiImpl = storageApi
+    implicit val pbftProtocolClientImpl =
+      new PublicApiClientGrpcMap[IO](publicApiClientGrpcMap)
+    implicit val currentViewRef = new CurrentView[IO](currentView)
     for {
       currentToplHeightVal <- currentToplHeight.get
       currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
       res <- createApp(
+        replicaKeysMap,
         replicaKeyPair,
         pbftProtocolClient,
         idReplicaClientMap,
         params,
-        publicApiClientGrpcMap,
         queue,
         walletManager,
         pegInWalletManager,
@@ -306,7 +310,6 @@ object Main
         currentBitcoinNetworkHeight,
         currentSequenceRef,
         currentToplHeight,
-        currentView,
         currentState
       )
     } yield (
@@ -314,7 +317,8 @@ object Main
       currentBitcoinNetworkHeightVal,
       res._1,
       res._2,
-      res._3
+      res._3,
+      res._4
     )
   }
 
@@ -358,6 +362,7 @@ object Main
       replicaCount: ReplicaCount
   ) = {
     import fs2.grpc.syntax.all._
+    import scala.jdk.CollectionConverters._
     val messageResponseMap =
       new ConcurrentHashMap[ConsensusClientMessageId, ConcurrentHashMap[Either[
         BridgeError,
@@ -375,7 +380,7 @@ object Main
         replicaKeyPair,
         conf
       )(IO.asyncForIO, logger, replicaId, clientCount)
-      replicaNodes <- loadReplicaNodeFromConfig[IO](conf).toResource
+      replicaNodes <- loadReplicaNodeFromConfig[IO](conf, replicaId).toResource
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       mutex <- Mutex[IO].toResource
@@ -391,7 +396,9 @@ object Main
           messageVoterMap,
           messageResponseMap
         )
+      replicaKeysMap <- createReplicaPublicKeyMap[IO](conf).toResource
       res <- initializeForResources(
+        replicaKeysMap,
         replicaKeyPair,
         pbftProtocolClientGrpc,
         storageApi,
@@ -413,8 +420,10 @@ object Main
         currentBitcoinNetworkHeightVal,
         grpcServiceResource,
         init,
-        peginStateMachine
+        peginStateMachine,
+        pbftServiceResource
       ) = res
+      pbftService <- pbftServiceResource
       bifrostQueryAlgebra = BifrostQueryAlgebra
         .make[IO](
           channelResource(
@@ -435,7 +444,6 @@ object Main
         bifrostQueryAlgebra
       )
       _ <- storageApi.initializeStorage().toResource
-      replicaKeysMap <- createReplicaPublicKeyMap[IO](conf).toResource
       responsesService <- replyService[IO](
         currentViewRef,
         replicaKeysMap,
@@ -457,7 +465,7 @@ object Main
       ).toResource
       replicaGrpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(replicaHost, replicaPort))
-        .addService(grpcService)
+        .addServices(List(grpcService, pbftService).asJava)
         .resource[IO]
       responsesGrpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(responseHost, responsePort))

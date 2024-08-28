@@ -33,6 +33,7 @@ import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBT
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.PublicApiClientGrpcMap
+import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SessionState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplKeypair
@@ -42,6 +43,7 @@ import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.monitor.WaitingBTCOps
 import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
+import co.topl.bridge.consensus.pbft.CommitRequest
 import co.topl.bridge.consensus.pbft.ConfirmDepositBTCEvt
 import co.topl.bridge.consensus.pbft.ConfirmTBTCMintEvt
 import co.topl.bridge.consensus.pbft.PBFTEvent
@@ -61,6 +63,7 @@ import co.topl.bridge.consensus.pbft.PostTBTCMintEvt
 import co.topl.bridge.consensus.pbft.UndoClaimTxEvt
 import co.topl.bridge.consensus.pbft.UndoDepositBTCEvt
 import co.topl.bridge.consensus.pbft.UndoTBTCMintEvt
+import co.topl.bridge.consensus.persistence.StorageApi
 import co.topl.bridge.consensus.service.InvalidInputRes
 import co.topl.bridge.consensus.service.MintingStatusRes
 import co.topl.bridge.consensus.service.SessionNotFoundRes
@@ -84,8 +87,12 @@ import co.topl.bridge.shared.StateMachineRequest.Operation.TimeoutTBTCMint
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoClaimTx
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoDepositBTC
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoTBTCMint
+import co.topl.consensus.PBFTProtocolClientGrpc
+import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.ClientId
+import co.topl.shared.ReplicaCount
+import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.currency.Satoshis
@@ -93,10 +100,10 @@ import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 import scodec.bits.ByteVector
 
+import java.security.{KeyPair => JKeyPair}
 import java.util.UUID
 
 object StateMachineExecution {
-
 
   import org.typelevel.log4cats.syntax._
   import cats.implicits._
@@ -393,6 +400,79 @@ object StateMachineExecution {
         ._1
         .replyStartPegin(timestamp, viewNumber, Result.Empty)
     } yield Result.Empty
+  }
+
+  def waitForProtocol[F[_]: Async: Logger](
+      request: co.topl.bridge.shared.StateMachineRequest,
+      keyPair: JKeyPair,
+      digest: ByteString,
+      currentView: Long,
+      pbftProtocolClientGrpc: PBFTProtocolClientGrpc[F],
+      currentSequence: Long
+  )(implicit
+      replica: ReplicaId,
+      storageApi: StorageApi[F],
+      replicaCount: ReplicaCount,
+      publicApiClientGrpcMap: PublicApiClientGrpcMap[F],
+      currentViewRef: CurrentView[F],
+      sessionManager: SessionManagerAlgebra[F],
+      toplKeypair: ToplKeypair,
+      sessionState: SessionState,
+      currentBTCHeightRef: CurrentBTCHeight[F],
+      btcNetwork: BitcoinNetworkIdentifiers,
+      pegInWalletManager: PeginWalletManager[F],
+      bridgeWalletManager: BridgeWalletManager[F],
+      fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
+      templateStorageAlgebra: TemplateStorageAlgebra[F],
+      toplWaitExpirationTime: ToplWaitExpirationTime,
+      btcWaitExpirationTime: BTCWaitExpirationTime,
+      tba: TransactionBuilderApi[F],
+      currentToplHeight: CurrentToplHeight[F],
+      walletApi: WalletApi[F],
+      wsa: WalletStateAlgebra[F],
+      groupIdIdentifier: GroupId,
+      seriesIdIdentifier: SeriesId,
+      utxoAlgebra: GenusQueryAlgebra[F],
+      channelResource: Resource[F, ManagedChannel],
+      defaultMintingFee: Lvl,
+      lastReplyMap: LastReplyMap,
+      defaultFromFellowship: Fellowship,
+      defaultFromTemplate: Template,
+      bitcoindInstance: BitcoindRpcClient,
+      defaultFeePerByte: CurrencyUnit
+  ) = {
+    import scala.concurrent.duration._
+    import co.topl.shared.implicits._
+    for {
+      _ <- (Async[F].sleep(1.seconds) >>
+        isPrepared[F](
+          currentView,
+          currentSequence
+        )).iterateUntil(identity)
+      commitRequest = CommitRequest(
+        viewNumber = currentView,
+        sequenceNumber = currentSequence,
+        digest = digest,
+        replicaId = replica.id
+      )
+      signedBytes <- BridgeCryptoUtils.signBytes[F](
+        keyPair.getPrivate(),
+        commitRequest.signableBytes
+      )
+      _ <- pbftProtocolClientGrpc.commit(
+        commitRequest.withSignature(
+          ByteString.copyFrom(signedBytes)
+        )
+      )
+      _ <- storageApi.insertCommitMessage(commitRequest)
+      _ <- (Async[F].sleep(1.second) >> isCommitted[F](
+        currentView,
+        currentSequence
+      )).iterateUntil(identity)
+      _ <- executeRequest(
+        request
+      )
+    } yield ()
   }
 
   def executeRequest[F[_]: Async: Logger](

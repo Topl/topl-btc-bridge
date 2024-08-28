@@ -1,7 +1,6 @@
 package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
