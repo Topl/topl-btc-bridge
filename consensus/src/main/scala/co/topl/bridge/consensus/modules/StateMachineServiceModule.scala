@@ -3,6 +3,7 @@ package co.topl.bridge.consensus.modules
 import cats.effect.IO
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Resource
+import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.FellowshipStorageAlgebra
 import co.topl.brambl.dataApi.GenusQueryAlgebra
@@ -22,17 +23,22 @@ import co.topl.bridge.consensus.LastReplyMap
 import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.PublicApiClientGrpcMap
-import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SessionState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplKeypair
 import co.topl.bridge.consensus.ToplWaitExpirationTime
+import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.bridge.consensus.service.MintingStatusReply
+import co.topl.bridge.consensus.service.MintingStatusReply.{Result => MSReply}
+import co.topl.bridge.consensus.service.MintingStatusRes
+import co.topl.bridge.consensus.service.SessionNotFoundRes
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.shared.Empty
+import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.consensus.PBFTProtocolClientGrpc
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.ClientId
@@ -46,6 +52,7 @@ import org.typelevel.log4cats.Logger
 
 import java.security.MessageDigest
 import java.security.{KeyPair => JKeyPair}
+import co.topl.shared.ReplicaId
 
 trait StateMachineServiceModule {
 
@@ -90,8 +97,49 @@ trait StateMachineServiceModule {
       logger: Logger[IO]
   ) = StateMachineServiceFs2Grpc.bindServiceResource(
     serviceImpl = new StateMachineServiceFs2Grpc[IO, Metadata] {
+
       // log4cats syntax
       import org.typelevel.log4cats.syntax._
+      import cats.implicits._
+
+      private def mintingStatusAux[F[_]: Sync](
+          value: MintingStatusOperation
+      )(implicit
+          sessionManager: SessionManagerAlgebra[F]
+      ) =
+        for {
+          session <- sessionManager.getSession(value.sessionId)
+          somePegin <- session match {
+            case Some(p: PeginSessionInfo) => Sync[F].delay(Option(p))
+            case None                      => Sync[F].delay(None)
+            case _ =>
+              Sync[F].raiseError(new Exception("Invalid session type"))
+          }
+          resp: MSReply = somePegin match {
+            case Some(pegin) =>
+              MSReply.MintingStatus(
+                MintingStatusRes(
+                  sessionId = value.sessionId,
+                  mintingStatus = pegin.mintingBTCState.toString(),
+                  address = pegin.redeemAddress,
+                  redeemScript =
+                    s""""threshold(1, sha256(${pegin.sha256}) and height(${pegin.minHeight}, ${pegin.maxHeight}))"""
+                )
+              )
+            case None =>
+              MSReply.SessionNotFound(
+                SessionNotFoundRes(
+                  value.sessionId
+                )
+              )
+          }
+        } yield resp
+
+      override def mintingStatus(
+          request: MintingStatusOperation,
+          ctx: Metadata
+      ): IO[MintingStatusReply] =
+        mintingStatusAux[IO](request).map(MintingStatusReply(_))
 
       def executeRequest(
           request: co.topl.bridge.shared.StateMachineRequest,
@@ -158,24 +206,8 @@ trait StateMachineServiceModule {
                     _ <- pbftProtocolClientGrpc.prePrepare(
                       signedprePrepareRequest
                     )
-                    _ <- storageApi.insertPrePrepareMessage(
-                      signedprePrepareRequest
-                    )
-                    _ <- pbftProtocolClientGrpc.prepare(
-                      signedPrepareRequest
-                    )
-                    _ <- storageApi.insertPrepareMessage(signedPrepareRequest)
+                  } yield ()) >> IO.pure(Empty())
 
-                  } yield ()) >> IO.asyncForIO.start(
-                    waitForProtocol[IO](
-                      request,
-                      keyPair,
-                      prePrepareRequest.digest,
-                      prePrepareRequest.viewNumber,
-                      pbftProtocolClientGrpc,
-                      prePrepareRequest.sequenceNumber
-                    )
-                  ) >> IO.pure(Empty())
                 }
             } yield Empty()
 

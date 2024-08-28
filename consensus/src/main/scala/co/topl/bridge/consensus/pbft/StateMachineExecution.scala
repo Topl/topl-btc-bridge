@@ -33,13 +33,11 @@ import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForEscrowBT
 import co.topl.bridge.consensus.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.PublicApiClientGrpcMap
-import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SessionState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplKeypair
 import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.controllers.StartSessionController
-import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.monitor.WaitingBTCOps
 import co.topl.bridge.consensus.monitor.WaitingForRedemptionOps
@@ -65,18 +63,14 @@ import co.topl.bridge.consensus.pbft.UndoDepositBTCEvt
 import co.topl.bridge.consensus.pbft.UndoTBTCMintEvt
 import co.topl.bridge.consensus.persistence.StorageApi
 import co.topl.bridge.consensus.service.InvalidInputRes
-import co.topl.bridge.consensus.service.MintingStatusRes
-import co.topl.bridge.consensus.service.SessionNotFoundRes
 import co.topl.bridge.consensus.service.StartSessionRes
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.utils.MiscUtils
-import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.bridge.shared.StartSessionOperation
 import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.shared.StateMachineRequest.Operation.ConfirmClaimTx
 import co.topl.bridge.shared.StateMachineRequest.Operation.ConfirmDepositBTC
 import co.topl.bridge.shared.StateMachineRequest.Operation.ConfirmTBTCMint
-import co.topl.bridge.shared.StateMachineRequest.Operation.MintingStatus
 import co.topl.bridge.shared.StateMachineRequest.Operation.PostClaimTx
 import co.topl.bridge.shared.StateMachineRequest.Operation.PostDepositBTC
 import co.topl.bridge.shared.StateMachineRequest.Operation.PostRedemptionTx
@@ -102,6 +96,7 @@ import scodec.bits.ByteVector
 
 import java.security.{KeyPair => JKeyPair}
 import java.util.UUID
+import co.topl.shared.ReplicaId
 
 object StateMachineExecution {
 
@@ -189,56 +184,12 @@ object StateMachineExecution {
     } yield resp
   }
 
-  private def mintingStatus[F[_]: Sync](
-      clientNumber: Int,
-      timestamp: Long,
-      value: MintingStatusOperation
-  )(implicit
-      publicApiClientGrpcMap: PublicApiClientGrpcMap[F],
-      currentView: CurrentView[F],
-      sessionManager: SessionManagerAlgebra[F]
-  ) =
-    for {
-      session <- sessionManager.getSession(value.sessionId)
-      viewNumber <- currentView.underlying.get
-      somePegin <- session match {
-        case Some(p: PeginSessionInfo) => Sync[F].delay(Option(p))
-        case None                      => Sync[F].delay(None)
-        case _ =>
-          Sync[F].raiseError(new Exception("Invalid session type"))
-      }
-      resp: Result = somePegin match {
-        case Some(pegin) =>
-          Result.MintingStatus(
-            MintingStatusRes(
-              sessionId = value.sessionId,
-              mintingStatus = pegin.mintingBTCState.toString(),
-              address = pegin.redeemAddress,
-              redeemScript =
-                s""""threshold(1, sha256(${pegin.sha256}) and height(${pegin.minHeight}, ${pegin.maxHeight}))"""
-            )
-          )
-        case None =>
-          Result.SessionNotFound(
-            SessionNotFoundRes(
-              value.sessionId
-            )
-          )
-      }
-      _ <- publicApiClientGrpcMap
-        .underlying(ClientId(clientNumber))
-        ._1
-        .replyStartPegin(timestamp, viewNumber, resp)
-    } yield resp
-
   private def toEvt(op: StateMachineRequest.Operation)(implicit
       groupIdIdentifier: GroupId,
       seriesIdIdentifier: SeriesId
   ) = {
     op match {
       case StateMachineRequest.Operation.Empty =>
-        throw new Exception("Invalid operation")
-      case MintingStatus(_) =>
         throw new Exception("Invalid operation")
       case StartSession(_) =>
         throw new Exception("Invalid operation")
@@ -464,7 +415,6 @@ object StateMachineExecution {
           ByteString.copyFrom(signedBytes)
         )
       )
-      _ <- storageApi.insertCommitMessage(commitRequest)
       _ <- (Async[F].sleep(1.second) >> isCommitted[F](
         currentView,
         currentSequence
@@ -509,12 +459,6 @@ object StateMachineExecution {
     (request.operation match {
       case StateMachineRequest.Operation.Empty =>
         warn"Received empty message" >> Sync[F].delay(Result.Empty)
-      case MintingStatus(value) =>
-        mintingStatus(
-          request.clientNumber,
-          request.timestamp,
-          value
-        )
       case StartSession(sc) =>
         startSession[F](
           request.clientNumber,

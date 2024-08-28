@@ -63,9 +63,6 @@ package object consensus {
     val amount: Int128
   }
 
-  case class ReplicaId(
-      id: Int
-  )
 
   case class Lvl(amount: Int128) extends BifrostCurrencyUnit
   case class SeriesToken(id: String, amount: Int128) extends BifrostCurrencyUnit

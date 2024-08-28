@@ -8,6 +8,11 @@ import co.topl.bridge.consensus.pbft.CommitRequest
 
 package object shared {
 
+  
+  case class ReplicaId(
+      id: Int
+  )
+
   case class SessionId(
       id: String
   )
@@ -70,9 +75,6 @@ package object shared {
           BigInt(request.clientNumber).toByteArray ++
           request.operation.startSession
             .map(x => x.pkey.getBytes() ++ x.sha256.getBytes())
-            .getOrElse(Array.emptyByteArray) ++
-          request.operation.mintingStatus
-            .map(_.sessionId.getBytes())
             .getOrElse(Array.emptyByteArray)
       }
     }
@@ -91,9 +93,6 @@ package object shared {
                 x.minHeight
               ).toByteArray ++ BigInt(x.maxHeight).toByteArray
             )
-            .getOrElse(Array.emptyByteArray) ++
-          reply.result.mintingStatus
-            .map(_.sessionId.getBytes())
             .getOrElse(Array.emptyByteArray)
       }
     }

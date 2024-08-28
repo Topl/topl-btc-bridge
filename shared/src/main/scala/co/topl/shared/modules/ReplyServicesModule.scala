@@ -1,21 +1,20 @@
 package co.topl.shared.modules
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.bridge.shared.Empty
 import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
 import co.topl.bridge.consensus.service.StateMachineReply
-import co.topl.bridge.consensus.service.StateMachineReply.Result.MintingStatus
 import co.topl.bridge.consensus.service.StateMachineReply.Result.SessionNotFound
 import co.topl.bridge.consensus.service.StateMachineReply.Result.StartSession
-import co.topl.shared.ConsensusClientMessageId
+import co.topl.bridge.shared.Empty
 import co.topl.shared
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
+import co.topl.shared.ConsensusClientMessageId
 import co.topl.shared.InvalidInput
-import co.topl.shared.MintingStatusResponse
 import co.topl.shared.SessionNotFoundError
 import co.topl.shared.StartPeginSessionResponse
 import io.grpc.Metadata
@@ -25,7 +24,6 @@ import org.typelevel.log4cats.syntax._
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
-import cats.effect.kernel.Ref
 
 trait ReplyServicesModule {
 
@@ -69,14 +67,6 @@ trait ReplyServicesModule {
                       Left(
                         shared.UnknownError(
                           "This should not happen: Empty response"
-                        )
-                      )
-                    case MintingStatus(value) =>
-                      Right(
-                        MintingStatusResponse(
-                          value.mintingStatus,
-                          value.address,
-                          value.redeemScript
                         )
                       )
                     case StateMachineReply.Result.InvalidInput(value) =>

@@ -7,8 +7,16 @@ package co.topl.bridge.consensus.service;
 
 service StateMachineService {
   rpc ExecuteRequest(co.topl.bridge.shared.StateMachineRequest) returns (co.topl.bridge.shared.Empty);
+  rpc MintingStatus(co.topl.bridge.shared.MintingStatusOperation) returns (MintingStatusReply);
 }
 
+
+message MintingStatusReply {
+  oneof result {
+    MintingStatusRes mintingStatus = 1;
+    SessionNotFoundRes sessionNotFound = 2;
+  }
+}
 
 service ResponseService {
   rpc DeliverResponse(StateMachineReply) returns (co.topl.bridge.shared.Empty);
@@ -22,9 +30,8 @@ message StateMachineReply {
   bytes signature = 4; // signature of the request
   oneof result {
     StartSessionRes startSession = 5;
-    MintingStatusRes mintingStatus = 6;
-    SessionNotFoundRes sessionNotFound = 7;
-    InvalidInputRes invalidInput = 8;
+    SessionNotFoundRes sessionNotFound = 6;
+    InvalidInputRes invalidInput = 7;
   }
 }
 

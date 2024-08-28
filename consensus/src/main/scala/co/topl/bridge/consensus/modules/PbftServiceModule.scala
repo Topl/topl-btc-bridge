@@ -24,7 +24,6 @@ import co.topl.bridge.consensus.LastReplyMap
 import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.PublicApiClientGrpcMap
-import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SessionState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplKeypair
@@ -52,6 +51,7 @@ import org.typelevel.log4cats.Logger
 import java.security.KeyPair
 import java.security.MessageDigest
 import java.security.PublicKey
+import co.topl.shared.ReplicaId
 
 trait PbftServiceModule {
 

@@ -12,6 +12,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 
 import java.security.KeyPair
+import co.topl.shared.ReplicaId
 
 trait PublicApiClientGrpc[F[_]] {
 

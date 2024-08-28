@@ -13,6 +13,7 @@ import org.typelevel.log4cats.Logger
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
+import scala.util.Try
 
 class BridgeIntegrationSpec
     extends CatsEffectSuite
@@ -25,7 +26,7 @@ class BridgeIntegrationSpec
     with SuccessfulPeginWithClaimReorgRetryModule
     with FailedMintingReorgModule {
 
-  override val munitIOTimeout = Duration(210, "s")
+  override val munitIOTimeout = Duration(180, "s")
 
   implicit val logger: Logger[IO] =
     org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -76,6 +77,7 @@ class BridgeIntegrationSpec
           currentAddress <- currentAddress(toplWalletDb)
           utxo <- getCurrentUtxosFromAddress(toplWalletDb, currentAddress)
           (groupId, seriesId) = extractIds(utxo)
+          _ <- IO(Try(Files.delete(Paths.get("bridge.db"))))
           _ <- IO.asyncForIO.both(
             IO.asyncForIO
               .start(
@@ -249,28 +251,28 @@ class BridgeIntegrationSpec
   cleanupDir.test("Bridge should correctly peg-in BTC") { _ =>
     info"Bridge should correctly peg-in BTC" >> successfulPegin()
   }
-  // cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
-  //   _ =>
-  //     info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
-  // }
-  // cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
-  //   info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
-  // }
-  // cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
-  //   info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
-  // }
+  cleanupDir.test("Bridge should fail correctly when user does not send BTC") {
+    _ =>
+      info"Bridge should fail correctly when user does not send BTC" >> failedPeginNoDeposit()
+  }
+  cleanupDir.test("Bridge should fail correctly when tBTC not minted") { _ =>
+    info"Bridge should fail correctly when tBTC not minted" >> failedPeginNoMint()
+  }
+  cleanupDir.test("Bridge should fail correctly when tBTC not redeemed") { _ =>
+    info"Bridge should fail correctly when tBTC not redeemed" >> failedRedemption()
+  }
 
-  // cleanupDir.test(
-  //   "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
-  // ) { _ =>
-  //   info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
-  // }
+  cleanupDir.test(
+    "Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation"
+  ) { _ =>
+    info"Bridge should correctly go back from PeginSessionWaitingForEscrowBTCConfirmation" >> failedPeginNoDepositWithReorg()
+  }
 
-  // cleanupDir.test(
-  //   "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
-  // ) { _ =>
-  //   info"Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation" >> successfulPeginWithClaimError()
-  // }
+  cleanupDir.test(
+    "Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation"
+  ) { _ =>
+    info"Bridge should correctly go back from PeginSessionWaitingForClaimBTCConfirmation" >> successfulPeginWithClaimError()
+  }
 
   // cleanupDir.test(
   //   "Bridge should correctly retry if claim does not succeed".flaky

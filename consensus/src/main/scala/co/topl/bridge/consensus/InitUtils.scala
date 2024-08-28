@@ -4,6 +4,7 @@ import org.typelevel.log4cats.Logger
 import cats.effect.kernel.Sync
 import co.topl.brambl.utils.Encoding
 import com.typesafe.config.Config
+import co.topl.shared.ReplicaId
 
 trait InitUtils {
 

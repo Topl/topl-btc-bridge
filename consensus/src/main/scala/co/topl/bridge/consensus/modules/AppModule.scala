@@ -18,7 +18,6 @@ import co.topl.bridge.consensus.BTCRetryThreshold
 import co.topl.bridge.consensus.CurrentView
 import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.PublicApiClientGrpcMap
-import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.SystemGlobalState
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
@@ -45,6 +44,7 @@ import org.typelevel.log4cats.Logger
 import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
 import java.security.PublicKey
+import co.topl.shared.ReplicaId
 
 trait AppModule
     extends WalletStateResource

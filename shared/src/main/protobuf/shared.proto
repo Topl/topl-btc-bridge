@@ -25,7 +25,6 @@ message StateMachineRequest {
     PostClaimTxOperation postClaimTx = 14;
     ConfirmClaimTxOperation confirmClaimTx = 15;
     UndoClaimTxOperation undoClaimTx = 16;
-    MintingStatusOperation mintingStatus = 17;
   }
 }
 

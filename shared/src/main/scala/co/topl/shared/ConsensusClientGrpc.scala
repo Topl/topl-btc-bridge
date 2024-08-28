@@ -36,6 +36,7 @@ import co.topl.bridge.shared.PostRedemptionTxOperation
 import co.topl.bridge.shared.PostClaimTxOperation
 import co.topl.bridge.shared.ConfirmClaimTxOperation
 import co.topl.bridge.shared.UndoClaimTxOperation
+import co.topl.bridge.consensus.service.MintingStatusReply
 
 trait ConsensusClientGrpc[F[_]] {
 
@@ -166,7 +167,7 @@ object ConsensusClientGrpcImpl {
           )
         } yield (replicaNode.id -> consensusClient)
       }).sequence
-      clientMap = idClientList.toMap
+      replicaMap = idClientList.toMap
     } yield new ConsensusClientGrpc[F] {
 
       def undoClaimTx(
@@ -344,13 +345,36 @@ object ConsensusClientGrpcImpl {
           mintingStatusOperation: MintingStatusOperation
       )(implicit
           clientNumber: ClientId
-      ): F[Either[BridgeError, BridgeResponse]] =
-        mutex.lock.surround(for {
-          request <- prepareRequest(
-            StateMachineRequest.Operation.MintingStatus(mintingStatusOperation)
-          )
-          response <- executeRequest(request)
-        } yield response)
+      ): F[Either[BridgeError, BridgeResponse]] = {
+        import cats.implicits._
+        mutex.lock.surround(
+          for {
+            currentView <- currentViewRef.get
+            _ <- info"Current view is $currentView"
+            _ <- info"Replica count is ${replicaCount.value}"
+            currentPrimary = (currentView % replicaCount.value).toInt
+            response <- replicaMap(currentPrimary)
+              .mintingStatus(mintingStatusOperation, new Metadata())
+          } yield response.result match {
+            case MintingStatusReply.Result.Empty =>
+              Left(
+                UnknownError(
+                  "This should not happen: Empty response"
+                )
+              )
+            case MintingStatusReply.Result.SessionNotFound(value) =>
+              Left(SessionNotFoundError(value.sessionId))
+            case MintingStatusReply.Result.MintingStatus(response) =>
+              Right {
+                MintingStatusResponse(
+                  mintingStatus = response.mintingStatus,
+                  address = response.address,
+                  redeemScript = response.redeemScript
+                )
+              }
+          }
+        )
+      }
 
       private def clearVoteTable(
           timestamp: Long
@@ -432,11 +456,15 @@ object ConsensusClientGrpcImpl {
           _ <- info"Replica count is ${replicaCount.value}"
           currentPrimary = (currentView % replicaCount.value).toInt
           _ <- info"Current primary is $currentPrimary"
-          _ <- clientMap(currentPrimary).executeRequest(request, new Metadata())
+          _ <- info"Replica map: $replicaMap"
+          _ <- replicaMap(currentPrimary).executeRequest(
+            request,
+            new Metadata()
+          )
           _ <- trace"Waiting for response from backend"
           someResponse <- Async[F].race(
             Async[F].sleep(10.second) >> // wait for response
-              clientMap
+              replicaMap
                 .filter(x =>
                   x._1 != currentPrimary
                 ) // send to all replicas except primary

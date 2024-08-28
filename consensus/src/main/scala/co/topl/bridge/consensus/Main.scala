@@ -16,7 +16,6 @@ import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.ConsensusParamsDescriptor
-import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.ServerConfig
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
@@ -64,6 +63,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.LongAdder
 import scala.concurrent.ExecutionContext
+import co.topl.shared.ReplicaId
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -205,11 +205,10 @@ object Main
   }
 
   private def loadReplicaNodeFromConfig[F[_]: Sync: Logger](
-      conf: Config,
-      replicaId: ReplicaId
+      conf: Config
   )(implicit replicaCount: ReplicaCount): F[List[ReplicaNode[F]]] = {
     import cats.implicits._
-    (for (i <- 0 until replicaCount.value if (replicaId.id != i)) yield {
+    (for (i <- 0 until replicaCount.value) yield {
       for {
         host <- Sync[F].delay(
           conf.getString(s"bridge.replica.consensus.replicas.$i.host")
@@ -380,7 +379,7 @@ object Main
         replicaKeyPair,
         conf
       )(IO.asyncForIO, logger, replicaId, clientCount)
-      replicaNodes <- loadReplicaNodeFromConfig[IO](conf, replicaId).toResource
+      replicaNodes <- loadReplicaNodeFromConfig[IO](conf).toResource
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       mutex <- Mutex[IO].toResource
