@@ -72,7 +72,8 @@ object BlockProcessor {
             )
           } else if (b.height < (btcHeight - 1)) { // we went down by more than one, we ommit transactions
             btcAscending = false
-            fs2.Stream()
+            fs2.Stream(
+              NewBTCBlock(b.height))
           } else {
             // we stayed the same
             if (btcAscending) {
