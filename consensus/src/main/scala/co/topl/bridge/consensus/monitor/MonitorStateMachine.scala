@@ -29,12 +29,12 @@ import co.topl.bridge.consensus.monitor.FSMTransitionTo
 import co.topl.bridge.consensus.monitor.MConfirmingBTCDeposit
 import co.topl.bridge.consensus.monitor.MMintingTBTC
 import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
-import co.topl.bridge.consensus.monitor.MintingTBTCConfirmation
+import co.topl.bridge.consensus.monitor.MConfirmingTBTCMint
 import co.topl.bridge.consensus.monitor.MonitorTransitionRelation
 import co.topl.bridge.consensus.monitor.PeginStateMachineState
-import co.topl.bridge.consensus.monitor.WaitingForClaim
-import co.topl.bridge.consensus.monitor.WaitingForClaimBTCConfirmation
-import co.topl.bridge.consensus.monitor.WaitingForRedemption
+import co.topl.bridge.consensus.monitor.MWaitingForClaim
+import co.topl.bridge.consensus.monitor.MConfirmingBTCClaim
+import co.topl.bridge.consensus.monitor.MWaitingForRedemption
 import co.topl.shared.ClientId
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.SessionId
@@ -183,14 +183,16 @@ object MonitorStateMachine {
     private def fsmStateToSessionState(
         peginStateMachineState: PeginStateMachineState
     ): PeginSessionState = peginStateMachineState match {
-      case _: MMintingTBTC            => PeginSessionStateMintingTBTC
-      case _: MWaitingForBTCDeposit   => PeginSessionStateWaitingForBTC
-      case _: WaitingForRedemption    => PeginSessionWaitingForRedemption
-      case _: WaitingForClaim         => PeginSessionWaitingForClaim
-      case _: MintingTBTCConfirmation => PeginSessionMintingTBTCConfirmation
+      case _: MMintingTBTC          => PeginSessionStateMintingTBTC
+      case _: MWaitingForBTCDeposit => PeginSessionStateWaitingForBTC
+      case _: MWaitingForRedemption => PeginSessionWaitingForRedemption
+      case _: MWaitingForClaim      => PeginSessionWaitingForClaim
+      case _: MConfirmingTBTCMint   => PeginSessionMintingTBTCConfirmation
+      case _: MConfirmingRedemption =>
+        PeginSessionState.PeginSessionConfirmingRedemption
       case _: MConfirmingBTCDeposit =>
         PeginSessionWaitingForEscrowBTCConfirmation
-      case _: WaitingForClaimBTCConfirmation =>
+      case _: MConfirmingBTCClaim =>
         PeginSessionWaitingForClaimBTCConfirmation
     }
 

@@ -81,12 +81,15 @@ case object PeginSessionState {
   case object PeginSessionWaitingForRedemption extends PeginSessionState
   case object PeginSessionWaitingForClaim extends PeginSessionState
   case object PeginSessionMintingTBTCConfirmation extends PeginSessionState
+  case object PeginSessionConfirmingRedemption extends PeginSessionState
   case object PeginSessionWaitingForEscrowBTCConfirmation
       extends PeginSessionState
   case object PeginSessionWaitingForClaimBTCConfirmation
       extends PeginSessionState
 
   def withName(s: String): Option[PeginSessionState] = s match {
+    case "PeginSessionConfirmingRedemption" =>
+      Some(PeginSessionConfirmingRedemption)
     case "PeginSessionStateSuccessfulPegin" =>
       Some(PeginSessionStateSuccessfulPegin)
     case "PeginSessionStateTimeout" =>

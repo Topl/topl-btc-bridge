@@ -104,6 +104,7 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- mintToplBlock(1, 1)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
+        _ <- mintToplBlock(1, 7)
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
           _ <- info"Current minting status: ${status.mintingStatus}"

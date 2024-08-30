@@ -51,6 +51,7 @@ trait SuccessfulPeginWithClaimReorgModule {
           .iterateUntil(
             _.mintingStatus == "PeginSessionWaitingForRedemption"
           )
+        _ <- mintToplBlock(1, 1)
         _ <- createVkFile(vkFile)
         _ <- importVks(2)
         _ <- fundRedeemAddressTx(
@@ -91,6 +92,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- mintToplBlock(1, 2)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
+        _ <- mintToplBlock(1, 7)
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
           _ <- generateToAddress(1, 1, newAddress)

@@ -6,6 +6,10 @@ import org.bitcoins.core.currency.CurrencyUnit
 
 sealed trait PeginStateMachineState
 
+sealed trait DepositState extends PeginStateMachineState
+sealed trait ClaimState extends PeginStateMachineState
+sealed trait MintingState extends PeginStateMachineState
+
 case class MWaitingForBTCDeposit(
     currentBTCBlockHeight: Int,
     currentWalletIdx: Int,
@@ -13,7 +17,7 @@ case class MWaitingForBTCDeposit(
     escrowAddress: String,
     redeemAddress: String,
     claimAddress: String
-) extends PeginStateMachineState
+) extends DepositState
 
 case class MConfirmingBTCDeposit(
     startBTCBlockHeight: Int,
@@ -26,7 +30,7 @@ case class MConfirmingBTCDeposit(
     btcTxId: String,
     btcVout: Int,
     amount: CurrencyUnit
-) extends PeginStateMachineState
+) extends DepositState
 
 case class MMintingTBTC(
     startBTCBlockHeight: Int,
@@ -37,22 +41,10 @@ case class MMintingTBTC(
     btcTxId: String,
     btcVout: Int,
     amount: CurrencyUnit
-) extends PeginStateMachineState
+) extends MintingState
 
-case class WaitingForRedemption(
-    currentTolpBlockHeight: Long,
-    currentWalletIdx: Int,
-    scriptAsm: String,
-    redeemAddress: String,
-    claimAddress: String,
-    btcTxId: String,
-    btcVout: Int,
-    utxoTxId: String,
-    utxoIndex: Int,
-    amount: BifrostCurrencyUnit
-) extends PeginStateMachineState
 
-case class MintingTBTCConfirmation(
+case class MConfirmingTBTCMint(
     startBTCBlockHeight: Int,
     depositTBTCBlockHeight: Long,
     currentWalletIdx: Int,
@@ -64,10 +56,38 @@ case class MintingTBTCConfirmation(
     utxoTxId: String,
     utxoIndex: Int,
     amount: CurrencyUnit
-) extends PeginStateMachineState
+) extends MintingState
 
+case class MWaitingForRedemption(
+    currentTolpBlockHeight: Long,
+    currentWalletIdx: Int,
+    scriptAsm: String,
+    redeemAddress: String,
+    claimAddress: String,
+    btcTxId: String,
+    btcVout: Int,
+    utxoTxId: String,
+    utxoIndex: Int,
+    amount: BifrostCurrencyUnit
+) extends MintingState
 
-case class WaitingForClaim(
+case class MConfirmingRedemption(
+    startBTCBlockHeight: Option[Int],
+    depositBTCBlockHeight: Option[Long],
+    secret: String,
+    currentTolpBlockHeight: Long,
+    currentWalletIdx: Int,
+    scriptAsm: String,
+    redeemAddress: String,
+    claimAddress: String,
+    btcTxId: String,
+    btcVout: Int,
+    utxoTxId: String,
+    utxoIndex: Int,
+    amount: BifrostCurrencyUnit
+) extends MintingState
+
+case class MWaitingForClaim(
     someStartBtcBlockHeight: Option[Int],
     secret: String,
     currentWalletIdx: Int,
@@ -76,9 +96,9 @@ case class WaitingForClaim(
     scriptAsm: String,
     amount: BifrostCurrencyUnit,
     claimAddress: String
-) extends PeginStateMachineState
+) extends ClaimState
 
-case class WaitingForClaimBTCConfirmation(
+case class MConfirmingBTCClaim(
     claimBTCBlockHeight: Int,
     secret: String,
     currentWalletIdx: Int,
@@ -87,7 +107,7 @@ case class WaitingForClaimBTCConfirmation(
     scriptAsm: String,
     amount: BifrostCurrencyUnit,
     claimAddress: String
-) extends PeginStateMachineState
+) extends ClaimState
 
 sealed trait FSMTransition
 
