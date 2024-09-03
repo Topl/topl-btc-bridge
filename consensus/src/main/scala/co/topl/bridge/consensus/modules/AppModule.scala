@@ -156,6 +156,9 @@ trait AppModule
       implicit val sessionState = new SessionState(
         new ConcurrentHashMap[String, PBFTState]()
       )
+      implicit val checkpointInterval = new CheckpointInterval(
+        params.checkpointInterval
+      )
       val peginStateMachine = MonitorStateMachine
         .make[IO](
           currentBitcoinNetworkHeight,

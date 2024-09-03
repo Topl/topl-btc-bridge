@@ -5,6 +5,7 @@ import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.consensus.pbft.CommitRequest
+import co.topl.bridge.consensus.pbft.CheckpointRequest
 
 package object shared {
 
@@ -40,6 +41,14 @@ package object shared {
   )
 
   object implicits {
+
+    implicit class CheckpointRequestOp(val request: CheckpointRequest) {
+      def signableBytes: Array[Byte] = {
+        BigInt(request.sequenceNumber).toByteArray ++
+          request.digest.toByteArray() ++
+          BigInt(request.replicaId).toByteArray
+      }
+    }
 
     implicit class PrePrepareRequestOp(val request: PrePrepareRequest) {
       def signableBytes: Array[Byte] = {

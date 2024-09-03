@@ -2,8 +2,14 @@ package co.topl.bridge.consensus.pbft
 
 import co.topl.bridge.consensus.BifrostCurrencyUnit
 import org.bitcoins.core.currency.CurrencyUnit
+import co.topl.bridge.consensus.Lvl
+import co.topl.bridge.consensus.SeriesToken
+import co.topl.bridge.consensus.GroupToken
+import co.topl.bridge.consensus.AssetToken
 
-sealed trait PBFTState
+sealed trait PBFTState {
+  def toBytes: Array[Byte]
+}
 
 /** State where we are waiting for a BTC deposit to be confirmed
   *
@@ -28,7 +34,17 @@ case class PSWaitingForBTCDeposit(
     escrowAddress: String,
     redeemAddress: String,
     claimAddress: String
-) extends PBFTState
+) extends PBFTState {
+
+  override def toBytes: Array[Byte] =
+    BigInt(height).toByteArray ++
+      BigInt(currentWalletIdx).toByteArray ++
+      scriptAsm.getBytes ++
+      escrowAddress.getBytes ++
+      redeemAddress.getBytes ++
+      claimAddress.getBytes
+
+}
 
 /** State where we are confirming a BTC deposit.
   *
@@ -65,7 +81,21 @@ case class PSConfirmingBTCDeposit(
     btcTxId: String,
     btcVout: Long,
     amount: CurrencyUnit
-) extends PBFTState
+) extends PBFTState {
+
+  override def toBytes: Array[Byte] =
+    BigInt(startWaitingBTCBlockHeight).toByteArray ++
+      BigInt(depositBTCBlockHeight).toByteArray ++
+      BigInt(currentWalletIdx).toByteArray ++
+      scriptAsm.getBytes ++
+      escrowAddress.getBytes ++
+      redeemAddress.getBytes ++
+      claimAddress.getBytes ++
+      btcTxId.getBytes ++
+      BigInt(btcVout).toByteArray ++
+      amount.satoshis.toBigInt.toByteArray
+
+}
 
 /** State where we are minting TBTC.
   *
@@ -97,7 +127,19 @@ case class PSMintingTBTC(
     btcTxId: String,
     btcVout: Long,
     amount: CurrencyUnit
-) extends PBFTState
+) extends PBFTState {
+
+  override def toBytes: Array[Byte] =
+    BigInt(startWaitingBTCBlockHeight).toByteArray ++
+      BigInt(currentWalletIdx).toByteArray ++
+      scriptAsm.getBytes ++
+      redeemAddress.getBytes ++
+      claimAddress.getBytes ++
+      btcTxId.getBytes ++
+      BigInt(btcVout).toByteArray ++
+      amount.satoshis.toBigInt.toByteArray
+
+}
 
 /** State where we are waiting for redemption of the TBTC.
   *
@@ -134,7 +176,29 @@ case class PSWaitingForRedemption(
     utxoTxId: String,
     utxoIndex: Int,
     amount: BifrostCurrencyUnit
-) extends PBFTState
+) extends PBFTState {
+
+  override def toBytes: Array[Byte] =
+    BigInt(tbtcMintBlockHeight).toByteArray ++
+      BigInt(currentWalletIdx).toByteArray ++
+      scriptAsm.getBytes ++
+      redeemAddress.getBytes ++
+      claimAddress.getBytes ++
+      btcTxId.getBytes ++
+      BigInt(btcVout).toByteArray ++
+      utxoTxId.getBytes ++
+      BigInt(utxoIndex).toByteArray ++
+      (amount match {
+        case Lvl(amount) => amount.value.toByteArray
+        case SeriesToken(seriesId, amount) =>
+          seriesId.getBytes ++ amount.value.toByteArray
+        case GroupToken(groupId, amount) =>
+          groupId.getBytes ++ amount.value.toByteArray
+        case AssetToken(groupId, seriesId, amount) =>
+          groupId.getBytes ++ seriesId.getBytes ++ amount.value.toByteArray
+      })
+
+}
 
 /** State where we are confirming the minting of TBTC. This state is used to
   * confirm that the TBTC minting was successful.
@@ -176,7 +240,30 @@ case class PSConfirmingTBTCMint(
     utxoTxId: String,
     utxoIndex: Int,
     amount: BifrostCurrencyUnit
-) extends PBFTState
+) extends PBFTState {
+
+  def toBytes: Array[Byte] =
+    BigInt(startWaitingBTCBlockHeight).toByteArray ++
+      BigInt(depositTBTCBlockHeight).toByteArray ++
+      BigInt(currentWalletIdx).toByteArray ++
+      scriptAsm.getBytes ++
+      redeemAddress.getBytes ++
+      claimAddress.getBytes ++
+      btcTxId.getBytes ++
+      BigInt(btcVout).toByteArray ++
+      utxoTxId.getBytes ++
+      BigInt(utxoIndex).toByteArray ++
+      (amount match {
+        case Lvl(amount) => amount.value.toByteArray
+        case SeriesToken(seriesId, amount) =>
+          seriesId.getBytes ++ amount.value.toByteArray
+        case GroupToken(groupId, amount) =>
+          groupId.getBytes ++ amount.value.toByteArray
+        case AssetToken(groupId, seriesId, amount) =>
+          groupId.getBytes ++ seriesId.getBytes ++ amount.value.toByteArray
+      })
+
+}
 
 /** State where we are claiming BTC.
   *
@@ -208,7 +295,27 @@ case class PSClaimingBTC(
     scriptAsm: String,
     amount: BifrostCurrencyUnit,
     claimAddress: String
-) extends PBFTState
+) extends PBFTState {
+
+  def toBytes: Array[Byte] =
+    someStartBtcBlockHeight.map(BigInt(_).toByteArray).getOrElse(Array.empty) ++
+      secret.getBytes ++
+      BigInt(currentWalletIdx).toByteArray ++
+      btcTxId.getBytes ++
+      BigInt(btcVout).toByteArray ++
+      scriptAsm.getBytes ++
+      (amount match {
+        case Lvl(amount) => amount.value.toByteArray
+        case SeriesToken(seriesId, amount) =>
+          seriesId.getBytes ++ amount.value.toByteArray
+        case GroupToken(groupId, amount) =>
+          groupId.getBytes ++ amount.value.toByteArray
+        case AssetToken(groupId, seriesId, amount) =>
+          groupId.getBytes ++ seriesId.getBytes ++ amount.value.toByteArray
+      }) ++
+      claimAddress.getBytes
+
+}
 
 /** State where we are confirming the claim of BTC.
   *
@@ -239,4 +346,24 @@ case class PSConfirmingBTCClaim(
     scriptAsm: String,
     amount: BifrostCurrencyUnit,
     claimAddress: String
-) extends PBFTState
+) extends PBFTState {
+
+  def toBytes: Array[Byte] =
+    BigInt(claimBTCBlockHeight).toByteArray ++
+      secret.getBytes ++
+      BigInt(currentWalletIdx).toByteArray ++
+      btcTxId.getBytes ++
+      BigInt(btcVout).toByteArray ++
+      scriptAsm.getBytes ++
+      (amount match {
+        case Lvl(amount) => amount.value.toByteArray
+        case SeriesToken(seriesId, amount) =>
+          seriesId.getBytes ++ amount.value.toByteArray
+        case GroupToken(groupId, amount) =>
+          groupId.getBytes ++ amount.value.toByteArray
+        case AssetToken(groupId, seriesId, amount) =>
+          groupId.getBytes ++ seriesId.getBytes ++ amount.value.toByteArray
+      }) ++
+      claimAddress.getBytes
+
+}

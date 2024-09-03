@@ -15,6 +15,7 @@ case class ToplBTCBridgeConsensusParamConfig(
       2000, // the number of blocks to wait before the user can reclaim their funds
     toplConfirmationThreshold: Int =
       6, // the number of confirmations required for a peg-out transaction
+    checkpointInterval: Int = 100, // the number of requests between checkpoints
     btcPegInSeedFile: String = "pegin-wallet.json",
     btcPegInPassword: String = "password",
     btcWalletSeedFile: String = "wallet.json",

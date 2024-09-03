@@ -19,6 +19,11 @@ trait ConsensusParamsDescriptor {
     OParser.sequence(
       programName("topl-btc-bridge-consensus"),
       head("topl-btc-bridge-consensus", "0.1"),
+      opt[Int]("checkpoint-interval")
+        .action((x, c) => c.copy(checkpointInterval = x))
+        .text(
+          "The number of requests between checkpoints. (default: 100)"
+        ),
       opt[BitcoinNetworkIdentifiers]("btc-network")
         .action((x, c) => c.copy(btcNetwork = x))
         .text(

@@ -12,6 +12,7 @@ import io.grpc.ManagedChannelBuilder
 import io.grpc.Metadata
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
+import co.topl.bridge.consensus.pbft.CheckpointRequest
 
 trait PBFTProtocolClientGrpc[F[_]] {
 
@@ -25,6 +26,10 @@ trait PBFTProtocolClientGrpc[F[_]] {
 
   def commit(
       request: CommitRequest
+  ): F[Empty]
+
+  def checkpoint(
+      request: CheckpointRequest
   ): F[Empty]
 
 }
@@ -84,6 +89,15 @@ object PBFTProtocolClientGrpcImpl {
           }
         } yield Empty()
       }
+
+      override def checkpoint(
+          request: CheckpointRequest
+      ): F[Empty] = for {
+        _ <- trace"Sending Checkpoint to all replicas"
+        _ <- backupMap.toList.traverse { case (_, backup) =>
+          backup.checkpoint(request, new Metadata())
+        }
+      } yield Empty()
 
     }
   }

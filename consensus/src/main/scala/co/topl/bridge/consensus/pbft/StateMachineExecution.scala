@@ -97,6 +97,9 @@ import scodec.bits.ByteVector
 import java.security.{KeyPair => JKeyPair}
 import java.util.UUID
 import co.topl.shared.ReplicaId
+import co.topl.bridge.consensus.CheckpointInterval
+import co.topl.bridge.consensus.SessionState
+import java.security.MessageDigest
 
 object StateMachineExecution {
 
@@ -366,6 +369,7 @@ object StateMachineExecution {
       replicaCount: ReplicaCount,
       publicApiClientGrpcMap: PublicApiClientGrpcMap[F],
       currentViewRef: CurrentView[F],
+      checkpointInterval: CheckpointInterval,
       sessionManager: SessionManagerAlgebra[F],
       toplKeypair: ToplKeypair,
       sessionState: SessionState,
@@ -394,6 +398,7 @@ object StateMachineExecution {
   ) = {
     import scala.concurrent.duration._
     import co.topl.shared.implicits._
+    import cats.implicits._
     for {
       _ <- (Async[F].sleep(1.seconds) >>
         isPrepared[F](
@@ -422,7 +427,41 @@ object StateMachineExecution {
       _ <- executeRequest(
         request
       )
+      // here we start the checkpoint
+      _ <-
+        if (currentSequence % checkpointInterval.underlying == 0)
+          for {
+            checkpointRequest <- CheckpointRequest(
+              sequenceNumber = currentSequence,
+              digest = ByteString.copyFrom(createStateDigest(sessionState)),
+              replicaId = replica.id
+            ).pure[F]
+            signedBytes <- BridgeCryptoUtils.signBytes[F](
+              keyPair.getPrivate(),
+              checkpointRequest.signableBytes
+            )
+            _ <- pbftProtocolClientGrpc.checkpoint(
+              checkpointRequest.withSignature(
+                ByteString.copyFrom(signedBytes)
+              )
+            )
+          } yield ()
+        else Async[F].unit
     } yield ()
+  }
+
+  private def createStateDigest(
+      state: SessionState
+  ) = {
+    // import JavaConverters
+    import scala.jdk.CollectionConverters._
+    val stateBytes = state.underlying.entrySet.asScala.toList
+      .sortBy(_.getKey)
+      .map(x => x.getKey.getBytes ++ x.getValue.toBytes)
+      .flatten
+    MessageDigest
+      .getInstance("SHA-256")
+      .digest(stateBytes.toArray)
   }
 
   def executeRequest[F[_]: Async: Logger](

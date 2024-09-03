@@ -52,6 +52,8 @@ import java.security.KeyPair
 import java.security.MessageDigest
 import java.security.PublicKey
 import co.topl.shared.ReplicaId
+import co.topl.bridge.consensus.pbft.CheckpointRequest
+import co.topl.bridge.consensus.CheckpointInterval
 
 trait PbftServiceModule {
 
@@ -62,6 +64,7 @@ trait PbftServiceModule {
       keyPair: KeyPair,
       replicaKeysMap: Map[Int, PublicKey]
   )(implicit
+      checkpointInterval: CheckpointInterval,
       storageApi: StorageApi[F],
       replica: ReplicaId,
       replicaCount: ReplicaCount,
@@ -102,11 +105,11 @@ trait PbftServiceModule {
           val publicKey = publicApiClientGrpcMap
             .underlying(new ClientId(request.payload.get.clientNumber))
             ._2
-            BridgeCryptoUtils.verifyBytes[F](
-              publicKey,
-              request.payload.get.signableBytes,
-              request.payload.get.signature.toByteArray()
-            )
+          BridgeCryptoUtils.verifyBytes[F](
+            publicKey,
+            request.payload.get.signableBytes,
+            request.payload.get.signature.toByteArray()
+          )
         }
 
         private def checkMessageSignature(
@@ -264,6 +267,11 @@ trait PbftServiceModule {
               )
           } yield Empty()
         }
+
+        override def checkpoint(
+            checkpointRequest: CheckpointRequest,
+            ctx: Metadata
+        ): F[Empty] = ???
 
         override def commit(request: CommitRequest, ctx: Metadata): F[Empty] = {
           import org.typelevel.log4cats.syntax._

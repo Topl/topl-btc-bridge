@@ -29,8 +29,16 @@ message CommitRequest {
   bytes signature       = 5;
 }
 
+message CheckpointRequest {
+  uint64 sequenceNumber = 1;
+  bytes  digest         = 2;
+  int32  replicaId      = 3;
+  bytes signature       = 4;
+}
+
 service PBFTInternalService {
-  rpc PrePrepare(PrePrepareRequest) returns (co.topl.bridge.shared.Empty);
-  rpc Prepare(PrepareRequest)       returns (co.topl.bridge.shared.Empty);
-  rpc Commit(CommitRequest)         returns (co.topl.bridge.shared.Empty);
+  rpc PrePrepare(PrePrepareRequest)    returns (co.topl.bridge.shared.Empty);
+  rpc Prepare(PrepareRequest)          returns (co.topl.bridge.shared.Empty);
+  rpc Commit(CommitRequest)            returns (co.topl.bridge.shared.Empty);
+  rpc Checkpoint(CheckpointRequest)    returns (co.topl.bridge.shared.Empty);
 }
