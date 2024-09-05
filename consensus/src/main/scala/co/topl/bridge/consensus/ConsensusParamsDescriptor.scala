@@ -24,6 +24,11 @@ trait ConsensusParamsDescriptor {
         .text(
           "The number of requests between checkpoints. (default: 100)"
         ),
+      opt[Int]("k-watermark")
+        .action((x, c) => c.copy(checkpointInterval = x))
+        .text(
+          "Gap between low and high watermark. (default: 200)"
+        ),
       opt[BitcoinNetworkIdentifiers]("btc-network")
         .action((x, c) => c.copy(btcNetwork = x))
         .text(

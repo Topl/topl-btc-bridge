@@ -16,6 +16,7 @@ case class ToplBTCBridgeConsensusParamConfig(
     toplConfirmationThreshold: Int =
       6, // the number of confirmations required for a peg-out transaction
     checkpointInterval: Int = 100, // the number of requests between checkpoints
+    kWatermark: Int = 200, // the gap between the low and high watermark
     btcPegInSeedFile: String = "pegin-wallet.json",
     btcPegInPassword: String = "password",
     btcWalletSeedFile: String = "wallet.json",

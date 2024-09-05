@@ -19,8 +19,13 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 
 import java.sql.DriverManager
+import co.topl.bridge.consensus.pbft.CheckpointRequest
 
 trait StorageApi[F[_]] {
+
+  def cleanLog(
+      sequenceNumber: Long
+  ): F[Unit]
 
   def getPrePrepareMessage(
       viewNumber: Long,
@@ -37,8 +42,17 @@ trait StorageApi[F[_]] {
       sequenceNumber: Long
   ): F[Seq[CommitRequest]]
 
+  def getCheckpointMessage(
+      sequenceNumber: Long,
+      replicaId: Int
+  ): F[Option[CheckpointRequest]]
+
   def insertPrePrepareMessage(
       prePrepare: PrePrepareRequest
+  ): F[Boolean]
+
+  def insertCheckpointMessage(
+      checkpointRequest: CheckpointRequest
   ): F[Boolean]
 
   def insertPrepareMessage(
@@ -207,11 +221,11 @@ object StorageApiImpl {
               s"'${Encoding.encodeToHex(prepare.digest.toByteArray)}', " +
               s"'${Encoding.encodeToHex(prepare.signature.toByteArray)}'" +
               ")"
-          
-            Sync[F]
-              .blocking(
-                stmnt.execute(insertPrepareStmnt)
-              )
+
+          Sync[F]
+            .blocking(
+              stmnt.execute(insertPrepareStmnt)
+            )
         }
 
       private def selectPrePrepareStmnt(
@@ -278,10 +292,10 @@ object StorageApiImpl {
             ")"
 
         statementResource.use { stmnt =>
-            Sync[F]
-              .blocking(
-                stmnt.execute(insertPrePrepareStmnt)
-              )
+          Sync[F]
+            .blocking(
+              stmnt.execute(insertPrePrepareStmnt)
+            )
         }
       }
 
@@ -503,6 +517,101 @@ object StorageApiImpl {
           "PRIMARY KEY (view_number, sequence_number, replica_id)" +
           ")"
 
+      val createCheckpointTableStmnt =
+        "CREATE TABLE IF NOT EXISTS checkpoint_message (" +
+          "sequence_number INTEGER NOT NULL, " +
+          "digest TEXT NOT NULL, " +
+          "replica_id INTEGER NOT NULL, " +
+          "signature TEXT NOT NULL, " +
+          "PRIMARY KEY (sequence_number, replica_id)" +
+          ")"
+
+      def insertCheckpointMessage(
+          checkpointRequest: CheckpointRequest
+      ): F[Boolean] = {
+        val insertCheckpointStmnt =
+          s"INSERT INTO checkpoint_message (" +
+            "sequence_number, " +
+            "digest, " +
+            "replica_id, " +
+            "signature" +
+            ") VALUES " +
+            "(" +
+            s"${checkpointRequest.sequenceNumber}," +
+            s"'${Encoding.encodeToHex(checkpointRequest.digest.toByteArray)}'," +
+            s"${checkpointRequest.replicaId}," +
+            s"'${Encoding.encodeToHex(checkpointRequest.signature.toByteArray)}'" +
+            ")"
+        statementResource.use { stmnt =>
+          Sync[F]
+            .blocking(
+              stmnt.execute(insertCheckpointStmnt)
+            )
+        }
+      }
+
+      override def cleanLog(sequenceNumber: Long): F[Unit] = {
+        val deletePrePrepareStmnt =
+          s"DELETE FROM pre_prepare_message WHERE sequence_number < ${sequenceNumber}"
+        val deletePrepareStmnt =
+          s"DELETE FROM prepare_message WHERE sequence_number < ${sequenceNumber}"
+        val deleteCommitStmnt =
+          s"DELETE FROM commit_message WHERE sequence_number < ${sequenceNumber}"
+        val deleteCheckpointStmnt =
+          s"DELETE FROM checkpoint_message WHERE sequence_number < ${sequenceNumber}"
+        statementResource.use { stmnt =>
+          Sync[F]
+            .blocking(
+              stmnt.execute(deletePrePrepareStmnt)
+            ) >> Sync[F]
+            .blocking(
+              stmnt.execute(deletePrepareStmnt)
+            ) >> Sync[F]
+            .blocking(
+              stmnt.execute(deleteCommitStmnt)
+            ) >> Sync[F]
+            .blocking(
+              stmnt.execute(deleteCheckpointStmnt)
+            )
+        }
+      }
+
+      override def getCheckpointMessage(
+          sequenceNumber: Long,
+          replicaId: Int
+      ): F[Option[CheckpointRequest]] = {
+        val selectCheckpointStmnt =
+          s"SELECT * FROM checkpoint_message WHERE sequence_number = ${sequenceNumber} AND replica_id = ${replicaId}"
+        statementResource.use { stmnt =>
+          for {
+            rs <- Sync[F]
+              .blocking(
+                stmnt.executeQuery(
+                  selectCheckpointStmnt
+                )
+              )
+            hasNext <- Sync[F].blocking(rs.next())
+          } yield
+            if (hasNext) {
+              val digest = rs.getString("digest")
+              val signature = rs.getString("signature")
+              val checkpoint = CheckpointRequest(
+                sequenceNumber = sequenceNumber,
+                digest = ByteString.copyFrom(
+                  Encoding.decodeFromHex(digest).toOption.get
+                ),
+                replicaId = replicaId,
+                signature = ByteString.copyFrom(
+                  Encoding.decodeFromHex(signature).toOption.get
+                )
+              )
+              Some(checkpoint)
+            } else {
+              None
+            }
+        }
+      }
+
       val BLOCKCHAIN_EVENT_ID = "blockchain_event"
 
       override def insertBlockchainEvent(
@@ -531,22 +640,19 @@ object StorageApiImpl {
 
       override def initializeStorage(): F[Unit] = statementResource.use {
         stmnt =>
-          trace"createEvtTableStmnt: ${createEvtTableStmnt}" >>
-            trace"createSessionTableStmt: ${createSessionTableStmt}" >>
-            trace"createPrePrepareTableStmt: ${createPrePrepareTableStmt}" >>
-            trace"createPrepareTableStmt: ${createPrepareTableStmt}" >>
-            trace"createCommitTableStmt: ${createCommitTableStmt}" >>
-            Sync[F].blocking(
-              stmnt.execute(createEvtTableStmnt)
-            ) >> Sync[F].blocking(
-              stmnt.execute(createSessionTableStmt)
-            ) >> Sync[F].blocking(
-              stmnt.execute(createPrePrepareTableStmt)
-            ) >> Sync[F].blocking(
-              stmnt.execute(createPrepareTableStmt)
-            ) >> Sync[F].blocking(
-              stmnt.execute(createCommitTableStmt)
-            )
+          Sync[F].blocking(
+            stmnt.execute(createEvtTableStmnt)
+          ) >> Sync[F].blocking(
+            stmnt.execute(createSessionTableStmt)
+          ) >> Sync[F].blocking(
+            stmnt.execute(createPrePrepareTableStmt)
+          ) >> Sync[F].blocking(
+            stmnt.execute(createPrepareTableStmt)
+          ) >> Sync[F].blocking(
+            stmnt.execute(createCommitTableStmt)
+          ) >> Sync[F].blocking(
+            stmnt.execute(createCheckpointTableStmnt)
+          )
       }
 
     }

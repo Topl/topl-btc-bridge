@@ -450,19 +450,6 @@ object StateMachineExecution {
     } yield ()
   }
 
-  private def createStateDigest(
-      state: SessionState
-  ) = {
-    // import JavaConverters
-    import scala.jdk.CollectionConverters._
-    val stateBytes = state.underlying.entrySet.asScala.toList
-      .sortBy(_.getKey)
-      .map(x => x.getKey.getBytes ++ x.getValue.toBytes)
-      .flatten
-    MessageDigest
-      .getInstance("SHA-256")
-      .digest(stateBytes.toArray)
-  }
 
   def executeRequest[F[_]: Async: Logger](
       request: co.topl.bridge.shared.StateMachineRequest

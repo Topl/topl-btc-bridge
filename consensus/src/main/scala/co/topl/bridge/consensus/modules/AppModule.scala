@@ -45,6 +45,8 @@ import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
 import java.security.PublicKey
 import co.topl.shared.ReplicaId
+import co.topl.bridge.consensus.pbft.CheckpointRequest
+import co.topl.brambl.utils.Encoding
 
 trait AppModule
     extends WalletStateResource
@@ -132,6 +134,14 @@ trait AppModule
         params.toplWalletSeedFile,
         params.toplWalletPassword
       )
+      stableCheckpoint <- Ref.of(StableCheckpoint(0, Map(), Map()))
+      unstableCheckpoints <- Ref.of[
+        IO,
+        Map[(Long, String), Map[Int, CheckpointRequest]]
+      ](Map())
+      stateSnapshot <- Ref.of[IO, (Long, String, Map[String, PBFTState])](
+        (0, Encoding.encodeToHex(Array.emptyByteArray), Map())
+      )
     } yield {
       implicit val lastReplyMap = new LastReplyMap(
         new ConcurrentHashMap[(ClientId, Long), Result]()
@@ -159,6 +169,19 @@ trait AppModule
       implicit val checkpointInterval = new CheckpointInterval(
         params.checkpointInterval
       )
+      implicit val lastStableCheckpointRef: StableCheckpointRef[IO] =
+        new StableCheckpointRef[IO](stableCheckpoint)
+      implicit val untableCheckpoints: UnstableCheckpointsRef[IO] =
+        new UnstableCheckpointsRef[IO](
+          unstableCheckpoints
+        )
+      implicit val stateSnapshotRef = new StateSnapshotRef[IO](
+        stateSnapshot
+      )
+      implicit val watermarkRef = new WatermarkRef[IO](
+        Ref.unsafe[IO, (Long, Long)]((0, 0))
+      )
+      implicit val kWatermark = new KWatermark(params.kWatermark)
       val peginStateMachine = MonitorStateMachine
         .make[IO](
           currentBitcoinNetworkHeight,

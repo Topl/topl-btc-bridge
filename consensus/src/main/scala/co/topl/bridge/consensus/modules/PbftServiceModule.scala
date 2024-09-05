@@ -16,6 +16,7 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.BridgeWalletManager
+import co.topl.bridge.consensus.CheckpointInterval
 import co.topl.bridge.consensus.CurrentBTCHeight
 import co.topl.bridge.consensus.CurrentToplHeight
 import co.topl.bridge.consensus.CurrentView
@@ -25,10 +26,13 @@ import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.PublicApiClientGrpcMap
 import co.topl.bridge.consensus.SessionState
+import co.topl.bridge.consensus.StableCheckpointRef
 import co.topl.bridge.consensus.Template
 import co.topl.bridge.consensus.ToplKeypair
 import co.topl.bridge.consensus.ToplWaitExpirationTime
+import co.topl.bridge.consensus.UnstableCheckpointsRef
 import co.topl.bridge.consensus.managers.SessionManagerAlgebra
+import co.topl.bridge.consensus.pbft.CheckpointRequest
 import co.topl.bridge.consensus.pbft.CommitRequest
 import co.topl.bridge.consensus.pbft.PBFTInternalServiceFs2Grpc
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
@@ -39,6 +43,7 @@ import co.topl.consensus.PBFTProtocolClientGrpc
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.ClientId
 import co.topl.shared.ReplicaCount
+import co.topl.shared.ReplicaId
 import co.topl.shared.implicits._
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
@@ -51,9 +56,12 @@ import org.typelevel.log4cats.Logger
 import java.security.KeyPair
 import java.security.MessageDigest
 import java.security.PublicKey
-import co.topl.shared.ReplicaId
-import co.topl.bridge.consensus.pbft.CheckpointRequest
-import co.topl.bridge.consensus.CheckpointInterval
+import co.topl.bridge.consensus.StateSnapshotRef
+import co.topl.bridge.consensus.pbft.PBFTState
+import co.topl.bridge.consensus.WatermarkRef
+import co.topl.bridge.consensus.KWatermark
+import io.envoyproxy.pgv.validate.validate.FieldRules.Type.Bool
+import org.checkerframework.checker.units.qual.s
 
 trait PbftServiceModule {
 
@@ -64,6 +72,11 @@ trait PbftServiceModule {
       keyPair: KeyPair,
       replicaKeysMap: Map[Int, PublicKey]
   )(implicit
+      watermarkRef: WatermarkRef[F],
+      kWatermark: KWatermark,
+      latestStateSnapshotRef: StateSnapshotRef[F],
+      lastStableCheckpointRef: StableCheckpointRef[F],
+      unstableCheckpointsRef: UnstableCheckpointsRef[F],
       checkpointInterval: CheckpointInterval,
       storageApi: StorageApi[F],
       replica: ReplicaId,
@@ -223,7 +236,6 @@ trait PbftServiceModule {
             _ <- pbftProtocolClientGrpc.prepare(
               prepareRequestSigned
             )
-            // _ <- storageApi.insertPrepareMessage(prepareRequestSigned)
             _ <- Async[F].start(
               waitForProtocol(
                 request.payload.get,
@@ -269,9 +281,164 @@ trait PbftServiceModule {
         }
 
         override def checkpoint(
-            checkpointRequest: CheckpointRequest,
+            request: CheckpointRequest,
             ctx: Metadata
-        ): F[Empty] = ???
+        ): F[Empty] = {
+          import org.typelevel.log4cats.syntax._
+          for {
+            reqSignCheck <- checkMessageSignature(
+              request.signableBytes,
+              request.signature.toByteArray()
+            ).map(
+              Validated.condNel(_, (), "Invalid request signature")
+            )
+            lastStableCheckpoint <- lastStableCheckpointRef.underlying.get
+            waterMarkCheck <- Validated
+              .condNel(
+                request.sequenceNumber < lastStableCheckpoint.sequenceNumber,
+                (),
+                "Checkpoint message "
+              )
+              .pure[F]
+            isInLogCheck <- storageApi
+              .getCheckpointMessage(request.sequenceNumber, request.replicaId)
+              .map(
+                _.map(x =>
+                  Validated.condNel(
+                    Encoding.encodeToHex(x.digest.toByteArray()) == Encoding
+                      .encodeToHex(request.digest.toByteArray()),
+                    (),
+                    "Checkpoint message already in log"
+                  )
+                ).getOrElse(Validated.valid(()))
+              )
+            _ <- (reqSignCheck, waterMarkCheck, isInLogCheck)
+              .mapN((_, _, _) => ())
+              .fold(
+                errors =>
+                  error"Error handling checkpoint request: ${errors.toList.mkString(", ")}",
+                _ =>
+                  storageApi.insertCheckpointMessage(
+                    request
+                  ) >> updateCheckpointInMemory(
+                    request
+                  )
+              )
+          } yield Empty()
+
+        }
+
+        private def handleStableCheckpoint(request: CheckpointRequest) = {
+          import co.topl.bridge.consensus.pbft.createStateDigestAux
+          for {
+            lastStableCheckpoint <- lastStableCheckpointRef.underlying.get
+            _ <-
+              if (
+                lastStableCheckpoint.sequenceNumber == request.sequenceNumber &&
+                Encoding.encodeToHex(
+                  createStateDigestAux(lastStableCheckpoint.state)
+                ) == Encoding.encodeToHex(request.digest.toByteArray())
+              )
+                lastStableCheckpointRef.underlying.set(
+                  lastStableCheckpoint.copy(
+                    certificates = lastStableCheckpoint.certificates + (
+                      request.replicaId -> request
+                    )
+                  )
+                )
+              else ().pure[F]
+          } yield ()
+        }
+
+        private def handleUnstableCheckpoint(
+            request: CheckpointRequest
+        ): F[(Boolean, Map[Int, CheckpointRequest], Map[String, PBFTState])] = {
+          for {
+            unstableCheckpoints <- unstableCheckpointsRef.underlying.get
+            someCheckpointVotes = unstableCheckpoints.get(
+              request.sequenceNumber -> Encoding.encodeToHex(
+                request.digest.toByteArray()
+              )
+            )
+            newVotes <- someCheckpointVotes match {
+              case None =>
+                unstableCheckpointsRef.underlying.set(
+                  unstableCheckpoints + ((request.sequenceNumber -> Encoding
+                    .encodeToHex(
+                      request.digest.toByteArray()
+                    )) -> Map(request.replicaId -> request))
+                ) >>
+                  Map(
+                    request.replicaId -> request
+                  ).pure[F]
+              case Some(checkpointVotes) =>
+                unstableCheckpointsRef.underlying.set(
+                  unstableCheckpoints + ((request.sequenceNumber -> Encoding
+                    .encodeToHex(
+                      request.digest.toByteArray()
+                    )) -> (checkpointVotes + (request.replicaId -> request)))
+                ) >>
+                  (checkpointVotes + (request.replicaId -> request)).pure[F]
+            }
+            seqAndState <- latestStateSnapshotRef.state.get
+            (sequenceNumber, stateSnapshotDigest, state) = seqAndState
+          } yield {
+            val haveNewStableState = newVotes.size > replicaCount.maxFailures &&
+              sequenceNumber == request.sequenceNumber &&
+              stateSnapshotDigest == Encoding.encodeToHex(
+                request.digest.toByteArray()
+              )
+            (haveNewStableState, newVotes, state)
+          }
+        }
+
+        def handleNewStableCheckpoint(
+            request: CheckpointRequest,
+            certificates: Map[Int, CheckpointRequest],
+            state: Map[String, PBFTState]
+        ): F[Unit] = {
+          for {
+            _ <- lastStableCheckpointRef.underlying.update(x =>
+              x.copy(
+                sequenceNumber = request.sequenceNumber,
+                certificates = certificates,
+                state = state
+              )
+            )
+            lowAndHigh <- watermarkRef.lowAndHigh.get
+            (lowWatermark, highWatermark) = lowAndHigh
+            _ <- watermarkRef.lowAndHigh.set(
+              (
+                request.sequenceNumber,
+                request.sequenceNumber + kWatermark.underlying
+              )
+            )
+            _ <- unstableCheckpointsRef.underlying.update(x =>
+              x.filter(_._1._1 < request.sequenceNumber)
+            )
+            _ <- storageApi.cleanLog(request.sequenceNumber)
+          } yield ()
+        }
+
+        private def updateCheckpointInMemory(
+            request: CheckpointRequest
+        ): F[Unit] = {
+          for {
+            _ <- handleStableCheckpoint(request)
+            triplet <- handleUnstableCheckpoint(request)
+            (haveNewStableState, certificates, state) = triplet
+            _ <-
+              if (haveNewStableState) {
+                for {
+                  _ <- handleNewStableCheckpoint(
+                    request,
+                    certificates,
+                    state
+                  )
+                } yield ()
+              } else Async[F].unit
+          } yield ()
+        }
 
         override def commit(request: CommitRequest, ctx: Metadata): F[Empty] = {
           import org.typelevel.log4cats.syntax._

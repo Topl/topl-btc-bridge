@@ -12,6 +12,7 @@ import co.topl.bridge.consensus.pbft.PBFTState
 import co.topl.shared.ClientId
 import java.security.PublicKey
 import co.topl.bridge.consensus.service.StateMachineReply.Result
+import co.topl.bridge.consensus.pbft.CheckpointRequest
 
 package object consensus {
 
@@ -26,6 +27,37 @@ package object consensus {
   class ToplKeypair(val underlying: KeyPair) extends AnyVal
   class SessionState(val underlying: ConcurrentHashMap[String, PBFTState])
       extends AnyVal
+  case class StableCheckpoint(
+      sequenceNumber: Long,
+      certificates: Map[Int, CheckpointRequest],
+      state: Map[String, PBFTState]
+  )
+  case class StateSnapshotRef[F[_]](
+      state: Ref[F, (Long, String, Map[String, PBFTState])]
+  ) extends AnyVal
+
+  case class WatermarkRef[F[_]](
+      lowAndHigh: Ref[F, (Long, Long)]
+  ) extends AnyVal
+
+  case class KWatermark(
+      underlying: Int
+  ) extends AnyVal
+
+  case class StableCheckpointRef[F[_]](
+      val underlying: Ref[F, StableCheckpoint]
+  ) extends AnyVal
+
+  // the key is a pair of the height and digest of the checkpoint
+  case class UnstableCheckpointsRef[F[_]](
+      val underlying: Ref[
+        F,
+        Map[
+          (Long, String),
+          Map[Int, CheckpointRequest]
+        ]
+      ]
+  ) extends AnyVal
   class PublicApiClientGrpcMap[F[_]](
       val underlying: Map[
         ClientId,
@@ -33,8 +65,9 @@ package object consensus {
       ]
   ) extends AnyVal
 
-  class LastReplyMap(val underlying: ConcurrentHashMap[(ClientId, Long), Result])
-      extends AnyVal
+  class LastReplyMap(
+      val underlying: ConcurrentHashMap[(ClientId, Long), Result]
+  ) extends AnyVal
 
   class BTCRetryThreshold(val underlying: Int) extends AnyVal
   class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
@@ -63,7 +96,6 @@ package object consensus {
   sealed trait BifrostCurrencyUnit {
     val amount: Int128
   }
-
 
   case class Lvl(amount: Int128) extends BifrostCurrencyUnit
   case class SeriesToken(id: String, amount: Int128) extends BifrostCurrencyUnit
