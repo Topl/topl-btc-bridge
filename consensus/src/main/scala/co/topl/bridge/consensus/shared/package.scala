@@ -14,4 +14,15 @@ package object shared {
   case class AssetToken(groupId: String, seriesId: String, amount: Int128)
       extends BifrostCurrencyUnit
 
+  class BTCConfirmationThreshold(val underlying: Int) extends AnyVal
+
+  class BTCRetryThreshold(val underlying: Int) extends AnyVal
+
+  class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
+
+  class ToplWaitExpirationTime(val underlying: Int) extends AnyVal
+  
+  class ToplConfirmationThreshold(val underlying: Int) extends AnyVal
+
+
 }

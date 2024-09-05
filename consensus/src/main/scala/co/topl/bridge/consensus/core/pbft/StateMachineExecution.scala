@@ -12,7 +12,7 @@ import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.core.BridgeWalletManager
 import co.topl.bridge.consensus.core.CheckpointInterval
@@ -35,7 +35,7 @@ import co.topl.bridge.consensus.core.PublicApiClientGrpcMap
 import co.topl.bridge.consensus.core.SessionState
 import co.topl.bridge.consensus.core.Template
 import co.topl.bridge.consensus.core.ToplKeypair
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.core.controllers.StartSessionController
 import co.topl.bridge.consensus.core.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.core.pbft.ConfirmDepositBTCEvt

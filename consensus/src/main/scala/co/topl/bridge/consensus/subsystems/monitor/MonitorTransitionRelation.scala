@@ -3,11 +3,11 @@ package co.topl.bridge.consensus.subsystems.monitor
 import cats.effect.kernel.Async
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCRetryThreshold
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
-import co.topl.bridge.consensus.core.ToplConfirmationThreshold
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransition
 import co.topl.bridge.consensus.subsystems.monitor.PeginStateMachineState
 import org.typelevel.log4cats.Logger

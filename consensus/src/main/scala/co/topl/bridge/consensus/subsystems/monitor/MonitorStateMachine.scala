@@ -6,9 +6,9 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCRetryThreshold
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.PeginSessionState
 import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionMintingTBTCConfirmation
 import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionStateMintingTBTC
@@ -17,8 +17,8 @@ import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForCla
 import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
 import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
 import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForRedemption
-import co.topl.bridge.consensus.core.ToplConfirmationThreshold
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.core.managers.PeginSessionInfo
 import co.topl.bridge.consensus.core.managers.PegoutSessionInfo
 import co.topl.bridge.consensus.core.managers.SessionCreated

@@ -1,5 +1,5 @@
 package co.topl.bridge.consensus.subsystems.monitor
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.subsystems.monitor.EndTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransitionTo
@@ -7,7 +7,7 @@ import co.topl.bridge.consensus.subsystems.monitor.MConfirmingBTCDeposit
 import co.topl.bridge.consensus.subsystems.monitor.MWaitingForBTCDeposit
 import co.topl.bridge.consensus.subsystems.monitor.PeginStateMachineState
 import org.bitcoins.core.protocol.Bech32Address
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
 
 trait MonitorDepositStateTransitionRelation extends TransitionToEffect {
 

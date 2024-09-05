@@ -1,18 +1,18 @@
 package co.topl.bridge.consensus
 
-import _root_.quivr.models.Int128
-import io.grpc.ManagedChannelBuilder
-import cats.effect.kernel.Sync
-import fs2.grpc.syntax.all._
-import co.topl.bridge.consensus.core.managers.BTCWalletAlgebra
 import cats.effect.kernel.Ref
-import quivr.models.KeyPair
-import java.util.concurrent.ConcurrentHashMap
+import cats.effect.kernel.Sync
+import co.topl.bridge.consensus.core.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.core.pbft.PBFTState
-import co.topl.bridge.shared.ClientId
-import java.security.PublicKey
-import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.pbft.CheckpointRequest
+import co.topl.bridge.consensus.service.StateMachineReply.Result
+import co.topl.bridge.shared.ClientId
+import fs2.grpc.syntax.all._
+import io.grpc.ManagedChannelBuilder
+import quivr.models.KeyPair
+
+import java.security.PublicKey
+import java.util.concurrent.ConcurrentHashMap
 
 package object core {
 
@@ -68,12 +68,6 @@ package object core {
   class LastReplyMap(
       val underlying: ConcurrentHashMap[(ClientId, Long), Result]
   ) extends AnyVal
-
-  class BTCRetryThreshold(val underlying: Int) extends AnyVal
-  class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
-  class ToplWaitExpirationTime(val underlying: Int) extends AnyVal
-  class BTCConfirmationThreshold(val underlying: Int) extends AnyVal
-  class ToplConfirmationThreshold(val underlying: Int) extends AnyVal
 
   def channelResource[F[_]: Sync](
       address: String,

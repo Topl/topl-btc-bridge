@@ -36,7 +36,7 @@ import org.bitcoins.core.wallet.utxo.SegwitV0NativeInputInfo
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import scodec.bits.ByteVector
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.RawScriptPubKey

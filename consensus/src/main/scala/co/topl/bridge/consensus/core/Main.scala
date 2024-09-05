@@ -23,6 +23,7 @@ import co.topl.bridge.consensus.core.managers.BTCWalletImpl
 import co.topl.bridge.consensus.core.managers.SessionEvent
 import co.topl.bridge.consensus.core.modules.AppModule
 import co.topl.bridge.consensus.subsystems.monitor.BlockProcessor
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.bridge.consensus.core.persistence.StorageApi
 import co.topl.bridge.consensus.core.persistence.StorageApiImpl
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc

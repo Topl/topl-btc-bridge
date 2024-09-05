@@ -15,9 +15,9 @@ import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.utils.Encoding
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCRetryThreshold
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BridgeWalletManager
 import co.topl.bridge.consensus.core.CheckpointInterval
 import co.topl.bridge.consensus.core.CurrentBTCHeight
@@ -35,9 +35,9 @@ import co.topl.bridge.consensus.core.StateSnapshotRef
 import co.topl.bridge.consensus.core.SystemGlobalState
 import co.topl.bridge.consensus.core.Template
 import co.topl.bridge.consensus.core.ToplBTCBridgeConsensusParamConfig
-import co.topl.bridge.consensus.core.ToplConfirmationThreshold
+import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
 import co.topl.bridge.consensus.core.ToplKeypair
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.core.UnstableCheckpointsRef
 import co.topl.bridge.consensus.core.WatermarkRef
 import co.topl.bridge.consensus.core.channelResource

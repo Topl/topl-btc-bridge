@@ -4,9 +4,9 @@ import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.shared.AssetToken
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
-import co.topl.bridge.consensus.core.ToplConfirmationThreshold
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.subsystems.monitor.EndTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransitionTo

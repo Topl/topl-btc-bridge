@@ -2,10 +2,10 @@ package co.topl.bridge.consensus.subsystems.monitor
 
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCRetryThreshold
-import co.topl.bridge.consensus.core.ToplConfirmationThreshold
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
+import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.subsystems.monitor.MConfirmingBTCDeposit
 import co.topl.bridge.consensus.subsystems.monitor.MMintingTBTC
 import co.topl.bridge.consensus.subsystems.monitor.MWaitingForBTCDeposit

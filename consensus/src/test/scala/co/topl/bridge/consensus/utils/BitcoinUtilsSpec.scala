@@ -10,7 +10,7 @@ import java.security.MessageDigest
 import org.bitcoins.core.protocol.transaction._
 import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.currency.Bitcoins
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import org.bitcoins.core.protocol.script.ScriptSignature
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
 import org.bitcoins.core.script.constant.ScriptConstant

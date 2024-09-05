@@ -7,14 +7,14 @@ import co.topl.brambl.dataApi.FellowshipStorageAlgebra
 import co.topl.brambl.dataApi.TemplateStorageAlgebra
 import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.core.BridgeWalletManager
 import co.topl.bridge.consensus.core.CurrentToplHeight
 import co.topl.bridge.consensus.core.PeginSessionState
 import co.topl.bridge.consensus.core.PeginWalletManager
 import co.topl.bridge.consensus.core.ToplKeypair
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.core.managers.PeginSessionInfo
 import co.topl.bridge.consensus.core.managers.ToplWalletAlgebra
 import co.topl.bridge.consensus.core.utils.BitcoinUtils

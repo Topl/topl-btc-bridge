@@ -1,8 +1,8 @@
 package co.topl.bridge.consensus.subsystems.monitor
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCRetryThreshold
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.bridge.consensus.subsystems.monitor.EndTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransitionTo

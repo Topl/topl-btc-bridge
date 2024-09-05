@@ -1,11 +1,11 @@
 package co.topl.bridge.consensus.controllers
 
 import co.topl.bridge.consensus.core.ToplPrivatenet
-import co.topl.bridge.consensus.core.BTCWaitExpirationTime
-import co.topl.bridge.consensus.core.ToplWaitExpirationTime
-import co.topl.bridge.consensus.core.ToplConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCConfirmationThreshold
-import co.topl.bridge.consensus.core.BTCRetryThreshold
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
+import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
+import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.brambl.models.SeriesId
 import co.topl.brambl.models.GroupId
 import com.google.protobuf.ByteString
