@@ -35,9 +35,9 @@ import co.topl.bridge.consensus.monitor.PeginStateMachineState
 import co.topl.bridge.consensus.monitor.MWaitingForClaim
 import co.topl.bridge.consensus.monitor.MConfirmingBTCClaim
 import co.topl.bridge.consensus.monitor.MWaitingForRedemption
-import co.topl.shared.ClientId
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.SessionId
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.SessionId
 import org.typelevel.log4cats.Logger
 
 import java.util.Map.Entry

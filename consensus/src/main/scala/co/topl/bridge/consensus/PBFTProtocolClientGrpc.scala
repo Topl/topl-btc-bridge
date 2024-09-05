@@ -6,7 +6,7 @@ import co.topl.bridge.consensus.pbft.PBFTInternalServiceFs2Grpc
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.shared.Empty
-import co.topl.shared.ReplicaNode
+import co.topl.bridge.shared.ReplicaNode
 import fs2.grpc.syntax.all._
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Metadata

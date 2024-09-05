@@ -4,7 +4,7 @@ import cats.effect.kernel.Async
 import co.topl.bridge.shared.Empty
 import co.topl.bridge.consensus.service.ResponseServiceFs2Grpc
 import co.topl.bridge.consensus.service.StateMachineReply
-import co.topl.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.BridgeCryptoUtils
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
@@ -12,7 +12,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 
 import java.security.KeyPair
-import co.topl.shared.ReplicaId
+import co.topl.bridge.shared.ReplicaId
 
 trait PublicApiClientGrpc[F[_]] {
 
@@ -35,7 +35,7 @@ object PublicApiClientGrpcImpl {
     } yield new PublicApiClientGrpc[F] {
       import cats.implicits._
 
-      import co.topl.shared.implicits._
+      import co.topl.bridge.shared.implicits._
 
       private def prepareRequest(
           timestamp: Long,

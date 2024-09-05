@@ -1,4 +1,4 @@
-package co.topl.shared
+package co.topl.bridge.shared
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
@@ -7,12 +7,12 @@ import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.bridge.shared.StartSessionOperation
 import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.BridgeError
-import co.topl.shared.BridgeResponse
-import co.topl.shared.ReplicaCount
-import co.topl.shared.ReplicaNode
-import co.topl.shared.TimeoutError
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.BridgeError
+import co.topl.bridge.shared.BridgeResponse
+import co.topl.bridge.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaNode
+import co.topl.bridge.shared.TimeoutError
 import com.google.protobuf.ByteString
 import fs2.grpc.syntax.all._
 import io.grpc.ManagedChannelBuilder
@@ -128,7 +128,7 @@ trait ConsensusClientGrpc[F[_]] {
 object ConsensusClientGrpcImpl {
 
   import cats.implicits._
-  import co.topl.shared.implicits._
+  import co.topl.bridge.shared.implicits._
   import scala.concurrent.duration._
 
   def makeContainer[F[_]: Async: Logger](

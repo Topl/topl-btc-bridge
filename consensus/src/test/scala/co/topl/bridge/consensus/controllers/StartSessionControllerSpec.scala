@@ -21,8 +21,8 @@ import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.bridge.shared.StartSessionOperation
-import co.topl.shared.InvalidHash
-import co.topl.shared.InvalidKey
+import co.topl.bridge.shared.InvalidHash
+import co.topl.bridge.shared.InvalidKey
 import munit.CatsEffectSuite
 
 import java.nio.file.Files

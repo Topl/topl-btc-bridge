@@ -82,10 +82,10 @@ import co.topl.bridge.shared.StateMachineRequest.Operation.UndoClaimTx
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoDepositBTC
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoTBTCMint
 import co.topl.consensus.PBFTProtocolClientGrpc
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.BridgeError
-import co.topl.shared.ClientId
-import co.topl.shared.ReplicaCount
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.BridgeError
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ReplicaCount
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.CurrencyUnit
@@ -96,7 +96,7 @@ import scodec.bits.ByteVector
 
 import java.security.{KeyPair => JKeyPair}
 import java.util.UUID
-import co.topl.shared.ReplicaId
+import co.topl.bridge.shared.ReplicaId
 import co.topl.bridge.consensus.CheckpointInterval
 import co.topl.bridge.consensus.SessionState
 import java.security.MessageDigest
@@ -397,7 +397,7 @@ object StateMachineExecution {
       defaultFeePerByte: CurrencyUnit
   ) = {
     import scala.concurrent.duration._
-    import co.topl.shared.implicits._
+    import co.topl.bridge.shared.implicits._
     import cats.implicits._
     for {
       _ <- (Async[F].sleep(1.seconds) >>

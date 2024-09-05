@@ -2,12 +2,12 @@ package co.topl
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import co.topl.shared.BridgeContants
-import co.topl.shared.MintingStatusRequest
-import co.topl.shared.MintingStatusResponse
-import co.topl.shared.StartPeginSessionRequest
-import co.topl.shared.StartPeginSessionResponse
-import co.topl.shared.SyncWalletRequest
+import co.topl.bridge.shared.BridgeContants
+import co.topl.bridge.shared.MintingStatusRequest
+import co.topl.bridge.shared.MintingStatusResponse
+import co.topl.bridge.shared.StartPeginSessionRequest
+import co.topl.bridge.shared.StartPeginSessionResponse
+import co.topl.bridge.shared.SyncWalletRequest
 import fs2.io.process
 import io.circe.generic.auto._
 import io.circe.parser._

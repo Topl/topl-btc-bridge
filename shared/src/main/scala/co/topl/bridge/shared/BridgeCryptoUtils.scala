@@ -1,4 +1,4 @@
-package co.topl.shared
+package co.topl.bridge.shared
 
 import cats.effect.kernel.Sync
 import org.bouncycastle.openssl.PEMParser

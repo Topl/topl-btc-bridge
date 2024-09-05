@@ -1,4 +1,4 @@
-package co.topl.shared
+package co.topl.bridge.shared
 
 /** This class is used to create a new session for a peg-in.
   *

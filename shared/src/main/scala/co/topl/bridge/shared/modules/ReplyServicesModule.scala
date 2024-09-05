@@ -1,4 +1,4 @@
-package co.topl.shared.modules
+package co.topl.bridge.shared.modules
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
@@ -9,17 +9,17 @@ import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.service.StateMachineReply.Result.SessionNotFound
 import co.topl.bridge.consensus.service.StateMachineReply.Result.StartSession
 import co.topl.bridge.shared.Empty
-import co.topl.shared
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.BridgeError
-import co.topl.shared.BridgeResponse
-import co.topl.shared.ConsensusClientMessageId
-import co.topl.shared.InvalidInput
-import co.topl.shared.SessionNotFoundError
-import co.topl.shared.StartPeginSessionResponse
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.BridgeError
+import co.topl.bridge.shared.BridgeResponse
+import co.topl.bridge.shared.ConsensusClientMessageId
+import co.topl.bridge.shared.InvalidInput
+import co.topl.bridge.shared.SessionNotFoundError
+import co.topl.bridge.shared.StartPeginSessionResponse
 import io.grpc.Metadata
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
+import co.topl.bridge.shared.UnknownError
 
 import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
@@ -49,7 +49,7 @@ trait ReplyServicesModule {
             ctx: Metadata
         ): F[Empty] = {
 
-          import co.topl.shared.implicits._
+          import co.topl.bridge.shared.implicits._
           for {
             _ <- trace"Received response from replica ${request.replicaNumber}"
             publicKey = replicaKeysMap(request.replicaNumber)
@@ -65,7 +65,7 @@ trait ReplyServicesModule {
                   request.result match {
                     case StateMachineReply.Result.Empty =>
                       Left(
-                        shared.UnknownError(
+                        UnknownError(
                           "This should not happen: Empty response"
                         )
                       )

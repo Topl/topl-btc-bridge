@@ -18,10 +18,10 @@ import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.shared.Empty
 import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.consensus.PBFTProtocolClientGrpc
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.ClientId
-import co.topl.shared.ReplicaCount
-import co.topl.shared.ReplicaId
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaId
 import com.google.protobuf.ByteString
 import io.grpc.Metadata
 import org.typelevel.log4cats.Logger
@@ -121,7 +121,7 @@ trait StateMachineServiceModule {
                     replicaId.id
                   ).executeRequest(request, ctx)
                 else {
-                  import co.topl.shared.implicits._
+                  import co.topl.bridge.shared.implicits._
                   val prePrepareRequest = PrePrepareRequest(
                     viewNumber = currentView,
                     sequenceNumber = currentSequence,

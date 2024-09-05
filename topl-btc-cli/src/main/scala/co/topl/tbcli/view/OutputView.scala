@@ -1,7 +1,7 @@
 package co.topl.tbcli.view
 
 import cats.Show
-import co.topl.shared.StartPeginSessionRequest
+import co.topl.bridge.shared.StartPeginSessionRequest
 
 object OutputView {
 

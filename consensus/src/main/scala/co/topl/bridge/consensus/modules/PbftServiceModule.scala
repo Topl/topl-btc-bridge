@@ -40,11 +40,11 @@ import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.consensus.persistence.StorageApi
 import co.topl.bridge.shared.Empty
 import co.topl.consensus.PBFTProtocolClientGrpc
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.ClientId
-import co.topl.shared.ReplicaCount
-import co.topl.shared.ReplicaId
-import co.topl.shared.implicits._
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaId
+import co.topl.bridge.shared.implicits._
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
 import io.grpc.Metadata

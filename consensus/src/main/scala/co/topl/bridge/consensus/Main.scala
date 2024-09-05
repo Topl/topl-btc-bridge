@@ -29,17 +29,17 @@ import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
 import co.topl.consensus.PBFTProtocolClientGrpc
 import co.topl.consensus.PBFTProtocolClientGrpcImpl
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.BridgeError
-import co.topl.shared.BridgeResponse
-import co.topl.shared.ClientCount
-import co.topl.shared.ClientId
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.ConsensusClientGrpcImpl
-import co.topl.shared.ConsensusClientMessageId
-import co.topl.shared.ReplicaCount
-import co.topl.shared.ReplicaNode
-import co.topl.shared.modules.ReplyServicesModule
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.BridgeError
+import co.topl.bridge.shared.BridgeResponse
+import co.topl.bridge.shared.ClientCount
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.ConsensusClientGrpcImpl
+import co.topl.bridge.shared.ConsensusClientMessageId
+import co.topl.bridge.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaNode
+import co.topl.bridge.shared.modules.ReplyServicesModule
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
@@ -63,7 +63,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.LongAdder
 import scala.concurrent.ExecutionContext
-import co.topl.shared.ReplicaId
+import co.topl.bridge.shared.ReplicaId
 
 case class SystemGlobalState(
     currentStatus: Option[String],

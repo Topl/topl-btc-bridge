@@ -21,9 +21,9 @@ import co.topl.bridge.consensus.Fellowship
 import co.topl.bridge.consensus.Lvl
 import co.topl.bridge.consensus.Template
 import co.topl.genus.services.Txo
-import co.topl.shared.InvalidHash
-import co.topl.shared.InvalidInput
-import co.topl.shared.InvalidKey
+import co.topl.bridge.shared.InvalidHash
+import co.topl.bridge.shared.InvalidInput
+import co.topl.bridge.shared.InvalidKey
 import co.topl.bridge.consensus.ToplNetworkIdentifiers
 import com.google.protobuf.ByteString
 import io.circe.Json

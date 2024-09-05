@@ -9,7 +9,7 @@ import cats.effect.kernel.Ref
 import quivr.models.KeyPair
 import java.util.concurrent.ConcurrentHashMap
 import co.topl.bridge.consensus.pbft.PBFTState
-import co.topl.shared.ClientId
+import co.topl.bridge.shared.ClientId
 import java.security.PublicKey
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.pbft.CheckpointRequest

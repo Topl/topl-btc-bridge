@@ -2,7 +2,7 @@ package co.topl.bridge.consensus
 
 import cats.effect.kernel.Sync
 import co.topl.bridge.consensus.persistence.StorageApi
-import co.topl.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaCount
 import java.security.MessageDigest
 
 package object pbft {

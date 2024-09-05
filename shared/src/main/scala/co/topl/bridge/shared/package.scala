@@ -1,6 +1,5 @@
-package co.topl
+package co.topl.bridge
 
-import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineReply
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest

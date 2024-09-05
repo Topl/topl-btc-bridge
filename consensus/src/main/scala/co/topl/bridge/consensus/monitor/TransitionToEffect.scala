@@ -25,9 +25,9 @@ import co.topl.bridge.shared.TimeoutTBTCMintOperation
 import co.topl.bridge.shared.UndoClaimTxOperation
 import co.topl.bridge.shared.UndoDepositBTCOperation
 import co.topl.bridge.shared.UndoTBTCMintOperation
-import co.topl.shared.ClientId
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.SessionId
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.SessionId
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._

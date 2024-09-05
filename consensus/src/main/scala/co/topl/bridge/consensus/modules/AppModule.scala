@@ -31,9 +31,9 @@ import co.topl.bridge.consensus.persistence.StorageApi
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.consensus.PBFTProtocolClientGrpc
-import co.topl.shared.ClientId
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.ReplicaCount
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.ReplicaCount
 import io.grpc.Metadata
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
@@ -44,7 +44,7 @@ import org.typelevel.log4cats.Logger
 import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
 import java.security.PublicKey
-import co.topl.shared.ReplicaId
+import co.topl.bridge.shared.ReplicaId
 import co.topl.bridge.consensus.pbft.CheckpointRequest
 import co.topl.brambl.utils.Encoding
 

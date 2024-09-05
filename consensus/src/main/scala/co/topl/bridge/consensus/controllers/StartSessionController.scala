@@ -19,11 +19,11 @@ import co.topl.bridge.consensus.managers.PeginSessionInfo
 import co.topl.bridge.consensus.managers.ToplWalletAlgebra
 import co.topl.bridge.consensus.utils.BitcoinUtils
 import co.topl.bridge.shared.StartSessionOperation
-import co.topl.shared.BridgeError
-import co.topl.shared.InvalidHash
-import co.topl.shared.InvalidInput
-import co.topl.shared.InvalidKey
-import co.topl.shared.StartPeginSessionResponse
+import co.topl.bridge.shared.BridgeError
+import co.topl.bridge.shared.InvalidHash
+import co.topl.bridge.shared.InvalidInput
+import co.topl.bridge.shared.InvalidKey
+import co.topl.bridge.shared.StartPeginSessionResponse
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey

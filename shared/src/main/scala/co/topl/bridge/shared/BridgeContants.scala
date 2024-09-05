@@ -1,4 +1,4 @@
-package co.topl.shared
+package co.topl.bridge.shared
 
 object BridgeContants {
   val START_PEGIN_SESSION_PATH = "start-session-pegin"
