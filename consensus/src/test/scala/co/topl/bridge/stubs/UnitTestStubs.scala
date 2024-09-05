@@ -23,7 +23,7 @@ import quivr.models.Proposition
 import co.topl.brambl.servicekit.WalletKeyApi
 import cats.effect.IO
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.consensus.managers.WalletManagementUtils
+import co.topl.bridge.consensus.core.managers.WalletManagementUtils
 import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.Datum

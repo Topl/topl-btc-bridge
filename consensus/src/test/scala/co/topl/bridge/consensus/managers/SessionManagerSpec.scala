@@ -2,9 +2,9 @@ package co.topl.bridge.consensus.managers
 
 import cats.effect.IO
 import cats.effect.std.Queue
-import co.topl.bridge.consensus.PeginSessionState
-import co.topl.bridge.consensus.persistence.StorageApi
-import co.topl.bridge.consensus.persistence.StorageApiImpl
+import co.topl.bridge.consensus.core.PeginSessionState
+import co.topl.bridge.consensus.core.persistence.StorageApi
+import co.topl.bridge.consensus.core.persistence.StorageApiImpl
 import munit.CatsEffectSuite
 
 import java.nio.file.Files
@@ -12,6 +12,7 @@ import java.nio.file.Paths
 import java.util.UUID
 import cats.effect.kernel.Resource
 import org.typelevel.log4cats.SelfAwareStructuredLogger
+import co.topl.bridge.consensus.core.managers.{SessionEvent, PeginSessionInfo}
 
 class SessionManagerSpec extends CatsEffectSuite {
 
@@ -51,7 +52,7 @@ class SessionManagerSpec extends CatsEffectSuite {
     assertIO(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
-        sut = SessionManagerImpl.makePermanent[IO](
+        sut = co.topl.bridge.consensus.core.managers.SessionManagerImpl.makePermanent[IO](
           storageApi,
           queue
         )
@@ -71,7 +72,7 @@ class SessionManagerSpec extends CatsEffectSuite {
     assertIO(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
-        sut = SessionManagerImpl.makePermanent[IO](
+        sut = co.topl.bridge.consensus.core.managers.SessionManagerImpl.makePermanent[IO](
           storageApi,
           queue
         )

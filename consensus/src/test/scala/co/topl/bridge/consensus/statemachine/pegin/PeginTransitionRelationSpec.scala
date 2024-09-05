@@ -4,18 +4,40 @@ import cats.effect.IO
 import cats.effect.kernel.Async
 import co.topl.brambl.syntax._
 import co.topl.brambl.utils.Encoding
-import co.topl.bridge.consensus.AssetToken
+import co.topl.bridge.consensus.shared.AssetToken
 import co.topl.bridge.consensus.controllers.SharedData
 import munit.CatsEffectSuite
 import org.bitcoins.core.protocol.Bech32Address
 
 import scala.annotation.nowarn
+import co.topl.bridge.consensus.subsystems.monitor.{
+  BifrostFundsDeposited,
+  BlockchainEvent,
+  PeginStateMachineState,
+  FSMTransitionTo,
+  MConfirmingBTCClaim,
+  MWaitingForRedemption,
+  BTCFundsWithdrawn,
+  BTCFundsDeposited,
+  MConfirmingBTCDeposit,
+  MWaitingForClaim,
+  BifrostFundsWithdrawn,
+  MConfirmingRedemption,
+  MConfirmingTBTCMint,
+  EndTransition,
+  NewToplBlock,
+  NewBTCBlock,
+  MMintingTBTC,
+  MWaitingForBTCDeposit
+}
+import co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
 
 class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
 
   val escrowAddress =
     "bcrt1qsc9qvqvlswpzlvf4t80g05l2la2cykazmdcur45st5g339vw6aps47j7sw"
-  val escrowAddressPubkey = Bech32Address.fromString(escrowAddress).scriptPubKey.asmHex
+  val escrowAddressPubkey =
+    Bech32Address.fromString(escrowAddress).scriptPubKey.asmHex
 
   val escrowAddressOther =
     "bcrt1q0xlvz3kxy9vyx4ylghajrvwuyqkspn7pdsch20jn5wjjkhcensus805640"
@@ -29,7 +51,8 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   val claimAddress =
     "bcrt1q0xlvz3kxy9vyx4ylghajrvwuyqkspn7pdsch20jn5wjjkhcensus805640"
 
-  val claimAddressPubkey = Bech32Address.fromString(claimAddress).scriptPubKey.asmHex
+  val claimAddressPubkey =
+    Bech32Address.fromString(claimAddress).scriptPubKey.asmHex
 
   @nowarn // just dummy function
   def transitionToEffect[F[_]: Async](
@@ -45,7 +68,14 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          MWaitingForBTCDeposit(1, 1, "", escrowAddress, redeemAddress, claimAddress),
+          MWaitingForBTCDeposit(
+            1,
+            1,
+            "",
+            escrowAddress,
+            redeemAddress,
+            claimAddress
+          ),
           BTCFundsDeposited(2, escrowAddressPubkey, "txId", 0, 100.satoshis)
         )(transitionToEffect[IO](_, _))
         .get
@@ -82,7 +112,14 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       (MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          MWaitingForBTCDeposit(1, 1, "", escrowAddress, redeemAddress, claimAddress),
+          MWaitingForBTCDeposit(
+            1,
+            1,
+            "",
+            escrowAddress,
+            redeemAddress,
+            claimAddress
+          ),
           NewBTCBlock(102)
         )(transitionToEffect[IO](_, _))
         .get
@@ -98,7 +135,14 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          MWaitingForBTCDeposit(1, 1, "", escrowAddress, redeemAddress, claimAddress),
+          MWaitingForBTCDeposit(
+            1,
+            1,
+            "",
+            escrowAddress,
+            redeemAddress,
+            claimAddress
+          ),
           BifrostFundsDeposited(
             currentToplBlockHeight =
               0L, // Assuming a placeholder value for the missing argument
@@ -111,7 +155,14 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .isEmpty &&
         MonitorTransitionRelation
           .handleBlockchainEvent[IO](
-            MWaitingForBTCDeposit(1, 1, "", escrowAddress, redeemAddress, claimAddress),
+            MWaitingForBTCDeposit(
+              1,
+              1,
+              "",
+              escrowAddress,
+              redeemAddress,
+              claimAddress
+            ),
             BifrostFundsWithdrawn(
               1L,
               "bifrostTxId",
@@ -607,25 +658,26 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   test(
     "PeginTransitionRelation should transition from WaitingForEscrowBTCConfirmation to MintingTBTC"
   ) {
-            println (MonitorTransitionRelation
-          .handleBlockchainEvent[IO](
-            MConfirmingBTCDeposit(
-              1,
-              1,
-              1,
-              "",
-              escrowAddress,
-              redeemAddress,
-              claimAddress,
-              "btcTxId",
-              0,
-              100.satoshis
-            ),
-            NewBTCBlock(7)
-          )(transitionToEffect[IO](_, _))
-          )
+    println(
+      co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
+        .handleBlockchainEvent[IO](
+          MConfirmingBTCDeposit(
+            1,
+            1,
+            1,
+            "",
+            escrowAddress,
+            redeemAddress,
+            claimAddress,
+            "btcTxId",
+            0,
+            100.satoshis
+          ),
+          NewBTCBlock(7)
+        )(transitionToEffect[IO](_, _))
+    )
     assert(
-      MonitorTransitionRelation
+      co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
         .handleBlockchainEvent[IO](
           MConfirmingBTCDeposit(
             1,
@@ -652,7 +704,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     "PeginTransitionRelation should transition from WaitingForEscrowBTCConfirmation to MWaitingForBTCDeposit on reorg"
   ) {
     assert(
-      MonitorTransitionRelation
+      co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
         .handleBlockchainEvent[IO](
           MConfirmingBTCDeposit(
             1,

@@ -1,9 +1,9 @@
 package co.topl.bridge.consensus.managers
 
 import cats.effect.IO
-import co.topl.bridge.consensus.RegTest
+import co.topl.bridge.consensus.core.RegTest
 import munit.CatsEffectSuite
-import co.topl.bridge.consensus.utils.KeyGenerationUtils
+import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
 
 class WalletManagerSpec extends CatsEffectSuite {
 
@@ -15,7 +15,7 @@ class WalletManagerSpec extends CatsEffectSuite {
           "src/test/resources/wallet.json",
           "password"
         )
-        sut <- BTCWalletImpl.make[IO](km)
+        sut <- co.topl.bridge.consensus.core.managers.BTCWalletImpl.make[IO](km)
         res <- sut.getCurrentPubKeyAndPrepareNext()
         (idx, pubKey) = res
         res <- sut.getCurrentPubKeyAndPrepareNext()
@@ -31,7 +31,7 @@ class WalletManagerSpec extends CatsEffectSuite {
           "src/test/resources/wallet.json",
           "password"
         )
-        sut <- BTCWalletImpl.make[IO](km)
+        sut <- co.topl.bridge.consensus.core.managers.BTCWalletImpl.make[IO](km)
         res <- sut.getCurrentPubKeyAndPrepareNext()
         (idx, _) = res
         pubKey <- sut.getCurrentPubKey()

@@ -11,15 +11,15 @@ import co.topl.brambl.servicekit.WalletKeyApi
 import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
-import co.topl.bridge.consensus.BridgeWalletManager
-import co.topl.bridge.consensus.CurrentToplHeight
-import co.topl.bridge.consensus.PeginWalletManager
-import co.topl.bridge.consensus.RegTest
-import co.topl.bridge.consensus.ToplKeypair
-import co.topl.bridge.consensus.ToplPrivatenet
-import co.topl.bridge.consensus.managers.BTCWalletImpl
-import co.topl.bridge.consensus.managers.WalletManagementUtils
-import co.topl.bridge.consensus.utils.KeyGenerationUtils
+import co.topl.bridge.consensus.core.BridgeWalletManager
+import co.topl.bridge.consensus.core.CurrentToplHeight
+import co.topl.bridge.consensus.core.PeginWalletManager
+import co.topl.bridge.consensus.core.RegTest
+import co.topl.bridge.consensus.core.ToplKeypair
+import co.topl.bridge.consensus.core.ToplPrivatenet
+import co.topl.bridge.consensus.core.managers.BTCWalletImpl
+import co.topl.bridge.consensus.core.managers.WalletManagementUtils
+import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
 import co.topl.bridge.shared.StartSessionOperation
 import co.topl.bridge.shared.InvalidHash
 import co.topl.bridge.shared.InvalidKey
@@ -28,6 +28,7 @@ import munit.CatsEffectSuite
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import co.topl.bridge.consensus.core.controllers.StartSessionController
 
 class StartSessionControllerSpec
     extends CatsEffectSuite

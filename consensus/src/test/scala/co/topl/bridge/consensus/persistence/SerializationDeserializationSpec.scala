@@ -1,12 +1,25 @@
 package co.topl.bridge.consensus.persistence
 
-import co.topl.bridge.consensus.AssetToken
-import co.topl.bridge.consensus.GroupToken
-import co.topl.bridge.consensus.Lvl
-import co.topl.bridge.consensus.SeriesToken
+import co.topl.bridge.consensus.shared.AssetToken
+import co.topl.bridge.consensus.shared.GroupToken
+import co.topl.bridge.consensus.shared.Lvl
+import co.topl.bridge.consensus.shared.SeriesToken
 import munit.CatsEffectSuite
 import org.bitcoins.core.currency.Satoshis
-import co.topl.bridge.consensus.monitor._
+import co.topl.bridge.consensus.subsystems.monitor.{
+  BifrostFundsDeposited,
+  BTCFundsWithdrawn,
+  BTCFundsDeposited,
+  BifrostFundsWithdrawn,
+  SkippedToplBlock,
+  SkippedBTCBlock,
+  NewToplBlock,
+  NewBTCBlock
+}
+import co.topl.bridge.consensus.core.persistence.{
+  SerializationOps,
+  DeserializationOps
+}
 
 class SerializationDeserializationSpec
     extends CatsEffectSuite
