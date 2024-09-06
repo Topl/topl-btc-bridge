@@ -1,4 +1,4 @@
-package co.topl.bridge.publicapi.modules
+package co.topl.bridge.publicapi
 
 import cats.effect.IO
 import co.topl.bridge.shared.MintingStatusOperation
@@ -22,8 +22,8 @@ import org.http4s.headers.`Content-Type`
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 
-trait ApiServicesModule {
-  def apiServices(
+object PublicApiHttpServiceServer {
+  def publicApiHttpServiceServer(
       consensusGrpcClients: StateMachineServiceGrpcClient[IO]
   )(implicit
       l: Logger[IO],

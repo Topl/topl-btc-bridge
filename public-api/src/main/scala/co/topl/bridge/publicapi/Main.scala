@@ -8,7 +8,6 @@ import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.effect.std.Mutex
 import cats.implicits._
-import co.topl.bridge.publicapi.modules.ApiServicesModule
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.BridgeResponse
@@ -18,7 +17,7 @@ import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
 import co.topl.bridge.shared.ConsensusClientMessageId
 import co.topl.bridge.shared.ReplicaCount
 import co.topl.bridge.shared.ReplicaNode
-import co.topl.bridge.shared.modules.ResponseServicesModule
+import co.topl.bridge.shared.ResponseGrpcServiceServer
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
@@ -53,11 +52,7 @@ case object PeginSessionState {
       extends PeginSessionState
 }
 
-object Main
-    extends IOApp
-    with PublicApiParamsDescriptor
-    with ApiServicesModule
-    with ResponseServicesModule {
+object Main extends IOApp with PublicApiParamsDescriptor {
 
   def createApp(
       consensusGrpcClients: StateMachineServiceGrpcClient[IO]
@@ -67,7 +62,7 @@ object Main
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val router = Router.define(
-      "/api" -> apiServices(
+      "/api" -> PublicApiHttpServiceServer.publicApiHttpServiceServer(
         consensusGrpcClients
       )
     )(default = staticAssetsService)
@@ -139,7 +134,7 @@ object Main
         )
         .withLogger(logger)
         .build
-      rService <- responseService[IO](
+      rService <- ResponseGrpcServiceServer.responseGrpcServiceServer[IO](
         currentViewRef,
         replicaKeysMap,
         messageVoterMap,

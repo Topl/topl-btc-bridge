@@ -68,10 +68,7 @@ import java.security.PublicKey
 import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
 
-trait AppModule
-    extends WalletStateResource
-    with StateMachineServiceModule
-    with PbftServiceModule {
+trait AppModule extends WalletStateResource {
 
   def webUI() = HttpRoutes.of[IO] { case request @ GET -> Root =>
     StaticFile
@@ -208,7 +205,7 @@ trait AppModule
           new ConcurrentHashMap()
         )
       (
-        stateMachineService(
+        co.topl.bridge.consensus.core.StateMachineGrpcServiceServer.stateMachineGrpcServiceServer(
           replicaKeyPair,
           pbftProtocolClient,
           idReplicaClientMap,
@@ -217,11 +214,12 @@ trait AppModule
         InitializationModule
           .make[IO](currentBitcoinNetworkHeight, currentState),
         peginStateMachine,
-        pbftService(
-          pbftProtocolClient,
-          replicaKeyPair,
-          replicaKeysMap
-        )
+        co.topl.bridge.consensus.core.pbft.PBFTInternalGrpcServiceServer
+          .pbftInternalGrpcServiceServer(
+            pbftProtocolClient,
+            replicaKeyPair,
+            replicaKeysMap
+          )
       )
     }
   }

@@ -40,7 +40,7 @@ import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
 import co.topl.bridge.shared.ConsensusClientMessageId
 import co.topl.bridge.shared.ReplicaCount
 import co.topl.bridge.shared.ReplicaNode
-import co.topl.bridge.shared.modules.ResponseServicesModule
+import co.topl.bridge.shared.ResponseGrpcServiceServer
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
@@ -72,12 +72,10 @@ case class SystemGlobalState(
     isReady: Boolean = false
 )
 
-
 object Main
     extends IOApp
     with ConsensusParamsDescriptor
     with AppModule
-    with ResponseServicesModule
     with InitUtils {
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -409,12 +407,13 @@ object Main
         bifrostQueryAlgebra
       )
       _ <- storageApi.initializeStorage().toResource
-      responsesService <- responseService[IO](
-        currentViewRef,
-        replicaKeysMap,
-        messageVoterMap,
-        messageResponseMap
-      )
+      responsesService <- ResponseGrpcServiceServer
+        .responseGrpcServiceServer[IO](
+          currentViewRef,
+          replicaKeysMap,
+          messageVoterMap,
+          messageResponseMap
+        )
       grpcService <- grpcServiceResource
       _ <- getAndSetCurrentToplHeight(
         currentToplHeight,

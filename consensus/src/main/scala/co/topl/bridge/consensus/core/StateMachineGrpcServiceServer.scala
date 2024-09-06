@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.core.modules
+package co.topl.bridge.consensus.core
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
@@ -29,10 +29,10 @@ import org.typelevel.log4cats.Logger
 import java.security.MessageDigest
 import java.security.{KeyPair => JKeyPair}
 
-trait StateMachineServiceModule {
+object StateMachineGrpcServiceServer {
 
 
-  def stateMachineService(
+  def stateMachineGrpcServiceServer(
       keyPair: JKeyPair,
       pbftProtocolClientGrpc: PBFTInternalGrpcServiceClient[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],

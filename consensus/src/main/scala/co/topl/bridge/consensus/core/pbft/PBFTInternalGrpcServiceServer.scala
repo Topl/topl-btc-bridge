@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.core.modules
+package co.topl.bridge.consensus.core.pbft
 
 import cats.data.Validated
 import cats.effect.kernel.Async
@@ -62,11 +62,11 @@ import co.topl.bridge.consensus.core.WatermarkRef
 import co.topl.bridge.consensus.core.KWatermark
 
 
-trait PbftServiceModule {
+object PBFTInternalGrpcServiceServer {
 
   import co.topl.bridge.consensus.core.pbft.StateMachineExecution._
 
-  def pbftService[F[_]: Async: Logger](
+  def pbftInternalGrpcServiceServer[F[_]: Async: Logger](
       pbftProtocolClientGrpc: PBFTInternalGrpcServiceClient[F],
       keyPair: KeyPair,
       replicaKeysMap: Map[Int, PublicKey]

@@ -1,4 +1,4 @@
-package co.topl.bridge.shared.modules
+package co.topl.bridge.shared
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
@@ -25,9 +25,9 @@ import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
 
-trait ResponseServicesModule {
+object ResponseGrpcServiceServer {
 
-  def responseService[F[_]: Async: Logger](
+  def responseGrpcServiceServer[F[_]: Async: Logger](
       currentViewRef: Ref[F, Long],
       replicaKeysMap: Map[Int, PublicKey],
       messageVotersMap: ConcurrentHashMap[
