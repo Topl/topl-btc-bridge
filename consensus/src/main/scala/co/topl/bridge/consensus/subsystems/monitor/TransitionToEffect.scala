@@ -26,7 +26,7 @@ import co.topl.bridge.shared.UndoClaimTxOperation
 import co.topl.bridge.shared.UndoDepositBTCOperation
 import co.topl.bridge.shared.UndoTBTCMintOperation
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
 import co.topl.bridge.shared.SessionId
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
@@ -53,7 +53,7 @@ trait TransitionToEffect {
   )(implicit
       clientId: ClientId,
       session: SessionId,
-      consensusClient: ConsensusClientGrpc[F],
+      consensusClient: StateMachineServiceGrpcClient[F],
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcRetryThreshold: BTCRetryThreshold,
       toplConfirmationThreshold: ToplConfirmationThreshold,

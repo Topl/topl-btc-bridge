@@ -28,19 +28,19 @@ import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.consensus.shared.persistence.StorageApiImpl
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
-import co.topl.consensus.core.PBFTProtocolClientGrpc
-import co.topl.consensus.core.PBFTProtocolClientGrpcImpl
+import co.topl.consensus.core.PBFTInternalGrpcServiceClient
+import co.topl.consensus.core.PBFTInternalGrpcServiceClientImpl
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.BridgeResponse
 import co.topl.bridge.shared.ClientCount
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.ConsensusClientGrpc
-import co.topl.bridge.shared.ConsensusClientGrpcImpl
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
+import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
 import co.topl.bridge.shared.ConsensusClientMessageId
 import co.topl.bridge.shared.ReplicaCount
 import co.topl.bridge.shared.ReplicaNode
-import co.topl.bridge.shared.modules.ReplyServicesModule
+import co.topl.bridge.shared.modules.ResponseServicesModule
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
@@ -77,7 +77,7 @@ object Main
     extends IOApp
     with ConsensusParamsDescriptor
     with AppModule
-    with ReplyServicesModule
+    with ResponseServicesModule
     with InitUtils {
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -225,9 +225,9 @@ object Main
   def initializeForResources(
       replicaKeysMap: Map[Int, PublicKey],
       replicaKeyPair: JKeyPair,
-      pbftProtocolClient: PBFTProtocolClientGrpc[IO],
+      pbftProtocolClient: PBFTInternalGrpcServiceClient[IO],
       storageApi: StorageApi[IO],
-      consensusClient: ConsensusClientGrpc[IO],
+      consensusClient: StateMachineServiceGrpcClient[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       publicApiClientGrpcMap: Map[
         ClientId,
@@ -349,10 +349,10 @@ object Main
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       mutex <- Mutex[IO].toResource
-      pbftProtocolClientGrpc <- PBFTProtocolClientGrpcImpl.make[IO](
+      pbftProtocolClientGrpc <- PBFTInternalGrpcServiceClientImpl.make[IO](
         replicaNodes
       )
-      replicaClients <- ConsensusClientGrpcImpl
+      replicaClients <- StateMachineServiceGrpcClientImpl
         .makeContainer[IO](
           currentViewRef,
           replicaKeyPair,
@@ -409,7 +409,7 @@ object Main
         bifrostQueryAlgebra
       )
       _ <- storageApi.initializeStorage().toResource
-      responsesService <- replyService[IO](
+      responsesService <- responseService[IO](
         currentViewRef,
         replicaKeysMap,
         messageVoterMap,

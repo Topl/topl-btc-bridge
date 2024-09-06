@@ -4,7 +4,7 @@ import cats.effect.IO
 import co.topl.bridge.shared.MintingStatusOperation
 import co.topl.bridge.shared.StartSessionOperation
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
 import co.topl.bridge.shared.BridgeContants
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.BridgeResponse
@@ -24,7 +24,7 @@ import org.typelevel.log4cats.syntax._
 
 trait ApiServicesModule {
   def apiServices(
-      consensusGrpcClients: ConsensusClientGrpc[IO]
+      consensusGrpcClients: StateMachineServiceGrpcClient[IO]
   )(implicit
       l: Logger[IO],
       clientNumber: ClientId

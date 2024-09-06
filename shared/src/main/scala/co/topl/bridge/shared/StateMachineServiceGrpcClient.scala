@@ -38,7 +38,7 @@ import co.topl.bridge.shared.ConfirmClaimTxOperation
 import co.topl.bridge.shared.UndoClaimTxOperation
 import co.topl.bridge.consensus.service.MintingStatusReply
 
-trait ConsensusClientGrpc[F[_]] {
+trait StateMachineServiceGrpcClient[F[_]] {
 
   def startPegin(
       startSessionOperation: StartSessionOperation
@@ -125,7 +125,7 @@ trait ConsensusClientGrpc[F[_]] {
   ): F[Either[BridgeError, BridgeResponse]]
 }
 
-object ConsensusClientGrpcImpl {
+object StateMachineServiceGrpcClientImpl {
 
   import cats.implicits._
   import co.topl.bridge.shared.implicits._
@@ -168,7 +168,7 @@ object ConsensusClientGrpcImpl {
         } yield (replicaNode.id -> consensusClient)
       }).sequence
       replicaMap = idClientList.toMap
-    } yield new ConsensusClientGrpc[F] {
+    } yield new StateMachineServiceGrpcClient[F] {
 
       def undoClaimTx(
           undoClaimTxOperation: UndoClaimTxOperation

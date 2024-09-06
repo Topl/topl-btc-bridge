@@ -25,9 +25,9 @@ import java.security.PublicKey
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
 
-trait ReplyServicesModule {
+trait ResponseServicesModule {
 
-  def replyService[F[_]: Async: Logger](
+  def responseService[F[_]: Async: Logger](
       currentViewRef: Ref[F, Long],
       replicaKeysMap: Map[Int, PublicKey],
       messageVotersMap: ConcurrentHashMap[

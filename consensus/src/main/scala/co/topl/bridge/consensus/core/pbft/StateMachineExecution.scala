@@ -86,7 +86,7 @@ import co.topl.bridge.shared.StateMachineRequest.Operation.TimeoutTBTCMint
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoClaimTx
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoDepositBTC
 import co.topl.bridge.shared.StateMachineRequest.Operation.UndoTBTCMint
-import co.topl.consensus.core.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTInternalGrpcServiceClient
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
 import org.bitcoins.core.currency.CurrencyUnit
@@ -358,7 +358,7 @@ object StateMachineExecution {
       keyPair: JKeyPair,
       digest: ByteString,
       currentView: Long,
-      pbftProtocolClientGrpc: PBFTProtocolClientGrpc[F],
+      pbftProtocolClientGrpc: PBFTInternalGrpcServiceClient[F],
       currentSequence: Long
   )(implicit
       replica: ReplicaId,

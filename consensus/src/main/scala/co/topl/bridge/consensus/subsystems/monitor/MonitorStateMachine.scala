@@ -18,7 +18,7 @@ import co.topl.bridge.consensus.subsystems.monitor.MWaitingForBTCDeposit
 import co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
 import co.topl.bridge.consensus.subsystems.monitor.PeginStateMachineState
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
 import co.topl.bridge.shared.SessionId
 import org.typelevel.log4cats.Logger
 
@@ -45,7 +45,7 @@ object MonitorStateMachine {
       map: ConcurrentHashMap[String, PeginStateMachineState]
   )(implicit
       clientId: ClientId,
-      consensusClient: ConsensusClientGrpc[F],
+      consensusClient: StateMachineServiceGrpcClient[F],
       btcWaitExpirationTime: BTCWaitExpirationTime,
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcRetryThreshold: BTCRetryThreshold,

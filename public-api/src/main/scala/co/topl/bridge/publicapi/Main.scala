@@ -13,12 +13,12 @@ import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.BridgeResponse
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.ConsensusClientGrpc
-import co.topl.bridge.shared.ConsensusClientGrpcImpl
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
+import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
 import co.topl.bridge.shared.ConsensusClientMessageId
 import co.topl.bridge.shared.ReplicaCount
 import co.topl.bridge.shared.ReplicaNode
-import co.topl.bridge.shared.modules.ReplyServicesModule
+import co.topl.bridge.shared.modules.ResponseServicesModule
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
@@ -57,10 +57,10 @@ object Main
     extends IOApp
     with PublicApiParamsDescriptor
     with ApiServicesModule
-    with ReplyServicesModule {
+    with ResponseServicesModule {
 
   def createApp(
-      consensusGrpcClients: ConsensusClientGrpc[IO]
+      consensusGrpcClients: StateMachineServiceGrpcClient[IO]
   )(implicit
       l: Logger[IO],
       clientNumber: ClientId
@@ -118,7 +118,7 @@ object Main
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
       mutex <- Mutex[IO].toResource
-      replicaClients <- ConsensusClientGrpcImpl
+      replicaClients <- StateMachineServiceGrpcClientImpl
         .makeContainer(
           currentViewRef,
           keyPair,
@@ -139,7 +139,7 @@ object Main
         )
         .withLogger(logger)
         .build
-      rService <- replyService[IO](
+      rService <- responseService[IO](
         currentViewRef,
         replicaKeysMap,
         messageVoterMap,

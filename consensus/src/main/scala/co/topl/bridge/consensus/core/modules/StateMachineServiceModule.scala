@@ -17,7 +17,7 @@ import co.topl.bridge.consensus.service.SessionNotFoundRes
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.shared.Empty
 import co.topl.bridge.shared.MintingStatusOperation
-import co.topl.consensus.core.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTInternalGrpcServiceClient
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.ClientId
 import co.topl.bridge.shared.ReplicaCount
@@ -34,7 +34,7 @@ trait StateMachineServiceModule {
 
   def stateMachineService(
       keyPair: JKeyPair,
-      pbftProtocolClientGrpc: PBFTProtocolClientGrpc[IO],
+      pbftProtocolClientGrpc: PBFTInternalGrpcServiceClient[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       currentSequenceRef: Ref[IO, Long]
   )(implicit

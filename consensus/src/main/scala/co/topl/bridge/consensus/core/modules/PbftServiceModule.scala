@@ -39,7 +39,7 @@ import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.shared.Empty
-import co.topl.consensus.core.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTInternalGrpcServiceClient
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.ClientId
 import co.topl.bridge.shared.ReplicaCount
@@ -67,7 +67,7 @@ trait PbftServiceModule {
   import co.topl.bridge.consensus.core.pbft.StateMachineExecution._
 
   def pbftService[F[_]: Async: Logger](
-      pbftProtocolClientGrpc: PBFTProtocolClientGrpc[F],
+      pbftProtocolClientGrpc: PBFTInternalGrpcServiceClient[F],
       keyPair: KeyPair,
       replicaKeysMap: Map[Int, PublicKey]
   )(implicit

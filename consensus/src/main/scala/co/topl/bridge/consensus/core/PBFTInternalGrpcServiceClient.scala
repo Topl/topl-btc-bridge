@@ -14,7 +14,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.syntax._
 import co.topl.bridge.consensus.pbft.CheckpointRequest
 
-trait PBFTProtocolClientGrpc[F[_]] {
+trait PBFTInternalGrpcServiceClient[F[_]] {
 
   def prePrepare(
       request: PrePrepareRequest
@@ -34,7 +34,7 @@ trait PBFTProtocolClientGrpc[F[_]] {
 
 }
 
-object PBFTProtocolClientGrpcImpl {
+object PBFTInternalGrpcServiceClientImpl {
 
   import cats.implicits._
 
@@ -61,7 +61,7 @@ object PBFTProtocolClientGrpcImpl {
         } yield (replicaNode.id -> consensusClient)
       }).sequence
       backupMap = idBackupMap.toMap
-    } yield new PBFTProtocolClientGrpc[F] {
+    } yield new PBFTInternalGrpcServiceClient[F] {
 
       override def commit(request: CommitRequest): F[Empty] =
         for {

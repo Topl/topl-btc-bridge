@@ -53,10 +53,10 @@ import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.shared.Lvl
 import co.topl.bridge.consensus.subsystems.monitor.MonitorStateMachine
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.ConsensusClientGrpc
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
 import co.topl.bridge.shared.ReplicaCount
 import co.topl.bridge.shared.ReplicaId
-import co.topl.consensus.core.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTInternalGrpcServiceClient
 import io.grpc.Metadata
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes
@@ -82,7 +82,7 @@ trait AppModule
   def createApp(
       replicaKeysMap: Map[Int, PublicKey],
       replicaKeyPair: JKeyPair,
-      pbftProtocolClient: PBFTProtocolClientGrpc[IO],
+      pbftProtocolClient: PBFTInternalGrpcServiceClient[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
       params: ToplBTCBridgeConsensusParamConfig,
       queue: Queue[IO, SessionEvent],
@@ -98,7 +98,7 @@ trait AppModule
       currentView: CurrentView[IO],
       clientId: ClientId,
       storageApi: StorageApi[IO],
-      consensusClient: ConsensusClientGrpc[IO],
+      consensusClient: StateMachineServiceGrpcClient[IO],
       replicaId: ReplicaId,
       replicaCount: ReplicaCount,
       fromFellowship: Fellowship,
