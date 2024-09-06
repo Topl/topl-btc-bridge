@@ -39,7 +39,7 @@ import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.shared.Empty
-import co.topl.consensus.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTProtocolClientGrpc
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.ClientId
 import co.topl.bridge.shared.ReplicaCount

@@ -56,7 +56,7 @@ import co.topl.bridge.shared.ClientId
 import co.topl.bridge.shared.ConsensusClientGrpc
 import co.topl.bridge.shared.ReplicaCount
 import co.topl.bridge.shared.ReplicaId
-import co.topl.consensus.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTProtocolClientGrpc
 import io.grpc.Metadata
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.http4s.HttpRoutes

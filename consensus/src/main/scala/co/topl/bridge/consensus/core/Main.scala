@@ -28,8 +28,8 @@ import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.consensus.shared.persistence.StorageApiImpl
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
-import co.topl.consensus.PBFTProtocolClientGrpc
-import co.topl.consensus.PBFTProtocolClientGrpcImpl
+import co.topl.consensus.core.PBFTProtocolClientGrpc
+import co.topl.consensus.core.PBFTProtocolClientGrpcImpl
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.BridgeResponse

@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.consensus.core
 
 import cats.effect.kernel.Async
 import co.topl.bridge.consensus.pbft.CommitRequest
