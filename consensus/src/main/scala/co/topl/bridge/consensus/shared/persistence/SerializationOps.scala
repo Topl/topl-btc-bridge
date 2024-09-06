@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.core.persistence
+package co.topl.bridge.consensus.shared.persistence
 
 import co.topl.bridge.consensus.shared.AssetToken
 import co.topl.bridge.consensus.shared.BifrostCurrencyUnit

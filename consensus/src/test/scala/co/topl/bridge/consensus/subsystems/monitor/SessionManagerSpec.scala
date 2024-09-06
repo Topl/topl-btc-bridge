@@ -1,10 +1,10 @@
-package co.topl.bridge.consensus.core.managers
+package co.topl.bridge.consensus.subsystems.monitor
 
 import cats.effect.IO
 import cats.effect.std.Queue
-import co.topl.bridge.consensus.core.PeginSessionState
-import co.topl.bridge.consensus.core.persistence.StorageApi
-import co.topl.bridge.consensus.core.persistence.StorageApiImpl
+import co.topl.bridge.consensus.shared.PeginSessionState
+import co.topl.bridge.consensus.shared.persistence.StorageApi
+import co.topl.bridge.consensus.shared.persistence.StorageApiImpl
 import munit.CatsEffectSuite
 
 import java.nio.file.Files
@@ -12,7 +12,8 @@ import java.nio.file.Paths
 import java.util.UUID
 import cats.effect.kernel.Resource
 import org.typelevel.log4cats.SelfAwareStructuredLogger
-import co.topl.bridge.consensus.subsystems.monitor.{SessionEvent, PeginSessionInfo}
+import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
+import co.topl.bridge.consensus.shared.PeginSessionInfo
 
 class SessionManagerSpec extends CatsEffectSuite {
 

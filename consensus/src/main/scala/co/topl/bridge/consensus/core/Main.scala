@@ -24,8 +24,8 @@ import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
 import co.topl.bridge.consensus.core.modules.AppModule
 import co.topl.bridge.consensus.subsystems.monitor.BlockProcessor
 import co.topl.bridge.consensus.shared.BTCRetryThreshold
-import co.topl.bridge.consensus.core.persistence.StorageApi
-import co.topl.bridge.consensus.core.persistence.StorageApiImpl
+import co.topl.bridge.consensus.shared.persistence.StorageApi
+import co.topl.bridge.consensus.shared.persistence.StorageApiImpl
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
 import co.topl.consensus.PBFTProtocolClientGrpc
@@ -72,44 +72,6 @@ case class SystemGlobalState(
     isReady: Boolean = false
 )
 
-sealed trait PeginSessionState
-
-case object PeginSessionState {
-  case object PeginSessionStateSuccessfulPegin extends PeginSessionState
-  case object PeginSessionStateTimeout extends PeginSessionState
-  case object PeginSessionStateWaitingForBTC extends PeginSessionState
-  case object PeginSessionStateMintingTBTC extends PeginSessionState
-  case object PeginSessionWaitingForRedemption extends PeginSessionState
-  case object PeginSessionWaitingForClaim extends PeginSessionState
-  case object PeginSessionMintingTBTCConfirmation extends PeginSessionState
-  case object PeginSessionConfirmingRedemption extends PeginSessionState
-  case object PeginSessionWaitingForEscrowBTCConfirmation
-      extends PeginSessionState
-  case object PeginSessionWaitingForClaimBTCConfirmation
-      extends PeginSessionState
-
-  def withName(s: String): Option[PeginSessionState] = s match {
-    case "PeginSessionConfirmingRedemption" =>
-      Some(PeginSessionConfirmingRedemption)
-    case "PeginSessionStateSuccessfulPegin" =>
-      Some(PeginSessionStateSuccessfulPegin)
-    case "PeginSessionStateTimeout" =>
-      Some(PeginSessionStateTimeout)
-    case "PeginSessionStateWaitingForBTC" =>
-      Some(PeginSessionStateWaitingForBTC)
-    case "PeginSessionStateMintingTBTC" => Some(PeginSessionStateMintingTBTC)
-    case "PeginSessionWaitingForRedemption" =>
-      Some(PeginSessionWaitingForRedemption)
-    case "PeginSessionWaitingForClaim" => Some(PeginSessionWaitingForClaim)
-    case "PeginSessionMintingTBTCConfirmation" =>
-      Some(PeginSessionMintingTBTCConfirmation)
-    case "PeginSessionWaitingForEscrowBTCConfirmation" =>
-      Some(PeginSessionWaitingForEscrowBTCConfirmation)
-    case "PeginSessionWaitingForClaimBTCConfirmation" =>
-      Some(PeginSessionWaitingForClaimBTCConfirmation)
-    case _ => None
-  }
-}
 
 object Main
     extends IOApp

@@ -1,7 +1,7 @@
 package co.topl.bridge.consensus.core
 
 import cats.effect.kernel.Sync
-import co.topl.bridge.consensus.core.persistence.StorageApi
+import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.shared.ReplicaCount
 import java.security.MessageDigest
 

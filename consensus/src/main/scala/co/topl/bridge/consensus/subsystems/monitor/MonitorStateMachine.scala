@@ -6,6 +6,7 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.models.GroupId
 import co.topl.brambl.models.SeriesId
+import co.topl.bridge.consensus.shared.PeginSessionInfo
 import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
 import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
@@ -188,10 +189,6 @@ object MonitorStateMachine {
             )
         case SessionUpdated(_, _: PeginSessionInfo) =>
           Sync[F].unit
-        case SessionCreated(_, _: PegoutSessionInfo) =>
-          Sync[F].unit // TODO: complete for pegout
-        case SessionUpdated(_, _: PegoutSessionInfo) =>
-          Sync[F].unit // TODO: complete for pegout
       }
     }
 

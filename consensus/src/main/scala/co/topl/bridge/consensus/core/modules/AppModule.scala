@@ -46,7 +46,7 @@ import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
 import co.topl.bridge.consensus.subsystems.monitor.SessionManagerImpl
 import co.topl.bridge.consensus.core.managers.WalletManagementUtils
 import co.topl.bridge.consensus.core.pbft.PBFTState
-import co.topl.bridge.consensus.core.persistence.StorageApi
+import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.consensus.pbft.CheckpointRequest
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc

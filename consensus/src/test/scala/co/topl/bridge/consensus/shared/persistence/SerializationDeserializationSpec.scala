@@ -16,10 +16,7 @@ import co.topl.bridge.consensus.subsystems.monitor.{
   NewToplBlock,
   NewBTCBlock
 }
-import co.topl.bridge.consensus.core.persistence.{
-  SerializationOps,
-  DeserializationOps
-}
+import co.topl.bridge.consensus.shared.persistence.{SerializationOps, DeserializationOps}
 
 class SerializationDeserializationSpec
     extends CatsEffectSuite

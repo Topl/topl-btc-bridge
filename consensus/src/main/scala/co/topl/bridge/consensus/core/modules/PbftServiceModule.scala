@@ -37,7 +37,7 @@ import co.topl.bridge.consensus.pbft.CommitRequest
 import co.topl.bridge.consensus.pbft.PBFTInternalServiceFs2Grpc
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
-import co.topl.bridge.consensus.core.persistence.StorageApi
+import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.shared.Empty
 import co.topl.consensus.PBFTProtocolClientGrpc
 import co.topl.bridge.shared.BridgeCryptoUtils

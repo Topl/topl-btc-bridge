@@ -11,11 +11,11 @@ import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.core.BridgeWalletManager
 import co.topl.bridge.consensus.core.CurrentToplHeight
-import co.topl.bridge.consensus.core.PeginSessionState
+import co.topl.bridge.consensus.shared.PeginSessionState
 import co.topl.bridge.consensus.core.PeginWalletManager
 import co.topl.bridge.consensus.core.ToplKeypair
 import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
-import co.topl.bridge.consensus.subsystems.monitor.PeginSessionInfo
+import co.topl.bridge.consensus.shared.PeginSessionInfo
 import co.topl.bridge.consensus.core.managers.ToplWalletAlgebra
 import co.topl.bridge.consensus.core.utils.BitcoinUtils
 import co.topl.bridge.shared.StartSessionOperation

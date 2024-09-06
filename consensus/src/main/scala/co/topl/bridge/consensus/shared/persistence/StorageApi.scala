@@ -1,13 +1,13 @@
-package co.topl.bridge.consensus.core.persistence
+package co.topl.bridge.consensus.shared.persistence
 
 import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.utils.Encoding
-import co.topl.bridge.consensus.core.PeginSessionState
-import co.topl.bridge.consensus.subsystems.monitor.PeginSessionInfo
-import co.topl.bridge.consensus.subsystems.monitor.SessionInfo
-import co.topl.bridge.consensus.core.utils.MiscUtils
+import co.topl.bridge.consensus.shared.PeginSessionState
+import co.topl.bridge.consensus.shared.PeginSessionInfo
+import co.topl.bridge.consensus.shared.SessionInfo
+import co.topl.bridge.consensus.shared.MiscUtils
 import co.topl.bridge.consensus.pbft.CheckpointRequest
 import co.topl.bridge.consensus.pbft.CommitRequest
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
@@ -16,7 +16,6 @@ import co.topl.bridge.consensus.subsystems.monitor.BlockchainEvent
 import co.topl.bridge.shared.StateMachineRequest
 import com.google.common.io.BaseEncoding
 import com.google.protobuf.ByteString
-import org.typelevel.log4cats.Logger
 
 import java.sql.DriverManager
 
@@ -94,7 +93,7 @@ object StorageApiImpl {
       }
     )(conn => Sync[F].delay(conn.close()))
 
-  def make[F[_]: Sync: Logger](fileName: String): Resource[F, StorageApi[F]] =
+  def make[F[_]: Sync](fileName: String): Resource[F, StorageApi[F]] =
     for {
       conn <- createResource(fileName)
     } yield new StorageApi[F] {
