@@ -12,7 +12,7 @@ import java.nio.file.Paths
 import java.util.UUID
 import cats.effect.kernel.Resource
 import org.typelevel.log4cats.SelfAwareStructuredLogger
-import co.topl.bridge.consensus.core.managers.{SessionEvent, PeginSessionInfo}
+import co.topl.bridge.consensus.subsystems.monitor.{SessionEvent, PeginSessionInfo}
 
 class SessionManagerSpec extends CatsEffectSuite {
 
@@ -52,7 +52,7 @@ class SessionManagerSpec extends CatsEffectSuite {
     assertIO(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
-        sut = co.topl.bridge.consensus.core.managers.SessionManagerImpl.makePermanent[IO](
+        sut = co.topl.bridge.consensus.subsystems.monitor.SessionManagerImpl.makePermanent[IO](
           storageApi,
           queue
         )
@@ -72,7 +72,7 @@ class SessionManagerSpec extends CatsEffectSuite {
     assertIO(
       for {
         queue <- Queue.unbounded[IO, SessionEvent]
-        sut = co.topl.bridge.consensus.core.managers.SessionManagerImpl.makePermanent[IO](
+        sut = co.topl.bridge.consensus.subsystems.monitor.SessionManagerImpl.makePermanent[IO](
           storageApi,
           queue
         )

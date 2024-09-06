@@ -20,7 +20,7 @@ import co.topl.bridge.consensus.core.ServerConfig
 import co.topl.bridge.consensus.core.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.consensus.core.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.core.managers.BTCWalletImpl
-import co.topl.bridge.consensus.core.managers.SessionEvent
+import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
 import co.topl.bridge.consensus.core.modules.AppModule
 import co.topl.bridge.consensus.subsystems.monitor.BlockProcessor
 import co.topl.bridge.consensus.shared.BTCRetryThreshold

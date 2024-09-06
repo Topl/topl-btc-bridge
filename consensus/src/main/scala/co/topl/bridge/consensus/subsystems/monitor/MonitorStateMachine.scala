@@ -9,32 +9,13 @@ import co.topl.brambl.models.SeriesId
 import co.topl.bridge.consensus.shared.BTCConfirmationThreshold
 import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
-import co.topl.bridge.consensus.core.PeginSessionState
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionMintingTBTCConfirmation
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionStateMintingTBTC
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionStateWaitingForBTC
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForClaim
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForClaimBTCConfirmation
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForEscrowBTCConfirmation
-import co.topl.bridge.consensus.core.PeginSessionState.PeginSessionWaitingForRedemption
 import co.topl.bridge.consensus.shared.ToplConfirmationThreshold
 import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
-import co.topl.bridge.consensus.core.managers.PeginSessionInfo
-import co.topl.bridge.consensus.core.managers.PegoutSessionInfo
-import co.topl.bridge.consensus.core.managers.SessionCreated
-import co.topl.bridge.consensus.core.managers.SessionEvent
-import co.topl.bridge.consensus.core.managers.SessionUpdated
 import co.topl.bridge.consensus.subsystems.monitor.EndTransition
 import co.topl.bridge.consensus.subsystems.monitor.FSMTransitionTo
-import co.topl.bridge.consensus.subsystems.monitor.MConfirmingBTCDeposit
-import co.topl.bridge.consensus.subsystems.monitor.MMintingTBTC
 import co.topl.bridge.consensus.subsystems.monitor.MWaitingForBTCDeposit
-import co.topl.bridge.consensus.subsystems.monitor.MConfirmingTBTCMint
 import co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
 import co.topl.bridge.consensus.subsystems.monitor.PeginStateMachineState
-import co.topl.bridge.consensus.subsystems.monitor.MWaitingForClaim
-import co.topl.bridge.consensus.subsystems.monitor.MConfirmingBTCClaim
-import co.topl.bridge.consensus.subsystems.monitor.MWaitingForRedemption
 import co.topl.bridge.shared.ClientId
 import co.topl.bridge.shared.ConsensusClientGrpc
 import co.topl.bridge.shared.SessionId
@@ -178,22 +159,6 @@ object MonitorStateMachine {
           else
             debug"Processed blockchain event ${blockchainEvent.getClass().getSimpleName()}" >> value
         }
-    }
-
-    private def fsmStateToSessionState(
-        peginStateMachineState: PeginStateMachineState
-    ): PeginSessionState = peginStateMachineState match {
-      case _: MMintingTBTC          => PeginSessionStateMintingTBTC
-      case _: MWaitingForBTCDeposit => PeginSessionStateWaitingForBTC
-      case _: MWaitingForRedemption => PeginSessionWaitingForRedemption
-      case _: MWaitingForClaim      => PeginSessionWaitingForClaim
-      case _: MConfirmingTBTCMint   => PeginSessionMintingTBTCConfirmation
-      case _: MConfirmingRedemption =>
-        PeginSessionState.PeginSessionConfirmingRedemption
-      case _: MConfirmingBTCDeposit =>
-        PeginSessionWaitingForEscrowBTCConfirmation
-      case _: MConfirmingBTCClaim =>
-        PeginSessionWaitingForClaimBTCConfirmation
     }
 
     def processTransition(sessionId: String, transition: FSMTransitionTo[F]) =

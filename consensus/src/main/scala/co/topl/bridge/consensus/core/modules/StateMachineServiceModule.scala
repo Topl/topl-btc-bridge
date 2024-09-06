@@ -6,8 +6,8 @@ import cats.effect.kernel.Sync
 import co.topl.bridge.consensus.core.CurrentView
 import co.topl.bridge.consensus.core.LastReplyMap
 import co.topl.bridge.consensus.core.PublicApiClientGrpcMap
-import co.topl.bridge.consensus.core.managers.PeginSessionInfo
-import co.topl.bridge.consensus.core.managers.SessionManagerAlgebra
+import co.topl.bridge.consensus.subsystems.monitor.PeginSessionInfo
+import co.topl.bridge.consensus.subsystems.monitor.SessionManagerAlgebra
 import co.topl.bridge.consensus.pbft.PrePrepareRequest
 import co.topl.bridge.consensus.pbft.PrepareRequest
 import co.topl.bridge.consensus.service.MintingStatusReply

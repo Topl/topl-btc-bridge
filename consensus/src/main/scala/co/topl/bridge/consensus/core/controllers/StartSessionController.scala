@@ -15,7 +15,7 @@ import co.topl.bridge.consensus.core.PeginSessionState
 import co.topl.bridge.consensus.core.PeginWalletManager
 import co.topl.bridge.consensus.core.ToplKeypair
 import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
-import co.topl.bridge.consensus.core.managers.PeginSessionInfo
+import co.topl.bridge.consensus.subsystems.monitor.PeginSessionInfo
 import co.topl.bridge.consensus.core.managers.ToplWalletAlgebra
 import co.topl.bridge.consensus.core.utils.BitcoinUtils
 import co.topl.bridge.shared.StartSessionOperation
@@ -199,44 +199,5 @@ object StartSessionController {
     }
   }
 
-  // def startPegoutSession[F[_]: Async](
-  //     req: StartPegoutSessionRequest,
-  //     toplNetwork: ToplNetworkIdentifiers,
-  //     keyPair: KeyPair,
-  //     sessionManager: SessionManagerAlgebra[F],
-  //     waitTime: Int
-  // )(implicit
-  //     fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
-  //     templateStorageAlgebra: TemplateStorageAlgebra[F],
-  //     walletApi: WalletApi[F],
-  //     wsa: WalletStateAlgebra[F]
-  // ): F[Either[BridgeError, StartPegoutSessionResponse]] = {
-  //   import cats.implicits._
-  //   import ToplWalletAlgebra._
-  //   (for {
-  //     fellowshipId <- Sync[F].delay(UUID.randomUUID().toString)
-  //     newAddress <- setupBridgeWallet(
-  //       toplNetwork,
-  //       keyPair,
-  //       req.userBaseKey,
-  //       fellowshipId,
-  //       fellowshipId,
-  //       req.sha256,
-  //       waitTime,
-  //       req.currentHeight
-  //     )
-  //       .map(_.getOrElse(throw new WalletSetupError("Failed to create wallet")))
-  //     sessionInfo = PegoutSessionInfo(
-  //       fellowshipId,
-  //       newAddress
-  //     )
-  //     sessionId <- sessionManager.createNewSession(sessionInfo)
-  //   } yield StartPegoutSessionResponse(
-  //     sessionId,
-  //     newAddress
-  //   ).asRight[BridgeError]).handleError { case e: BridgeError =>
-  //     Left(e)
-  //   }
-  // }
 
 }

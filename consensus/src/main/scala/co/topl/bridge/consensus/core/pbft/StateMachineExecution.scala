@@ -37,7 +37,7 @@ import co.topl.bridge.consensus.core.Template
 import co.topl.bridge.consensus.core.ToplKeypair
 import co.topl.bridge.consensus.shared.ToplWaitExpirationTime
 import co.topl.bridge.consensus.core.controllers.StartSessionController
-import co.topl.bridge.consensus.core.managers.SessionManagerAlgebra
+import co.topl.bridge.consensus.subsystems.monitor.SessionManagerAlgebra
 import co.topl.bridge.consensus.core.pbft.ConfirmDepositBTCEvt
 import co.topl.bridge.consensus.core.pbft.ConfirmTBTCMintEvt
 import co.topl.bridge.consensus.core.pbft.PBFTEvent

@@ -5,8 +5,8 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.core.PeginSessionState
-import co.topl.bridge.consensus.core.managers.PeginSessionInfo
-import co.topl.bridge.consensus.core.managers.SessionInfo
+import co.topl.bridge.consensus.subsystems.monitor.PeginSessionInfo
+import co.topl.bridge.consensus.subsystems.monitor.SessionInfo
 import co.topl.bridge.consensus.core.utils.MiscUtils
 import co.topl.bridge.consensus.pbft.CheckpointRequest
 import co.topl.bridge.consensus.pbft.CommitRequest

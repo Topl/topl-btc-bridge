@@ -42,8 +42,8 @@ import co.topl.bridge.consensus.core.UnstableCheckpointsRef
 import co.topl.bridge.consensus.core.WatermarkRef
 import co.topl.bridge.consensus.core.channelResource
 import co.topl.bridge.consensus.core.managers.BTCWalletAlgebra
-import co.topl.bridge.consensus.core.managers.SessionEvent
-import co.topl.bridge.consensus.core.managers.SessionManagerImpl
+import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
+import co.topl.bridge.consensus.subsystems.monitor.SessionManagerImpl
 import co.topl.bridge.consensus.core.managers.WalletManagementUtils
 import co.topl.bridge.consensus.core.pbft.PBFTState
 import co.topl.bridge.consensus.core.persistence.StorageApi

@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.core.managers
+package co.topl.bridge.consensus.subsystems.monitor
 
 import cats.effect.kernel.Sync
 import cats.effect.std.Queue
