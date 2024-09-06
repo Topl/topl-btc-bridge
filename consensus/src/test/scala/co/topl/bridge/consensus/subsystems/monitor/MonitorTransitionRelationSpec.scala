@@ -5,7 +5,7 @@ import cats.effect.kernel.Async
 import co.topl.brambl.syntax._
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.shared.AssetToken
-import co.topl.bridge.consensus.controllers.SharedData
+import co.topl.bridge.consensus.core.controllers.SharedData
 import munit.CatsEffectSuite
 import org.bitcoins.core.protocol.Bech32Address
 
@@ -32,7 +32,7 @@ import co.topl.bridge.consensus.subsystems.monitor.{
 }
 import co.topl.bridge.consensus.subsystems.monitor.MonitorTransitionRelation
 
-class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
+class MonitorTransitionRelationSpec extends CatsEffectSuite with SharedData {
 
   val escrowAddress =
     "bcrt1qsc9qvqvlswpzlvf4t80g05l2la2cykazmdcur45st5g339vw6aps47j7sw"

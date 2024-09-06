@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.controllers
+package co.topl.bridge.consensus.core.controllers
 
 import co.topl.bridge.consensus.core.ToplPrivatenet
 import co.topl.bridge.consensus.shared.BTCWaitExpirationTime

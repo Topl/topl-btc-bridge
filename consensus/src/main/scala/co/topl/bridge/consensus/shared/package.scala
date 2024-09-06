@@ -21,8 +21,9 @@ package object shared {
   class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
 
   class ToplWaitExpirationTime(val underlying: Int) extends AnyVal
-  
+
   class ToplConfirmationThreshold(val underlying: Int) extends AnyVal
+
 
 
 }

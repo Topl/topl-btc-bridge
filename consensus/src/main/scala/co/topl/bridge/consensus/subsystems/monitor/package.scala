@@ -9,6 +9,7 @@ import _root_.co.topl.bridge.consensus.shared.SeriesToken
 
 package object monitor {
 
+
   def isLvlSeriesGroupOrAsset(value: Value.Value): Boolean = {
     value.isLvl || value.isSeries || value.isGroup || value.isAsset
   }

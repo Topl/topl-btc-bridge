@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.subsystems.monitor
+package co.topl.bridge.consensus.core.pbft
 
 import cats.effect.kernel.Async
 import co.topl.bridge.consensus.core.PeginWalletManager

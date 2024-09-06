@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.managers
+package co.topl.bridge.consensus.core.managers
 
 import cats.effect.IO
 import cats.effect.std.Queue

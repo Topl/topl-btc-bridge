@@ -1,4 +1,4 @@
-package co.topl.bridge.consensus.controllers
+package co.topl.bridge.consensus.core.controllers
 
 import cats.effect.IO
 import cats.effect.kernel.Ref

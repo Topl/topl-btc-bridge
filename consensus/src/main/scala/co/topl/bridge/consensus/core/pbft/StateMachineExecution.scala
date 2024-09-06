@@ -66,8 +66,6 @@ import co.topl.bridge.consensus.service.StartSessionRes
 import co.topl.bridge.consensus.service.StateMachineReply.Result
 import co.topl.bridge.consensus.shared.AssetToken
 import co.topl.bridge.consensus.shared.Lvl
-import co.topl.bridge.consensus.subsystems.monitor.WaitingBTCOps
-import co.topl.bridge.consensus.subsystems.monitor.WaitingForRedemptionOps
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.ClientId
