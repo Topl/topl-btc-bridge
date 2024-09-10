@@ -1,0 +1,8 @@
+{
+  "label": "Views",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "This diagram provides a high-level overview of the bridge."
+  }
+}

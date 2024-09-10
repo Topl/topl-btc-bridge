@@ -4,12 +4,12 @@
 // There are various equivalent ways to declare your Docusaurus config.
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import { themes as prismThemes } from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Topl BTC Bridge',
-  tagline: 'Topl BTC Bridge',
+  title: 'Strata Bridge',
+  tagline: 'Strata Bridge',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -20,7 +20,7 @@ const config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'Topl', // Usually your GitHub org/user name.
+  organizationName: 'StrataLab', // Usually your GitHub org/user name.
   projectName: 'topl-btc-bridge', // Usually your repo name.
 
   onBrokenLinks: 'throw',
@@ -58,9 +58,9 @@ const config = {
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
-        title: 'Topl BTC Bridge',
+        title: 'Strata Bridge',
         logo: {
-          alt: 'Topl BTC Bridge Logo',
+          alt: 'Strata Bridge Logo',
           src: 'img/logo.svg',
         },
         items: [
@@ -68,7 +68,7 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'Tutorial',
+            label: 'Architecture',
           },
           {
             href: 'https://github.com/Topl/topl-btc-bridge',
@@ -84,7 +84,7 @@ const config = {
             title: 'Docs',
             items: [
               {
-                label: 'Tutorial',
+                label: 'Architecture',
                 to: '/docs/intro',
               },
             ],
@@ -108,7 +108,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Topl, Inc. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Strata, Inc. Built with Docusaurus.`,
       },
       prism: {
         theme: prismThemes.github,
