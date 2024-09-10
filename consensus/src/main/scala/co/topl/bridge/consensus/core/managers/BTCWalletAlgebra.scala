@@ -16,7 +16,7 @@ trait BTCWalletAlgebra[F[_]] {
   def signForIdx(idx: Int, txBytes: ByteVector): F[ECDigitalSignature]
 }
 
-object BTCWalletImpl {
+object BTCWalletAlgebraImpl {
 
   def make[F[_]: Sync](
       km: BIP39KeyManager

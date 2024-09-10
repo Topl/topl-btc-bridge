@@ -16,9 +16,9 @@ import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.core.BridgeWalletManager
 import co.topl.bridge.consensus.core.CheckpointInterval
-import co.topl.bridge.consensus.core.CurrentBTCHeight
-import co.topl.bridge.consensus.core.CurrentToplHeight
-import co.topl.bridge.consensus.core.CurrentView
+import co.topl.bridge.consensus.core.CurrentBTCHeightRef
+import co.topl.bridge.consensus.core.CurrentToplHeightRef
+import co.topl.bridge.consensus.core.CurrentViewRef
 import co.topl.bridge.consensus.core.Fellowship
 import co.topl.bridge.consensus.core.LastReplyMap
 import co.topl.bridge.consensus.shared.PeginSessionState.PeginSessionMintingTBTCConfirmation
@@ -114,8 +114,8 @@ object StateMachineExecution {
       sessionManager: SessionManagerAlgebra[F],
       toplKeypair: ToplKeypair,
       sessionState: SessionState,
-      currentView: CurrentView[F],
-      currentBTCHeightRef: CurrentBTCHeight[F],
+      currentView: CurrentViewRef[F],
+      currentBTCHeightRef: CurrentBTCHeightRef[F],
       btcNetwork: BitcoinNetworkIdentifiers,
       pegInWalletManager: PeginWalletManager[F],
       bridgeWalletManager: BridgeWalletManager[F],
@@ -124,7 +124,7 @@ object StateMachineExecution {
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       tba: TransactionBuilderApi[F],
-      currentToplHeight: CurrentToplHeight[F],
+      currentToplHeight: CurrentToplHeightRef[F],
       walletApi: WalletApi[F],
       wsa: WalletStateAlgebra[F]
   ): F[Result] = {
@@ -304,7 +304,7 @@ object StateMachineExecution {
       sessionId: String,
       value: StateMachineRequest.Operation
   )(implicit
-      currentView: CurrentView[F],
+      currentView: CurrentViewRef[F],
       publicApiClientGrpcMap: PublicApiClientGrpcMap[F],
       sessionState: SessionState,
       groupIdIdentifier: GroupId,
@@ -341,7 +341,7 @@ object StateMachineExecution {
       clientNumber: Int,
       timestamp: Long
   )(implicit
-      currentView: CurrentView[F],
+      currentView: CurrentViewRef[F],
       publicApiClientGrpcMap: PublicApiClientGrpcMap[F]
   ) = {
     for {
@@ -365,12 +365,12 @@ object StateMachineExecution {
       storageApi: StorageApi[F],
       replicaCount: ReplicaCount,
       publicApiClientGrpcMap: PublicApiClientGrpcMap[F],
-      currentViewRef: CurrentView[F],
+      currentViewRef: CurrentViewRef[F],
       checkpointInterval: CheckpointInterval,
       sessionManager: SessionManagerAlgebra[F],
       toplKeypair: ToplKeypair,
       sessionState: SessionState,
-      currentBTCHeightRef: CurrentBTCHeight[F],
+      currentBTCHeightRef: CurrentBTCHeightRef[F],
       btcNetwork: BitcoinNetworkIdentifiers,
       pegInWalletManager: PeginWalletManager[F],
       bridgeWalletManager: BridgeWalletManager[F],
@@ -379,7 +379,7 @@ object StateMachineExecution {
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       tba: TransactionBuilderApi[F],
-      currentToplHeight: CurrentToplHeight[F],
+      currentToplHeight: CurrentToplHeightRef[F],
       walletApi: WalletApi[F],
       wsa: WalletStateAlgebra[F],
       groupIdIdentifier: GroupId,
@@ -451,11 +451,11 @@ object StateMachineExecution {
       request: co.topl.bridge.shared.StateMachineRequest
   )(implicit
       publicApiClientGrpcMap: PublicApiClientGrpcMap[F],
-      currentView: CurrentView[F],
+      currentView: CurrentViewRef[F],
       sessionManager: SessionManagerAlgebra[F],
       toplKeypair: ToplKeypair,
       sessionState: SessionState,
-      currentBTCHeightRef: CurrentBTCHeight[F],
+      currentBTCHeightRef: CurrentBTCHeightRef[F],
       btcNetwork: BitcoinNetworkIdentifiers,
       pegInWalletManager: PeginWalletManager[F],
       bridgeWalletManager: BridgeWalletManager[F],
@@ -464,7 +464,7 @@ object StateMachineExecution {
       toplWaitExpirationTime: ToplWaitExpirationTime,
       btcWaitExpirationTime: BTCWaitExpirationTime,
       tba: TransactionBuilderApi[F],
-      currentToplHeight: CurrentToplHeight[F],
+      currentToplHeight: CurrentToplHeightRef[F],
       walletApi: WalletApi[F],
       wsa: WalletStateAlgebra[F],
       groupIdIdentifier: GroupId,

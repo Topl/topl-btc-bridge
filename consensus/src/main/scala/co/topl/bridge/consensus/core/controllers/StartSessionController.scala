@@ -10,7 +10,7 @@ import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BitcoinNetworkIdentifiers
 import co.topl.bridge.consensus.core.BridgeWalletManager
-import co.topl.bridge.consensus.core.CurrentToplHeight
+import co.topl.bridge.consensus.core.CurrentToplHeightRef
 import co.topl.bridge.consensus.shared.PeginSessionState
 import co.topl.bridge.consensus.core.PeginWalletManager
 import co.topl.bridge.consensus.core.ToplKeypair
@@ -119,7 +119,7 @@ object StartSessionController {
       )(implicit
       toplKeypair: ToplKeypair,
       btcNetwork: BitcoinNetworkIdentifiers,
-      currentToplHeight: CurrentToplHeight[F],
+      currentToplHeight: CurrentToplHeightRef[F],
       pegInWalletManager: PeginWalletManager[F],
       bridgeWalletManager: BridgeWalletManager[F],
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],

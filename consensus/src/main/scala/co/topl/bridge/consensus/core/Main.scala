@@ -19,28 +19,30 @@ import co.topl.bridge.consensus.core.ConsensusParamsDescriptor
 import co.topl.bridge.consensus.core.ServerConfig
 import co.topl.bridge.consensus.core.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.consensus.core.managers.BTCWalletAlgebra
-import co.topl.bridge.consensus.core.managers.BTCWalletImpl
-import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
+import co.topl.bridge.consensus.core.managers.BTCWalletAlgebraImpl
 import co.topl.bridge.consensus.core.modules.AppModule
-import co.topl.bridge.consensus.subsystems.monitor.BlockProcessor
+import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.bridge.consensus.shared.persistence.StorageApi
 import co.topl.bridge.consensus.shared.persistence.StorageApiImpl
-import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import co.topl.bridge.consensus.core.utils.KeyGenerationUtils
-import co.topl.consensus.core.PBFTInternalGrpcServiceClient
-import co.topl.consensus.core.PBFTInternalGrpcServiceClientImpl
+import co.topl.bridge.consensus.shared.utils.ConfUtils._
+import co.topl.bridge.consensus.subsystems.monitor.BlockProcessor
+import co.topl.bridge.consensus.subsystems.monitor.SessionEvent
 import co.topl.bridge.shared.BridgeCryptoUtils
 import co.topl.bridge.shared.BridgeError
 import co.topl.bridge.shared.BridgeResponse
 import co.topl.bridge.shared.ClientCount
 import co.topl.bridge.shared.ClientId
-import co.topl.bridge.shared.StateMachineServiceGrpcClient
-import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
 import co.topl.bridge.shared.ConsensusClientMessageId
 import co.topl.bridge.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaId
 import co.topl.bridge.shared.ReplicaNode
 import co.topl.bridge.shared.ResponseGrpcServiceServer
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
+import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
+import co.topl.consensus.core.PBFTInternalGrpcServiceClient
+import co.topl.consensus.core.PBFTInternalGrpcServiceClientImpl
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
@@ -64,7 +66,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.LongAdder
 import scala.concurrent.ExecutionContext
-import co.topl.bridge.shared.ReplicaId
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -130,43 +131,6 @@ object Main
       params.btcWalletSeedFile,
       params.walletPassword
     )
-
-  private def createClientMap[F[_]: Async: Logger](
-      replicaKeyPair: KeyPair,
-      conf: Config
-  )(implicit
-      replicaId: ReplicaId,
-      clientCount: ClientCount
-  ): Resource[F, Map[ClientId, (PublicApiClientGrpc[F], PublicKey)]] = {
-    import cats.implicits._
-    (for (i <- 0 until clientCount.value) yield {
-      val publicKeyFile = conf.getString(
-        s"bridge.replica.clients.clients.$i.publicKeyFile"
-      )
-      val host = conf.getString(s"bridge.replica.clients.clients.$i.host")
-      val port = conf.getInt(s"bridge.replica.clients.clients.$i.port")
-      val secure = conf.getBoolean(
-        s"bridge.replica.clients.clients.$i.secure"
-      )
-      import fs2.grpc.syntax.all._
-      for {
-        publicKey <- BridgeCryptoUtils.getPublicKey(publicKeyFile)
-        channel <-
-          (if (secure)
-             ManagedChannelBuilder
-               .forAddress(host, port)
-               .useTransportSecurity()
-           else
-             ManagedChannelBuilder
-               .forAddress(host, port)
-               .usePlaintext()).resource[F]
-        publicApiGrpc <- PublicApiClientGrpcImpl.make[F](
-          channel,
-          replicaKeyPair
-        )
-      } yield (new ClientId(i) -> (publicApiGrpc, publicKey))
-    }).toList.sequence.map(x => Map(x: _*))
-  }
 
   private def loadReplicaNodeFromConfig[F[_]: Sync: Logger](
       conf: Config
@@ -256,7 +220,7 @@ object Main
     implicit val storageApiImpl = storageApi
     implicit val pbftProtocolClientImpl =
       new PublicApiClientGrpcMap[IO](publicApiClientGrpcMap)
-    implicit val currentViewRef = new CurrentView[IO](currentView)
+    implicit val currentViewRef = new CurrentViewRef[IO](currentView)
     for {
       currentToplHeightVal <- currentToplHeight.get
       currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
@@ -283,20 +247,6 @@ object Main
       res._3,
       res._4
     )
-  }
-
-  private def createReplicaPublicKeyMap[F[_]: Sync](
-      conf: Config
-  )(implicit replicaCount: ReplicaCount): F[Map[Int, PublicKey]] = {
-    import cats.implicits._
-    (for (i <- 0 until replicaCount.value) yield {
-      val publicKeyFile = conf.getString(
-        s"bridge.replica.consensus.replicas.$i.publicKeyFile"
-      )
-      for {
-        keyPair <- BridgeCryptoUtils.getPublicKey(publicKeyFile).allocated
-      } yield (i, keyPair._1)
-    }).toList.sequence.map(x => Map(x: _*))
   }
 
   def startResources(
@@ -563,8 +513,8 @@ object Main
       _ <- IO(Security.addProvider(new BouncyCastleProvider()))
       pegInKm <- loadKeyPegin(params)
       walletKm <- loadKeyWallet(params)
-      pegInWalletManager <- BTCWalletImpl.make[IO](pegInKm)
-      walletManager <- BTCWalletImpl.make[IO](walletKm)
+      pegInWalletManager <- BTCWalletAlgebraImpl.make[IO](pegInKm)
+      walletManager <- BTCWalletAlgebraImpl.make[IO](walletKm)
       _ <- printParams[IO](params)
       _ <- printConfig[IO]
       globalState <- Ref[IO].of(

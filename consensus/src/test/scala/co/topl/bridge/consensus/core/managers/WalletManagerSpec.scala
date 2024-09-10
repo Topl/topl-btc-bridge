@@ -15,7 +15,7 @@ class WalletManagerSpec extends CatsEffectSuite {
           "src/test/resources/wallet.json",
           "password"
         )
-        sut <- co.topl.bridge.consensus.core.managers.BTCWalletImpl.make[IO](km)
+        sut <- co.topl.bridge.consensus.core.managers.BTCWalletAlgebraImpl.make[IO](km)
         res <- sut.getCurrentPubKeyAndPrepareNext()
         (idx, pubKey) = res
         res <- sut.getCurrentPubKeyAndPrepareNext()
@@ -31,7 +31,7 @@ class WalletManagerSpec extends CatsEffectSuite {
           "src/test/resources/wallet.json",
           "password"
         )
-        sut <- co.topl.bridge.consensus.core.managers.BTCWalletImpl.make[IO](km)
+        sut <- co.topl.bridge.consensus.core.managers.BTCWalletAlgebraImpl.make[IO](km)
         res <- sut.getCurrentPubKeyAndPrepareNext()
         (idx, _) = res
         pubKey <- sut.getCurrentPubKey()

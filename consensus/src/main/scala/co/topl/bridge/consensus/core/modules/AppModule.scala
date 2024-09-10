@@ -20,9 +20,9 @@ import co.topl.bridge.consensus.shared.BTCRetryThreshold
 import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import co.topl.bridge.consensus.core.BridgeWalletManager
 import co.topl.bridge.consensus.core.CheckpointInterval
-import co.topl.bridge.consensus.core.CurrentBTCHeight
-import co.topl.bridge.consensus.core.CurrentToplHeight
-import co.topl.bridge.consensus.core.CurrentView
+import co.topl.bridge.consensus.core.CurrentBTCHeightRef
+import co.topl.bridge.consensus.core.CurrentToplHeightRef
+import co.topl.bridge.consensus.core.CurrentViewRef
 import co.topl.bridge.consensus.core.Fellowship
 import co.topl.bridge.consensus.core.KWatermark
 import co.topl.bridge.consensus.core.LastReplyMap
@@ -92,7 +92,7 @@ trait AppModule extends WalletStateResource {
       currentState: Ref[IO, SystemGlobalState]
   )(implicit
       publicApiClientGrpcMap: PublicApiClientGrpcMap[IO],
-      currentView: CurrentView[IO],
+      currentView: CurrentViewRef[IO],
       clientId: ClientId,
       storageApi: StorageApi[IO],
       consensusClient: StateMachineServiceGrpcClient[IO],
@@ -175,8 +175,8 @@ trait AppModule extends WalletStateResource {
         params.toplSecureConnection
       )
       implicit val currentBTCHeightRef =
-        new CurrentBTCHeight[IO](currentBitcoinNetworkHeight)
-      implicit val currentToplHeightRef = new CurrentToplHeight[IO](
+        new CurrentBTCHeightRef[IO](currentBitcoinNetworkHeight)
+      implicit val currentToplHeightRef = new CurrentToplHeightRef[IO](
         currentToplHeight
       )
       implicit val sessionState = new SessionState(

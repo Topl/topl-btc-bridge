@@ -67,7 +67,9 @@ object BridgeCryptoUtils {
     for {
       _ <- Sync[F].delay(sig.initVerify(publicKey))
       _ <- Sync[F].delay(sig.update(bytes))
-      verified <- Sync[F].delay(sig.verify(signature))
+      verified <- Sync[F]
+        .delay(sig.verify(signature))
+        .handleErrorWith(_ => Sync[F].pure(false))
     } yield verified
   }
 }

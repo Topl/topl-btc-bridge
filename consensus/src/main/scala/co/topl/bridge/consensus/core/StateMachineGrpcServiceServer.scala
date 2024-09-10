@@ -3,7 +3,7 @@ package co.topl.bridge.consensus.core
 import cats.effect.IO
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
-import co.topl.bridge.consensus.core.CurrentView
+import co.topl.bridge.consensus.core.CurrentViewRef
 import co.topl.bridge.consensus.core.LastReplyMap
 import co.topl.bridge.consensus.core.PublicApiClientGrpcMap
 import co.topl.bridge.consensus.shared.PeginSessionInfo
@@ -41,7 +41,7 @@ object StateMachineGrpcServiceServer {
       lastReplyMap: LastReplyMap,
       sessionManager: SessionManagerAlgebra[IO],
       publicApiClientGrpcMap: PublicApiClientGrpcMap[IO],
-      currentViewRef: CurrentView[IO],
+      currentViewRef: CurrentViewRef[IO],
       replicaId: ReplicaId,
       replicaCount: ReplicaCount,
       logger: Logger[IO]

@@ -20,10 +20,10 @@ package object core {
       extends AnyVal
   class BridgeWalletManager[F[_]](val underlying: BTCWalletAlgebra[F])
       extends AnyVal
-  class CurrentView[F[_]](val underlying: Ref[F, Long]) extends AnyVal
+  class CurrentViewRef[F[_]](val underlying: Ref[F, Long]) extends AnyVal
   class CheckpointInterval(val underlying: Int) extends AnyVal
-  class CurrentToplHeight[F[_]](val underlying: Ref[F, Long]) extends AnyVal
-  class CurrentBTCHeight[F[_]](val underlying: Ref[F, Int]) extends AnyVal
+  class CurrentToplHeightRef[F[_]](val underlying: Ref[F, Long]) extends AnyVal
+  class CurrentBTCHeightRef[F[_]](val underlying: Ref[F, Int]) extends AnyVal
   class ToplKeypair(val underlying: KeyPair) extends AnyVal
   class SessionState(val underlying: ConcurrentHashMap[String, PBFTState])
       extends AnyVal
