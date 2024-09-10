@@ -5,7 +5,6 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.effect.std.Mutex
 import cats.effect.std.Queue
@@ -58,7 +57,6 @@ import org.typelevel.log4cats.syntax._
 import scopt.OParser
 
 import java.net.InetSocketAddress
-import java.security.KeyPair
 import java.security.PublicKey
 import java.security.Security
 import java.security.{KeyPair => JKeyPair}

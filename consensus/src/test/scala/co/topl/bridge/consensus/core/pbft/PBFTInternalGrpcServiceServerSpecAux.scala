@@ -18,7 +18,6 @@ import co.topl.bridge.consensus.core.CurrentViewRef
 import co.topl.bridge.consensus.core.PeginWalletManager
 import co.topl.bridge.consensus.core.PublicApiClientGrpcMap
 import co.topl.bridge.consensus.core.RegTest
-import co.topl.bridge.consensus.core.SessionState
 import co.topl.bridge.consensus.core.StableCheckpoint
 import co.topl.bridge.consensus.core.StableCheckpointRef
 import co.topl.bridge.consensus.core.StateSnapshotRef
@@ -36,7 +35,6 @@ import io.grpc.ManagedChannel
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
 import org.typelevel.log4cats.Logger
 
-import java.util.concurrent.ConcurrentHashMap
 
 trait PBFTInternalGrpcServiceServerSpecAux extends SampleData {
 
@@ -72,7 +70,7 @@ trait PBFTInternalGrpcServiceServerSpecAux extends SampleData {
         .of[IO, (Long, String, Map[String, PBFTState])]((0L, "", Map.empty))
         .toResource
       stableCheckpoint <- Ref
-        .of[IO, StableCheckpoint](StableCheckpoint(0L, Map.empty, Map.empty))
+        .of[IO, StableCheckpoint](StableCheckpoint(100L, Map.empty, Map.empty))
         .toResource
       unstableCheckpoint <- Ref
         .of[
@@ -102,7 +100,6 @@ trait PBFTInternalGrpcServiceServerSpecAux extends SampleData {
       )
       implicit val currentViewRef = new CurrentViewRef(currentView)
       implicit val toplKeypair = new ToplKeypair(keypair)
-      implicit val sessionState = new SessionState(new ConcurrentHashMap())
       implicit val currentBTCHeightRef = new CurrentBTCHeightRef[IO](
         currentBTCHeight
       )

@@ -33,6 +33,7 @@ import org.typelevel.log4cats.Logger
 import java.security.Security
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import fs2.io.process
+import co.topl.bridge.shared.BridgeCryptoUtils
 
 class PBFTInternalGrpcServiceServerSpec
     extends CatsEffectSuite
@@ -141,10 +142,29 @@ class PBFTInternalGrpcServiceServerSpec
 
   val setupServer =
     ResourceFunFixture[
-      (PBFTInternalServiceFs2Grpc[IO, Metadata], Ref[IO, List[String]])
+      (
+          PBFTInternalServiceFs2Grpc[IO, Metadata],
+          Ref[IO, List[String]],
+          Ref[IO, List[String]]
+      )
     ] {
       Security.addProvider(new BouncyCastleProvider());
-      implicit val storageApiStub = new BaseStorageApi()
+      implicit val storageApiStub = new BaseStorageApi() {
+        override def getCheckpointMessage(
+            sequenceNumber: Long,
+            replicaId: Int
+        ): IO[Option[CheckpointRequest]] =
+          IO.pure(
+            Some(
+              CheckpointRequest(
+                sequenceNumber = 0L,
+                digest = ByteString.EMPTY,
+                replicaId = 1,
+                signature = ByteString.EMPTY
+              )
+            )
+          )
+      }
       val btcWalletAlgebraStub = new BaseBTCWalletAlgebra()
       implicit val peginWalletManager =
         new PeginWalletManager[IO](btcWalletAlgebraStub)
@@ -182,41 +202,113 @@ class PBFTInternalGrpcServiceServerSpec
 
       (for {
         loggedError <- Ref.of[IO, List[String]](List.empty).toResource
+        loggedWarning <- Ref.of[IO, List[String]](List.empty).toResource
       } yield {
         implicit val logger: Logger[IO] =
           new BaseLogger() {
             override def error(message: => String): IO[Unit] =
               loggedError.update(_ :+ message)
+
+            override def warn(message: => String): IO[Unit] =
+              loggedWarning.update(_ :+ message)
           }
         for {
           serverUnderTest <- createSimpleInternalServer(
             new BasePBFTInternalGrpcServiceClient()
           )
         } yield {
-          (serverUnderTest, loggedError)
+          (serverUnderTest, loggedError, loggedWarning)
         }
       }).flatten
     }
 
-  setupServer.test("checkpoint should check message signature") {
-    serverAndLogChecker =>
-      val (server, logChecker) = serverAndLogChecker
-      assertIO(
-        for {
+  setupServer.test(
+    "checkpoint should throw exception and log error on invalid signature"
+  ) { serverAndLogChecker =>
+    val (server, errorChecker, _) = serverAndLogChecker
+    assertIO(
+      for {
 
-          _ <- server.checkpoint(
-            CheckpointRequest(
-              sequenceNumber = 0L,
-              digest = ByteString.EMPTY,
-              replicaId = 0,
-              signature = ByteString.EMPTY
-            ),
-            new Metadata()
-          )
-          errorMessage <- logChecker.get
-        } yield errorMessage.head.contains("Signature verification failed"),
-        true
-      )
+        _ <- server.checkpoint(
+          CheckpointRequest(
+            sequenceNumber = 0L,
+            digest = ByteString.EMPTY,
+            replicaId = 0,
+            signature = ByteString.EMPTY
+          ),
+          new Metadata()
+        )
+        errorMessage <- errorChecker.get
+      } yield errorMessage.head.contains("Signature verification failed"),
+      true
+    )
+  }
+
+  setupServer.test(
+    "checkpoint should ignore message and log warning on old message"
+  ) { serverAndLogChecker =>
+    val (server, _, warningChecker) = serverAndLogChecker
+
+    import co.topl.bridge.shared.implicits._
+    val checkpointRequest = CheckpointRequest(
+      sequenceNumber = 0L,
+      digest = ByteString.copyFrom(createStateDigest(sessionState)),
+      replicaId = 1
+    )
+    assertIO(
+      for {
+        replicaKeyPair <- BridgeCryptoUtils
+          .getKeyPair[IO](privateKeyFile)
+          .use(IO.pure)
+        signedBytes <- BridgeCryptoUtils.signBytes[IO](
+          replicaKeyPair.getPrivate(),
+          checkpointRequest.signableBytes
+        )
+        _ <- server.checkpoint(
+          checkpointRequest.withSignature(
+            ByteString.copyFrom(signedBytes)
+          ),
+          new Metadata()
+        )
+        errorMessage <- warningChecker.get
+      } yield errorMessage.head.contains(
+        "Checkpoint message is older than last stable checkpoint"
+      ),
+      true
+    )
+  }
+  setupServer.test(
+    "checkpoint should ignore message if it already exists in the log"
+  ) { serverAndLogChecker =>
+    val (server, _, warningChecker) = serverAndLogChecker
+
+    import co.topl.bridge.shared.implicits._
+    val checkpointRequest = CheckpointRequest(
+      sequenceNumber = 100L,
+      digest = ByteString.copyFrom(createStateDigest(sessionState)),
+      replicaId = 1
+    )
+    assertIO(
+      for {
+        replicaKeyPair <- BridgeCryptoUtils
+          .getKeyPair[IO](privateKeyFile)
+          .use(IO.pure)
+        signedBytes <- BridgeCryptoUtils.signBytes[IO](
+          replicaKeyPair.getPrivate(),
+          checkpointRequest.signableBytes
+        )
+        _ <- server.checkpoint(
+          checkpointRequest.withSignature(
+            ByteString.copyFrom(signedBytes)
+          ),
+          new Metadata()
+        )
+        errorMessage <- warningChecker.get
+      } yield errorMessage.head.contains(
+        "The log is already present"
+      ),
+      true
+    )
   }
 
 }
