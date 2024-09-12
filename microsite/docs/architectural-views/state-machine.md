@@ -14,8 +14,8 @@ The following diagram shows repository layout of the bridge:
 
 The monitor has the following states:
 
-- **MWaitingForBTCDeposit**: The monitor is waiting for a deposit of BTC to the federation address.
-- **MConfirmingBTCDeposit**: The monitor is confirming the deposit of BTC to the federation address.
+- **MWaitingForBTCDeposit**: The monitor is waiting for a deposit of BTC to the escrow address.
+- **MConfirmingBTCDeposit**: The monitor is confirming the deposit of BTC to the escrow address.
 - **MMintingTBTC**: The monitor is minting tBTC.
 - **MConfirmingTBTCMint**: The monitor is confirming the mint of tBTC.
 - **MWaitingForRedemption**: The monitor is waiting for a redemption of tBTC.
