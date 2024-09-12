@@ -1,8 +1,8 @@
-package co.topl.bridge.consensus.utils
+package co.topl.bridge.consensus.core.utils
 
 import munit.CatsEffectSuite
 import org.bitcoins.core.config.RegTest
-import co.topl.bridge.consensus.utils.BitcoinUtils._
+import co.topl.bridge.consensus.core.utils.BitcoinUtils._
 import scodec.bits.ByteVector
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto.ECPrivateKey
@@ -10,7 +10,7 @@ import java.security.MessageDigest
 import org.bitcoins.core.protocol.transaction._
 import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.currency.Bitcoins
-import co.topl.bridge.consensus.BTCWaitExpirationTime
+import co.topl.bridge.consensus.shared.BTCWaitExpirationTime
 import org.bitcoins.core.protocol.script.ScriptSignature
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
 import org.bitcoins.core.script.constant.ScriptConstant

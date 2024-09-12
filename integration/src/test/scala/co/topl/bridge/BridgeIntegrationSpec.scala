@@ -81,7 +81,7 @@ class BridgeIntegrationSpec
           _ <- IO.asyncForIO.both(
             IO.asyncForIO
               .start(
-                consensus.Main.run(
+                consensus.core.Main.run(
                   List(
                     "--config-file",
                     "../consensus/src/main/resources/application.conf",

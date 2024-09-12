@@ -8,17 +8,16 @@ import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.effect.std.Mutex
 import cats.implicits._
-import co.topl.bridge.publicapi.modules.ApiServicesModule
-import co.topl.shared.BridgeCryptoUtils
-import co.topl.shared.BridgeError
-import co.topl.shared.BridgeResponse
-import co.topl.shared.ClientId
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.ConsensusClientGrpcImpl
-import co.topl.shared.ConsensusClientMessageId
-import co.topl.shared.ReplicaCount
-import co.topl.shared.ReplicaNode
-import co.topl.shared.modules.ReplyServicesModule
+import co.topl.bridge.shared.BridgeCryptoUtils
+import co.topl.bridge.shared.BridgeError
+import co.topl.bridge.shared.BridgeResponse
+import co.topl.bridge.shared.ClientId
+import co.topl.bridge.shared.StateMachineServiceGrpcClient
+import co.topl.bridge.shared.StateMachineServiceGrpcClientImpl
+import co.topl.bridge.shared.ConsensusClientMessageId
+import co.topl.bridge.shared.ReplicaCount
+import co.topl.bridge.shared.ReplicaNode
+import co.topl.bridge.shared.ResponseGrpcServiceServer
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
@@ -53,21 +52,17 @@ case object PeginSessionState {
       extends PeginSessionState
 }
 
-object Main
-    extends IOApp
-    with PublicApiParamsDescriptor
-    with ApiServicesModule
-    with ReplyServicesModule {
+object Main extends IOApp with PublicApiParamsDescriptor {
 
   def createApp(
-      consensusGrpcClients: ConsensusClientGrpc[IO]
+      consensusGrpcClients: StateMachineServiceGrpcClient[IO]
   )(implicit
       l: Logger[IO],
       clientNumber: ClientId
   ) = {
     val staticAssetsService = resourceServiceBuilder[IO]("/static").toRoutes
     val router = Router.define(
-      "/api" -> apiServices(
+      "/api" -> PublicApiHttpServiceServer.publicApiHttpServiceServer(
         consensusGrpcClients
       )
     )(default = staticAssetsService)
@@ -118,7 +113,7 @@ object Main
     for {
       keyPair <- BridgeCryptoUtils.getKeyPair[IO](privateKeyFile)
       mutex <- Mutex[IO].toResource
-      replicaClients <- ConsensusClientGrpcImpl
+      replicaClients <- StateMachineServiceGrpcClientImpl
         .makeContainer(
           currentViewRef,
           keyPair,
@@ -139,7 +134,7 @@ object Main
         )
         .withLogger(logger)
         .build
-      rService <- replyService[IO](
+      rService <- ResponseGrpcServiceServer.responseGrpcServiceServer[IO](
         currentViewRef,
         replicaKeysMap,
         messageVoterMap,

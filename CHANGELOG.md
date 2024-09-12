@@ -27,6 +27,7 @@ This is needed to know the range of blocks to wait for the redemption.
 - Added parameters `--abtc-group-id` and `--abtc-series-id` to specify the group and series of the asset to mint.
 - Added `replica.clientId` key in `consensus` module configuration.
 - Added `responses` configurat ion key in `consensus` module configuration.
+- Added `checkpoint-interval` parameter.
 
 
 ### Changed
