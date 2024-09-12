@@ -1,9 +1,17 @@
 package co.topl
 
-import co.topl.bridge.consensus.service.StateMachineRequest
+import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineReply
+import co.topl.bridge.consensus.pbft.PrePrepareRequest
+import co.topl.bridge.consensus.pbft.PrepareRequest
+import co.topl.bridge.consensus.pbft.CommitRequest
 
 package object shared {
+
+  
+  case class ReplicaId(
+      id: Int
+  )
 
   case class SessionId(
       id: String
@@ -23,7 +31,7 @@ package object shared {
   }
 
   class ClientCount(val value: Int) extends AnyVal
-  
+
   case class ReplicaNode[F[_]](
       id: Int,
       backendHost: String,
@@ -33,6 +41,32 @@ package object shared {
 
   object implicits {
 
+    implicit class PrePrepareRequestOp(val request: PrePrepareRequest) {
+      def signableBytes: Array[Byte] = {
+        BigInt(request.viewNumber).toByteArray ++
+          BigInt(request.sequenceNumber).toByteArray ++
+          request.digest.toByteArray()
+      }
+    }
+
+    implicit class CommitRequestOp(val request: CommitRequest) {
+      def signableBytes: Array[Byte] = {
+        BigInt(request.viewNumber).toByteArray ++
+          BigInt(request.sequenceNumber).toByteArray ++
+          request.digest.toByteArray() ++
+          BigInt(request.replicaId).toByteArray
+      }
+    }
+
+    implicit class PrepareRequestOp(val request: PrepareRequest) {
+      def signableBytes: Array[Byte] = {
+        BigInt(request.viewNumber).toByteArray ++
+          BigInt(request.sequenceNumber).toByteArray ++
+          request.digest.toByteArray() ++
+          BigInt(request.replicaId).toByteArray
+      }
+    }
+
     // add extension method to StateMachineRequest
     implicit class StateMachineRequestOp(val request: StateMachineRequest)
         extends AnyVal {
@@ -41,9 +75,6 @@ package object shared {
           BigInt(request.clientNumber).toByteArray ++
           request.operation.startSession
             .map(x => x.pkey.getBytes() ++ x.sha256.getBytes())
-            .getOrElse(Array.emptyByteArray) ++
-          request.operation.mintingStatus
-            .map(_.sessionId.getBytes())
             .getOrElse(Array.emptyByteArray)
       }
     }
@@ -62,9 +93,6 @@ package object shared {
                 x.minHeight
               ).toByteArray ++ BigInt(x.maxHeight).toByteArray
             )
-            .getOrElse(Array.emptyByteArray) ++
-          reply.result.mintingStatus
-            .map(_.sessionId.getBytes())
             .getOrElse(Array.emptyByteArray)
       }
     }

@@ -44,12 +44,14 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- generateToAddress(1, 10, newAddress)
         mintingStatusResponse <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
+            _ <- info"Current minting status: ${status.mintingStatus}"
           _ <- mintToplBlock(1, 1)
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(
             _.mintingStatus == "PeginSessionWaitingForRedemption"
           )
+        _ <- mintToplBlock(1, 1)
         _ <- createVkFile(vkFile)
         _ <- importVks(2)
         _ <- fundRedeemAddressTx(
@@ -70,6 +72,9 @@ trait SuccessfulPeginWithClaimReorgModule {
         groupId = extractGroupId(utxo)
         seriesId = extractSeriesId(utxo)
         currentAddress <- currentAddress(2)
+        // disconnect networks
+        _ <- setNetworkActive(2, false)
+        _ <- setNetworkActive(1, false)
         _ <- redeemAddressTx(
           2,
           currentAddress,
@@ -82,14 +87,12 @@ trait SuccessfulPeginWithClaimReorgModule {
           "redeemTx.pbuf",
           "redeemTxProved.pbuf"
         )
-        // disconnect networks
-        _ <- setNetworkActive(2, false)
-        _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
         _ <- mintToplBlock(1, 2)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
+        _ <- mintToplBlock(1, 7)
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
           _ <- generateToAddress(1, 1, newAddress)
@@ -107,6 +110,7 @@ trait SuccessfulPeginWithClaimReorgModule {
         _ <- forceConnection(2, ipBitcoin01, 18444)
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
+            _ <- info"Current minting status: ${status.mintingStatus}"
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(

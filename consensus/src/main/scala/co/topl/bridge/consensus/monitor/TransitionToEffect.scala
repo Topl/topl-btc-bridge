@@ -9,22 +9,22 @@ import co.topl.bridge.consensus.ToplWaitExpirationTime
 import co.topl.bridge.consensus.monitor.MConfirmingBTCDeposit
 import co.topl.bridge.consensus.monitor.MMintingTBTC
 import co.topl.bridge.consensus.monitor.MWaitingForBTCDeposit
-import co.topl.bridge.consensus.monitor.MintingTBTCConfirmation
+import co.topl.bridge.consensus.monitor.MConfirmingTBTCMint
 import co.topl.bridge.consensus.monitor.PeginStateMachineState
-import co.topl.bridge.consensus.monitor.WaitingForClaim
-import co.topl.bridge.consensus.monitor.WaitingForRedemption
-import co.topl.bridge.consensus.service.ConfirmClaimTxOperation
-import co.topl.bridge.consensus.service.ConfirmDepositBTCOperation
-import co.topl.bridge.consensus.service.ConfirmTBTCMintOperation
-import co.topl.bridge.consensus.service.PostClaimTxOperation
-import co.topl.bridge.consensus.service.PostDepositBTCOperation
-import co.topl.bridge.consensus.service.PostRedemptionTxOperation
-import co.topl.bridge.consensus.service.PostTBTCMintOperation
-import co.topl.bridge.consensus.service.TimeoutDepositBTCOperation
-import co.topl.bridge.consensus.service.TimeoutTBTCMintOperation
-import co.topl.bridge.consensus.service.UndoClaimTxOperation
-import co.topl.bridge.consensus.service.UndoDepositBTCOperation
-import co.topl.bridge.consensus.service.UndoTBTCMintOperation
+import co.topl.bridge.consensus.monitor.MWaitingForClaim
+import co.topl.bridge.consensus.monitor.MWaitingForRedemption
+import co.topl.bridge.shared.ConfirmClaimTxOperation
+import co.topl.bridge.shared.ConfirmDepositBTCOperation
+import co.topl.bridge.shared.ConfirmTBTCMintOperation
+import co.topl.bridge.shared.PostClaimTxOperation
+import co.topl.bridge.shared.PostDepositBTCOperation
+import co.topl.bridge.shared.PostRedemptionTxOperation
+import co.topl.bridge.shared.PostTBTCMintOperation
+import co.topl.bridge.shared.TimeoutDepositBTCOperation
+import co.topl.bridge.shared.TimeoutTBTCMintOperation
+import co.topl.bridge.shared.UndoClaimTxOperation
+import co.topl.bridge.shared.UndoDepositBTCOperation
+import co.topl.bridge.shared.UndoTBTCMintOperation
 import co.topl.shared.ClientId
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.SessionId
@@ -166,7 +166,7 @@ trait TransitionToEffect {
             )
             .void
         case ( // TODO: make sure that by the time we are here, the funds are already locked
-              _: MintingTBTCConfirmation,
+              _: MConfirmingTBTCMint,
               _: NewBTCBlock
             ) =>
           Async[F]
@@ -179,7 +179,7 @@ trait TransitionToEffect {
             )
             .void
         case (
-              cs: MintingTBTCConfirmation,
+              cs: MConfirmingTBTCMint,
               be: NewToplBlock
             ) =>
           if (
@@ -223,7 +223,7 @@ trait TransitionToEffect {
           else
             Async[F].unit
         case (
-              cs: WaitingForRedemption,
+              cs: MWaitingForRedemption,
               ev: BifrostFundsWithdrawn
             ) =>
           import co.topl.brambl.syntax._
@@ -245,7 +245,7 @@ trait TransitionToEffect {
             )
             .void
         case (
-              _: WaitingForRedemption,
+              _: MWaitingForRedemption,
               ev: NewToplBlock
             ) =>
           Async[F]
@@ -264,7 +264,7 @@ trait TransitionToEffect {
             )
             .void
         case (
-              _: WaitingForClaim,
+              _: MWaitingForClaim,
               ev: BTCFundsDeposited
             ) =>
           Async[F]
@@ -280,7 +280,7 @@ trait TransitionToEffect {
             )
             .void
         case (
-              cs: WaitingForClaimBTCConfirmation,
+              cs: MConfirmingBTCClaim,
               ev: NewBTCBlock
             ) =>
           if (
@@ -307,7 +307,7 @@ trait TransitionToEffect {
               )
               .void
         case (
-              cs: WaitingForClaim,
+              cs: MWaitingForClaim,
               ev: NewBTCBlock
             ) =>
           // if we the someStartBtcBlockHeight is empty, we need to set it

@@ -1,7 +1,6 @@
 package co.topl.bridge.consensus.controllers
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import co.topl.brambl.builders.TransactionBuilderApi
 import co.topl.brambl.dataApi.FellowshipStorageAlgebra
@@ -10,24 +9,21 @@ import co.topl.brambl.dataApi.WalletStateAlgebra
 import co.topl.brambl.wallet.WalletApi
 import co.topl.bridge.consensus.BTCWaitExpirationTime
 import co.topl.bridge.consensus.BitcoinNetworkIdentifiers
+import co.topl.bridge.consensus.BridgeWalletManager
+import co.topl.bridge.consensus.CurrentToplHeight
 import co.topl.bridge.consensus.PeginSessionState
-import co.topl.bridge.consensus.ToplNetworkIdentifiers
+import co.topl.bridge.consensus.PeginWalletManager
+import co.topl.bridge.consensus.ToplKeypair
 import co.topl.bridge.consensus.ToplWaitExpirationTime
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.PeginSessionInfo
-import co.topl.bridge.consensus.managers.PegoutSessionInfo
-import co.topl.bridge.consensus.managers.SessionManagerAlgebra
 import co.topl.bridge.consensus.managers.ToplWalletAlgebra
-import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.utils.BitcoinUtils
+import co.topl.bridge.shared.StartSessionOperation
 import co.topl.shared.BridgeError
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidInput
 import co.topl.shared.InvalidKey
 import co.topl.shared.StartPeginSessionResponse
-import co.topl.shared.StartPegoutSessionRequest
-import co.topl.shared.StartPegoutSessionResponse
-import co.topl.shared.WalletSetupError
 import org.bitcoins.core.protocol.Bech32Address
 import org.bitcoins.core.protocol.script.P2WPKHWitnessSPKV0
 import org.bitcoins.core.protocol.script.WitnessScriptPubKey
@@ -38,11 +34,9 @@ import org.bitcoins.core.util.BytesUtil
 import org.bitcoins.crypto.ECPublicKey
 import org.bitcoins.crypto._
 import org.typelevel.log4cats.Logger
-import quivr.models.KeyPair
 import scodec.bits.ByteVector
 
 import java.util.UUID
-import co.topl.bridge.consensus.managers.SessionInfo
 
 object StartSessionController {
 
@@ -122,12 +116,12 @@ object StartSessionController {
   def startPeginSession[F[_]: Async: Logger](
       sessionId: String,
       req: StartSessionOperation,
-      pegInWalletManager: BTCWalletAlgebra[F],
-      bridgeWalletManager: BTCWalletAlgebra[F],
-      keyPair: KeyPair,
-      currentToplHeight: Ref[F, Long],
-      btcNetwork: BitcoinNetworkIdentifiers
-  )(implicit
+      )(implicit
+      toplKeypair: ToplKeypair,
+      btcNetwork: BitcoinNetworkIdentifiers,
+      currentToplHeight: CurrentToplHeight[F],
+      pegInWalletManager: PeginWalletManager[F],
+      bridgeWalletManager: BridgeWalletManager[F],
       fellowshipStorageAlgebra: FellowshipStorageAlgebra[F],
       templateStorageAlgebra: TemplateStorageAlgebra[F],
       toplWaitExpirationTime: ToplWaitExpirationTime,
@@ -142,13 +136,13 @@ object StartSessionController {
     import org.typelevel.log4cats.syntax._
 
     (for {
-      idxAndnewKey <- pegInWalletManager.getCurrentPubKeyAndPrepareNext()
+      idxAndnewKey <- pegInWalletManager.underlying.getCurrentPubKeyAndPrepareNext()
       (btcPeginCurrentWalletIdx, btcPeginBridgePKey) = idxAndnewKey
-      bridgeIdxAndnewKey <- bridgeWalletManager.getCurrentPubKeyAndPrepareNext()
+      bridgeIdxAndnewKey <- bridgeWalletManager.underlying.getCurrentPubKeyAndPrepareNext()
       (btcBridgeCurrentWalletIdx, btcBridgePKey) = bridgeIdxAndnewKey
       mintTemplateName <- Sync[F].delay(UUID.randomUUID().toString)
       fromFellowship = mintTemplateName
-      minToplHeight <- currentToplHeight.get
+      minToplHeight <- currentToplHeight.underlying.get
       _ <-
         if (minToplHeight == 0)
           Sync[F].raiseError(new IllegalStateException("Topl height is 0"))
@@ -157,7 +151,7 @@ object StartSessionController {
       someRedeemAdressAndKey <- setupBridgeWalletForMinting(
         fromFellowship,
         mintTemplateName,
-        keyPair,
+        toplKeypair.underlying,
         req.sha256,
         minToplHeight,
         maxToplHeight

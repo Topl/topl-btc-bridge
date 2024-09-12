@@ -27,6 +27,8 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         txIdAndBTCAmount <- extractGetTxIdAndAmount
         (txId, btcAmount, btcAmountLong) = txIdAndBTCAmount
         startSessionResponse <- startSession(2)
+        _ <- info"minHeight: ${startSessionResponse.minHeight}"
+        _ <- info"maxHeight: ${startSessionResponse.maxHeight}"
         _ <- addTemplate(
           2,
           shaSecretMap(2),
@@ -43,7 +45,14 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- generateToAddress(1, 8, newAddress)
         mintingStatusResponse <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
-          _ <- mintToplBlock(1, 2)
+          _ <- info"Current minting status: ${status.mintingStatus}"
+          _ <-
+            if (
+              status.mintingStatus == "PeginSessionStateMintingTBTC" ||
+              status.mintingStatus == "PeginSessionMintingTBTCConfirmation"
+            )
+              mintToplBlock(1, 2)
+            else IO.unit
           _ <- IO.sleep(1.second)
         } yield status)
           .iterateUntil(
@@ -67,14 +76,17 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
         _ <- IO.sleep(1.second)
         _ <- mintToplBlock(1, 1)
         _ <- IO.sleep(1.second)
-        utxo <- (mintToplBlock(1, 1) >> getCurrentUtxosFromAddress(
+        utxo <- getCurrentUtxosFromAddress(
           2,
           mintingStatusResponse.address
-        ))
+        )
           .iterateUntil(_.contains("LVL"))
         groupId = extractGroupId(utxo)
         seriesId = extractSeriesId(utxo)
         currentAddress <- currentAddress(2)
+        // disconnect networks
+        _ <- setNetworkActive(2, false)
+        _ <- setNetworkActive(1, false)
         _ <- redeemAddressTx(
           2,
           currentAddress,
@@ -87,16 +99,15 @@ trait SuccessfulPeginWithClaimReorgRetryModule {
           "redeemTx.pbuf",
           "redeemTxProved.pbuf"
         )
-        // disconnect networks
-        _ <- setNetworkActive(2, false)
-        _ <- setNetworkActive(1, false)
         // broadcast
         _ <- broadcastFundRedeemAddressTx("redeemTxProved.pbuf")
         _ <- mintToplBlock(1, 1)
         _ <- getCurrentUtxosFromAddress(2, currentAddress)
           .iterateUntil(_.contains("Asset"))
+        _ <- mintToplBlock(1, 7)
         _ <- (for {
           status <- checkMintingStatus(startSessionResponse.sessionID)
+          _ <- info"Current minting status: ${status.mintingStatus}"
           _ <- generateToAddress(1, 1, newAddress)
           _ <- IO.sleep(1.second)
         } yield status)

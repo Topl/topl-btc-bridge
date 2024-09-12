@@ -13,6 +13,7 @@ import org.typelevel.log4cats.Logger
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
+import scala.util.Try
 
 class BridgeIntegrationSpec
     extends CatsEffectSuite
@@ -76,6 +77,7 @@ class BridgeIntegrationSpec
           currentAddress <- currentAddress(toplWalletDb)
           utxo <- getCurrentUtxosFromAddress(toplWalletDb, currentAddress)
           (groupId, seriesId) = extractIds(utxo)
+          _ <- IO(Try(Files.delete(Paths.get("bridge.db"))))
           _ <- IO.asyncForIO.both(
             IO.asyncForIO
               .start(
@@ -273,7 +275,7 @@ class BridgeIntegrationSpec
   }
 
   cleanupDir.test(
-    "Bridge should correctly retry if claim does not succeed".flaky
+    "Bridge should correctly retry if claim does not succeed"
   ) { _ =>
     info"Bridge should correctly retry if claim does not succeed" >> successfulPeginWithClaimErrorRetry()
   }

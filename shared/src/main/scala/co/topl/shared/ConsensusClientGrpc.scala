@@ -3,9 +3,9 @@ package co.topl.shared
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
-import co.topl.bridge.consensus.service.MintingStatusOperation
-import co.topl.bridge.consensus.service.StartSessionOperation
-import co.topl.bridge.consensus.service.StateMachineRequest
+import co.topl.bridge.shared.MintingStatusOperation
+import co.topl.bridge.shared.StartSessionOperation
+import co.topl.bridge.shared.StateMachineRequest
 import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
@@ -24,18 +24,19 @@ import java.security.KeyPair
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
 import cats.effect.std.Mutex
-import co.topl.bridge.consensus.service.PostDepositBTCOperation
-import co.topl.bridge.consensus.service.TimeoutDepositBTCOperation
-import co.topl.bridge.consensus.service.UndoDepositBTCOperation
-import co.topl.bridge.consensus.service.ConfirmDepositBTCOperation
-import co.topl.bridge.consensus.service.PostTBTCMintOperation
-import co.topl.bridge.consensus.service.TimeoutTBTCMintOperation
-import co.topl.bridge.consensus.service.UndoTBTCMintOperation
-import co.topl.bridge.consensus.service.ConfirmTBTCMintOperation
-import co.topl.bridge.consensus.service.PostRedemptionTxOperation
-import co.topl.bridge.consensus.service.PostClaimTxOperation
-import co.topl.bridge.consensus.service.ConfirmClaimTxOperation
-import co.topl.bridge.consensus.service.UndoClaimTxOperation
+import co.topl.bridge.shared.PostDepositBTCOperation
+import co.topl.bridge.shared.TimeoutDepositBTCOperation
+import co.topl.bridge.shared.UndoDepositBTCOperation
+import co.topl.bridge.shared.ConfirmDepositBTCOperation
+import co.topl.bridge.shared.PostTBTCMintOperation
+import co.topl.bridge.shared.TimeoutTBTCMintOperation
+import co.topl.bridge.shared.UndoTBTCMintOperation
+import co.topl.bridge.shared.ConfirmTBTCMintOperation
+import co.topl.bridge.shared.PostRedemptionTxOperation
+import co.topl.bridge.shared.PostClaimTxOperation
+import co.topl.bridge.shared.ConfirmClaimTxOperation
+import co.topl.bridge.shared.UndoClaimTxOperation
+import co.topl.bridge.consensus.service.MintingStatusReply
 
 trait ConsensusClientGrpc[F[_]] {
 
@@ -166,7 +167,7 @@ object ConsensusClientGrpcImpl {
           )
         } yield (replicaNode.id -> consensusClient)
       }).sequence
-      clientMap = idClientList.toMap
+      replicaMap = idClientList.toMap
     } yield new ConsensusClientGrpc[F] {
 
       def undoClaimTx(
@@ -344,13 +345,36 @@ object ConsensusClientGrpcImpl {
           mintingStatusOperation: MintingStatusOperation
       )(implicit
           clientNumber: ClientId
-      ): F[Either[BridgeError, BridgeResponse]] =
-        mutex.lock.surround(for {
-          request <- prepareRequest(
-            StateMachineRequest.Operation.MintingStatus(mintingStatusOperation)
-          )
-          response <- executeRequest(request)
-        } yield response)
+      ): F[Either[BridgeError, BridgeResponse]] = {
+        import cats.implicits._
+        mutex.lock.surround(
+          for {
+            currentView <- currentViewRef.get
+            _ <- info"Current view is $currentView"
+            _ <- info"Replica count is ${replicaCount.value}"
+            currentPrimary = (currentView % replicaCount.value).toInt
+            response <- replicaMap(currentPrimary)
+              .mintingStatus(mintingStatusOperation, new Metadata())
+          } yield response.result match {
+            case MintingStatusReply.Result.Empty =>
+              Left(
+                UnknownError(
+                  "This should not happen: Empty response"
+                )
+              )
+            case MintingStatusReply.Result.SessionNotFound(value) =>
+              Left(SessionNotFoundError(value.sessionId))
+            case MintingStatusReply.Result.MintingStatus(response) =>
+              Right {
+                MintingStatusResponse(
+                  mintingStatus = response.mintingStatus,
+                  address = response.address,
+                  redeemScript = response.redeemScript
+                )
+              }
+          }
+        )
+      }
 
       private def clearVoteTable(
           timestamp: Long
@@ -394,9 +418,7 @@ object ConsensusClientGrpcImpl {
               ) {
                 trace"Waiting for more votes" >> Async[F].sleep(
                   2.second
-                ) >> checkVoteResult(
-                  timestamp
-                )
+                ) >> checkVoteResult(timestamp)
               } else
                 clearVoteTable(timestamp) >> Async[F].delay(winner.getKey())
             case None => // there are no votes
@@ -434,11 +456,15 @@ object ConsensusClientGrpcImpl {
           _ <- info"Replica count is ${replicaCount.value}"
           currentPrimary = (currentView % replicaCount.value).toInt
           _ <- info"Current primary is $currentPrimary"
-          _ <- clientMap(currentPrimary).executeRequest(request, new Metadata())
+          _ <- info"Replica map: $replicaMap"
+          _ <- replicaMap(currentPrimary).executeRequest(
+            request,
+            new Metadata()
+          )
           _ <- trace"Waiting for response from backend"
           someResponse <- Async[F].race(
             Async[F].sleep(10.second) >> // wait for response
-              clientMap
+              replicaMap
                 .filter(x =>
                   x._1 != currentPrimary
                 ) // send to all replicas except primary
@@ -467,8 +493,8 @@ object ConsensusClientGrpcImpl {
             keyPair.getPrivate(),
             signableBytes
           )
-          signedRequest = request.copy(signature =
-            ByteString.copyFrom(signableBytes)
+          signedRequest = request.withSignature(
+            ByteString.copyFrom(signedBytes)
           )
         } yield signedRequest
     }

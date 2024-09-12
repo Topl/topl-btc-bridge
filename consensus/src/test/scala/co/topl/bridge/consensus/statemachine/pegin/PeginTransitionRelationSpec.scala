@@ -125,12 +125,12 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
   }
 
   test(
-    "PeginTransitionRelation should transition from WaitingForRedemption to BifrostFundsWithdrawn"
+    "PeginTransitionRelation should transition from WaitingForRedemption to MConfirmingRedemption"
   ) {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForRedemption(
+          MWaitingForRedemption(
             currentTolpBlockHeight = 1L,
             currentWalletIdx = 0,
             scriptAsm = "",
@@ -153,7 +153,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
         .nextState
-        .isInstanceOf[WaitingForClaim]
+        .isInstanceOf[MConfirmingRedemption]
     )
   }
 
@@ -163,7 +163,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForRedemption(
+          MWaitingForRedemption(
             currentTolpBlockHeight = 1L,
             currentWalletIdx = 0,
             scriptAsm = "",
@@ -189,7 +189,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForRedemption(
+          MWaitingForRedemption(
             currentTolpBlockHeight = 1L,
             currentWalletIdx = 0,
             scriptAsm = "",
@@ -212,7 +212,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .isEmpty &&
         MonitorTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForRedemption(
+            MWaitingForRedemption(
               currentTolpBlockHeight = 1L,
               currentWalletIdx = 0,
               scriptAsm = "",
@@ -243,7 +243,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForRedemption(
+          MWaitingForRedemption(
             currentTolpBlockHeight = 1L,
             currentWalletIdx = 0,
             scriptAsm = "",
@@ -260,7 +260,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .isEmpty &&
         MonitorTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForRedemption(
+            MWaitingForRedemption(
               currentTolpBlockHeight = 1L,
               currentWalletIdx = 0,
               scriptAsm = "",
@@ -284,7 +284,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaim(
+          MWaitingForClaim(
             someStartBtcBlockHeight =
               None, // Assuming None if not specified, adjust as necessary
             secret = "yourSecretHere", // Replace with actual secret
@@ -305,11 +305,11 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
         .nextState
-        .isInstanceOf[WaitingForClaimBTCConfirmation]
+        .isInstanceOf[MConfirmingBTCClaim]
         &&
           MonitorTransitionRelation
             .handleBlockchainEvent[IO](
-              WaitingForClaim(
+              MWaitingForClaim(
                 someStartBtcBlockHeight =
                   None, // Assuming None if not specified, adjust as necessary
                 secret = "yourSecretHere", // Replace with actual secret
@@ -339,7 +339,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       (MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaimBTCConfirmation(
+          MConfirmingBTCClaim(
             1,
             "secret",
             1,
@@ -355,7 +355,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .isInstanceOf[EndTransition[IO]]: @nowarn) &&
         MonitorTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForClaimBTCConfirmation(
+            MConfirmingBTCClaim(
               1,
               "secret",
               1,
@@ -377,7 +377,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaim(
+          MWaitingForClaim(
             someStartBtcBlockHeight =
               None, // Assuming None if not specified, adjust as necessary
             secret = "yourSecretHere", // Replace with actual secret
@@ -407,7 +407,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
     assert(
       MonitorTransitionRelation
         .handleBlockchainEvent[IO](
-          WaitingForClaim(
+          MWaitingForClaim(
             someStartBtcBlockHeight =
               None, // Assuming None if not specified, adjust as necessary
             secret = "yourSecretHere", // Replace with actual secret
@@ -439,7 +439,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .isEmpty &&
         MonitorTransitionRelation
           .handleBlockchainEvent[IO](
-            WaitingForClaim(
+            MWaitingForClaim(
               someStartBtcBlockHeight =
                 None, // Assuming None if not specified, adjust as necessary
               secret = "yourSecretHere", // Replace with actual secret
@@ -526,7 +526,7 @@ class PeginTransitionRelationSpec extends CatsEffectSuite with SharedData {
         .get
         .asInstanceOf[FSMTransitionTo[IO]]
         .nextState
-        .isInstanceOf[MintingTBTCConfirmation]
+        .isInstanceOf[MConfirmingTBTCMint]
     )
   }
 

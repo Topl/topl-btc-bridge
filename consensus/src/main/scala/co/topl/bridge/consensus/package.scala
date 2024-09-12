@@ -4,8 +4,36 @@ import _root_.quivr.models.Int128
 import io.grpc.ManagedChannelBuilder
 import cats.effect.kernel.Sync
 import fs2.grpc.syntax.all._
+import co.topl.bridge.consensus.managers.BTCWalletAlgebra
+import cats.effect.kernel.Ref
+import quivr.models.KeyPair
+import java.util.concurrent.ConcurrentHashMap
+import co.topl.bridge.consensus.pbft.PBFTState
+import co.topl.shared.ClientId
+import java.security.PublicKey
+import co.topl.bridge.consensus.service.StateMachineReply.Result
 
 package object consensus {
+
+  class PeginWalletManager[F[_]](val underlying: BTCWalletAlgebra[F])
+      extends AnyVal
+  class BridgeWalletManager[F[_]](val underlying: BTCWalletAlgebra[F])
+      extends AnyVal
+  class CurrentView[F[_]](val underlying: Ref[F, Long]) extends AnyVal
+  class CurrentToplHeight[F[_]](val underlying: Ref[F, Long]) extends AnyVal
+  class CurrentBTCHeight[F[_]](val underlying: Ref[F, Int]) extends AnyVal
+  class ToplKeypair(val underlying: KeyPair) extends AnyVal
+  class SessionState(val underlying: ConcurrentHashMap[String, PBFTState])
+      extends AnyVal
+  class PublicApiClientGrpcMap[F[_]](
+      val underlying: Map[
+        ClientId,
+        (PublicApiClientGrpc[F], PublicKey)
+      ]
+  ) extends AnyVal
+
+  class LastReplyMap(val underlying: ConcurrentHashMap[(ClientId, Long), Result])
+      extends AnyVal
 
   class BTCRetryThreshold(val underlying: Int) extends AnyVal
   class BTCWaitExpirationTime(val underlying: Int) extends AnyVal
@@ -34,10 +62,6 @@ package object consensus {
   sealed trait BifrostCurrencyUnit {
     val amount: Int128
   }
-
-  case class ReplicaId(
-      id: Int
-  )
 
 
   case class Lvl(amount: Int128) extends BifrostCurrencyUnit

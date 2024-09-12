@@ -6,16 +6,19 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
+import cats.effect.std.Mutex
 import cats.implicits._
-import co.topl.shared.ClientId
-import co.topl.shared.ConsensusClientGrpc
 import co.topl.bridge.publicapi.modules.ApiServicesModule
-import co.topl.shared.modules.ReplyServicesModule
 import co.topl.shared.BridgeCryptoUtils
 import co.topl.shared.BridgeError
 import co.topl.shared.BridgeResponse
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.ConsensusClientGrpcImpl
 import co.topl.shared.ConsensusClientMessageId
+import co.topl.shared.ReplicaCount
+import co.topl.shared.ReplicaNode
+import co.topl.shared.modules.ReplyServicesModule
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import fs2.grpc.syntax.all._
@@ -35,9 +38,6 @@ import java.security.PublicKey
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
-import co.topl.shared.ReplicaNode
-import co.topl.shared.ReplicaCount
-import cats.effect.std.Mutex
 
 sealed trait PeginSessionState
 

@@ -11,12 +11,16 @@ import co.topl.brambl.servicekit.WalletKeyApi
 import co.topl.brambl.servicekit.WalletStateApi
 import co.topl.brambl.servicekit.WalletStateResource
 import co.topl.brambl.wallet.WalletApi
+import co.topl.bridge.consensus.BridgeWalletManager
+import co.topl.bridge.consensus.CurrentToplHeight
+import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.RegTest
+import co.topl.bridge.consensus.ToplKeypair
 import co.topl.bridge.consensus.ToplPrivatenet
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.WalletManagementUtils
-import co.topl.bridge.consensus.service.StartSessionOperation
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
+import co.topl.bridge.shared.StartSessionOperation
 import co.topl.shared.InvalidHash
 import co.topl.shared.InvalidKey
 import munit.CatsEffectSuite
@@ -66,32 +70,37 @@ class StartSessionControllerSpec
       implicit val templateStorageApi =
         TemplateStorageApi.make(walletResource(toplWalletDb))
       assertIOBoolean(
-        for {
+        (for {
           km0 <- KeyGenerationUtils.createKeyManager[IO](
             RegTest,
             peginWalletFile,
             testPassword
           )
-          peginWallet <- BTCWalletImpl.make[IO](km0)
           keyPair <- walletManagementUtils.loadKeys(
             toplWalletFile,
             testToplPassword
           )
           currentToplHeight <- Ref[IO].of(1L)
-          res <- StartSessionController.startPeginSession(
-            "pegin",
-            StartSessionOperation(
-              None,
-              testKey,
-              testHash
-            ),
-            peginWallet,
-            peginWallet,
-            keyPair,
-            currentToplHeight,
-            RegTest
-          )
-        } yield (res.toOption.get._1.btcPeginCurrentWalletIdx == 0)
+        } yield {
+          implicit val peginWallet =
+            new PeginWalletManager(BTCWalletImpl.make[IO](km0).unsafeRunSync())
+          implicit val bridgeWallet =
+            new BridgeWalletManager(BTCWalletImpl.make[IO](km0).unsafeRunSync())
+          implicit val toplKeypair = new ToplKeypair(keyPair)
+          implicit val currentToplHeightRef =
+            new CurrentToplHeight[IO](currentToplHeight)
+          implicit val btcNetwork = RegTest
+          (for {
+            res <- StartSessionController.startPeginSession[IO](
+              "pegin",
+              StartSessionOperation(
+                None,
+                testKey,
+                testHash
+              )
+            )
+          } yield (res.toOption.get._1.btcPeginCurrentWalletIdx == 0))
+        }).flatten
       )
   }
 
@@ -115,36 +124,39 @@ class StartSessionControllerSpec
       FellowshipStorageApi.make(walletResource(toplWalletDb))
     implicit val templateStorageApi =
       TemplateStorageApi.make(walletResource(toplWalletDb))
-    assertIOBoolean(
-      for {
-        keypair <- walletManagementUtils.loadKeys(
-          toplWalletFile,
-          testToplPassword
-        )
-        km0 <- KeyGenerationUtils.createKeyManager[IO](
-          RegTest,
-          peginWalletFile,
-          testPassword
-        )
-        peginWallet <- BTCWalletImpl.make[IO](km0)
-        currentToplHeight <- Ref[IO].of(1L)
-        res <- StartSessionController.startPeginSession(
+    assertIOBoolean((for {
+      keypair <- walletManagementUtils.loadKeys(
+        toplWalletFile,
+        testToplPassword
+      )
+      km0 <- KeyGenerationUtils.createKeyManager[IO](
+        RegTest,
+        peginWalletFile,
+        testPassword
+      )
+      currentToplHeight <- Ref[IO].of(1L)
+    } yield {
+      implicit val peginWallet =
+        new PeginWalletManager(BTCWalletImpl.make[IO](km0).unsafeRunSync())
+      implicit val bridgeWallet =
+        new BridgeWalletManager(BTCWalletImpl.make[IO](km0).unsafeRunSync())
+      implicit val toplKeypair = new ToplKeypair(keypair)
+      implicit val currentToplHeightRef =
+        new CurrentToplHeight[IO](currentToplHeight)
+      implicit val btcNetwork = RegTest
+      (for {
+        res <- StartSessionController.startPeginSession[IO](
           "pegin",
           StartSessionOperation(
             None,
             "invalidKey",
             testHash
-          ),
-          peginWallet,
-          peginWallet,
-          keypair,
-          currentToplHeight,
-          RegTest
+          )
         )
       } yield res.isLeft && res.swap.toOption.get == InvalidKey(
         "Invalid key invalidKey"
-      )
-    )
+      ))
+    }).flatten)
   }
 
   test("StartSessionController should fai with invalid hash") {
@@ -165,8 +177,9 @@ class StartSessionControllerSpec
       FellowshipStorageApi.make(walletResource(toplWalletDb))
     implicit val templateStorageApi =
       TemplateStorageApi.make(walletResource(toplWalletDb))
+
     assertIOBoolean(
-      for {
+      (for {
         keypair <- walletManagementUtils.loadKeys(
           toplWalletFile,
           testToplPassword
@@ -176,24 +189,30 @@ class StartSessionControllerSpec
           peginWalletFile,
           testPassword
         )
-        peginWallet <- BTCWalletImpl.make[IO](km0)
         currentToplHeight <- Ref[IO].of(1L)
-        res <- StartSessionController.startPeginSession(
-          "pegin",
-          StartSessionOperation(
-            None,
-            testKey,
-            "invalidHash"
-          ),
-          peginWallet,
-          peginWallet,
-          keypair,
-          currentToplHeight,
-          RegTest
+
+      } yield {
+        implicit val peginWallet =
+          new PeginWalletManager(BTCWalletImpl.make[IO](km0).unsafeRunSync())
+        implicit val bridgeWallet =
+          new BridgeWalletManager(BTCWalletImpl.make[IO](km0).unsafeRunSync())
+        implicit val toplKeypair = new ToplKeypair(keypair)
+        implicit val currentToplHeightRef =
+          new CurrentToplHeight[IO](currentToplHeight)
+        implicit val btcNetwork = RegTest
+        for {
+          res <- StartSessionController.startPeginSession[IO](
+            "pegin",
+            StartSessionOperation(
+              None,
+              testKey,
+              "invalidHash"
+            )
+          )
+        } yield res.isLeft && res.swap.toOption.get == InvalidHash(
+          "Invalid hash invalidHash"
         )
-      } yield res.isLeft && res.swap.toOption.get == InvalidHash(
-        "Invalid hash invalidHash"
-      )
+      }).flatten
     )
   }
 

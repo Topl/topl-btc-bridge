@@ -1,8 +1,8 @@
 package co.topl.bridge.publicapi.modules
 
 import cats.effect.IO
-import co.topl.bridge.consensus.service.MintingStatusOperation
-import co.topl.bridge.consensus.service.StartSessionOperation
+import co.topl.bridge.shared.MintingStatusOperation
+import co.topl.bridge.shared.StartSessionOperation
 import co.topl.shared.ClientId
 import co.topl.shared.ConsensusClientGrpc
 import co.topl.shared.BridgeContants

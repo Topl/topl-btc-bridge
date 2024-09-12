@@ -6,6 +6,8 @@ import cats.effect.IOApp
 import cats.effect.kernel.Async
 import cats.effect.kernel.Ref
 import cats.effect.kernel.Resource
+import cats.effect.kernel.Sync
+import cats.effect.std.Mutex
 import cats.effect.std.Queue
 import co.topl.brambl.dataApi.BifrostQueryAlgebra
 import co.topl.brambl.models.GroupId
@@ -14,21 +16,35 @@ import co.topl.brambl.monitoring.BifrostMonitor
 import co.topl.brambl.monitoring.BitcoinMonitor
 import co.topl.brambl.utils.Encoding
 import co.topl.bridge.consensus.ConsensusParamsDescriptor
-import co.topl.bridge.consensus.ReplicaId
 import co.topl.bridge.consensus.ServerConfig
 import co.topl.bridge.consensus.ToplBTCBridgeConsensusParamConfig
 import co.topl.bridge.consensus.managers.BTCWalletAlgebra
 import co.topl.bridge.consensus.managers.BTCWalletImpl
 import co.topl.bridge.consensus.managers.SessionEvent
 import co.topl.bridge.consensus.modules.AppModule
-import co.topl.bridge.consensus.persistence.StorageApiImpl
 import co.topl.bridge.consensus.monitor.BlockProcessor
+import co.topl.bridge.consensus.persistence.StorageApi
+import co.topl.bridge.consensus.persistence.StorageApiImpl
+import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
 import co.topl.bridge.consensus.utils.KeyGenerationUtils
+import co.topl.consensus.PBFTProtocolClientGrpc
+import co.topl.consensus.PBFTProtocolClientGrpcImpl
 import co.topl.shared.BridgeCryptoUtils
+import co.topl.shared.BridgeError
+import co.topl.shared.BridgeResponse
+import co.topl.shared.ClientCount
+import co.topl.shared.ClientId
+import co.topl.shared.ConsensusClientGrpc
+import co.topl.shared.ConsensusClientGrpcImpl
+import co.topl.shared.ConsensusClientMessageId
+import co.topl.shared.ReplicaCount
+import co.topl.shared.ReplicaNode
+import co.topl.shared.modules.ReplyServicesModule
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Metadata
 import io.grpc.netty.NettyServerBuilder
 import org.bitcoins.keymanager.bip39.BIP39KeyManager
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
@@ -42,25 +58,12 @@ import java.net.InetSocketAddress
 import java.security.KeyPair
 import java.security.PublicKey
 import java.security.Security
-import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
-import co.topl.shared.ReplicaNode
-import cats.effect.kernel.Sync
-import co.topl.bridge.consensus.service.StateMachineServiceFs2Grpc
-import io.grpc.Metadata
-import co.topl.shared.ReplicaCount
-import co.topl.bridge.consensus.persistence.StorageApi
-import co.topl.shared.ConsensusClientGrpcImpl
-import cats.effect.std.Mutex
+import java.security.{KeyPair => JKeyPair}
 import java.util.concurrent.ConcurrentHashMap
-import co.topl.shared.ConsensusClientMessageId
-import co.topl.shared.BridgeError
-import co.topl.shared.BridgeResponse
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.LongAdder
-import co.topl.shared.ConsensusClientGrpc
-import co.topl.shared.ClientId
-import co.topl.shared.modules.ReplyServicesModule
-import co.topl.shared.ClientCount
+import scala.concurrent.ExecutionContext
+import co.topl.shared.ReplicaId
 
 case class SystemGlobalState(
     currentStatus: Option[String],
@@ -78,12 +81,15 @@ case object PeginSessionState {
   case object PeginSessionWaitingForRedemption extends PeginSessionState
   case object PeginSessionWaitingForClaim extends PeginSessionState
   case object PeginSessionMintingTBTCConfirmation extends PeginSessionState
+  case object PeginSessionConfirmingRedemption extends PeginSessionState
   case object PeginSessionWaitingForEscrowBTCConfirmation
       extends PeginSessionState
   case object PeginSessionWaitingForClaimBTCConfirmation
       extends PeginSessionState
 
   def withName(s: String): Option[PeginSessionState] = s match {
+    case "PeginSessionConfirmingRedemption" =>
+      Some(PeginSessionConfirmingRedemption)
     case "PeginSessionStateSuccessfulPegin" =>
       Some(PeginSessionStateSuccessfulPegin)
     case "PeginSessionStateTimeout" =>
@@ -254,6 +260,9 @@ object Main
   }
 
   def initializeForResources(
+      replicaKeysMap: Map[Int, PublicKey],
+      replicaKeyPair: JKeyPair,
+      pbftProtocolClient: PBFTProtocolClientGrpc[IO],
       storageApi: StorageApi[IO],
       consensusClient: ConsensusClientGrpc[IO],
       idReplicaClientMap: Map[Int, StateMachineServiceFs2Grpc[IO, Metadata]],
@@ -266,6 +275,7 @@ object Main
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentSequenceRef: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long],
       currentView: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
@@ -282,21 +292,26 @@ object Main
       logger: Logger[IO]
   ) = {
     implicit val consensusClientImpl = consensusClient
+    implicit val storageApiImpl = storageApi
+    implicit val pbftProtocolClientImpl =
+      new PublicApiClientGrpcMap[IO](publicApiClientGrpcMap)
+    implicit val currentViewRef = new CurrentView[IO](currentView)
     for {
       currentToplHeightVal <- currentToplHeight.get
       currentBitcoinNetworkHeightVal <- currentBitcoinNetworkHeight.get
       res <- createApp(
-        storageApi,
+        replicaKeysMap,
+        replicaKeyPair,
+        pbftProtocolClient,
         idReplicaClientMap,
         params,
-        publicApiClientGrpcMap,
         queue,
         walletManager,
         pegInWalletManager,
         logger,
         currentBitcoinNetworkHeight,
+        currentSequenceRef,
         currentToplHeight,
-        currentView,
         currentState
       )
     } yield (
@@ -304,7 +319,8 @@ object Main
       currentBitcoinNetworkHeightVal,
       res._1,
       res._2,
-      res._3
+      res._3,
+      res._4
     )
   }
 
@@ -329,6 +345,7 @@ object Main
       walletManager: BTCWalletAlgebra[IO],
       pegInWalletManager: BTCWalletAlgebra[IO],
       currentBitcoinNetworkHeight: Ref[IO, Int],
+      currentSequenceRef: Ref[IO, Long],
       currentToplHeight: Ref[IO, Long],
       currentViewRef: Ref[IO, Long],
       currentState: Ref[IO, SystemGlobalState]
@@ -347,6 +364,7 @@ object Main
       replicaCount: ReplicaCount
   ) = {
     import fs2.grpc.syntax.all._
+    import scala.jdk.CollectionConverters._
     val messageResponseMap =
       new ConcurrentHashMap[ConsensusClientMessageId, ConcurrentHashMap[Either[
         BridgeError,
@@ -368,6 +386,9 @@ object Main
       storageApi <- StorageApiImpl.make[IO](params.dbFile.toPath().toString())
       idReplicaClientMap <- createReplicaClienMap[IO](replicaNodes)
       mutex <- Mutex[IO].toResource
+      pbftProtocolClientGrpc <- PBFTProtocolClientGrpcImpl.make[IO](
+        replicaNodes
+      )
       replicaClients <- ConsensusClientGrpcImpl
         .makeContainer[IO](
           currentViewRef,
@@ -377,7 +398,11 @@ object Main
           messageVoterMap,
           messageResponseMap
         )
+      replicaKeysMap <- createReplicaPublicKeyMap[IO](conf).toResource
       res <- initializeForResources(
+        replicaKeysMap,
+        replicaKeyPair,
+        pbftProtocolClientGrpc,
         storageApi,
         replicaClients,
         idReplicaClientMap,
@@ -387,6 +412,7 @@ object Main
         walletManager,
         pegInWalletManager,
         currentBitcoinNetworkHeight,
+        currentSequenceRef,
         currentToplHeight,
         currentViewRef,
         currentState
@@ -396,8 +422,10 @@ object Main
         currentBitcoinNetworkHeightVal,
         grpcServiceResource,
         init,
-        peginStateMachine
+        peginStateMachine,
+        pbftServiceResource
       ) = res
+      pbftService <- pbftServiceResource
       bifrostQueryAlgebra = BifrostQueryAlgebra
         .make[IO](
           channelResource(
@@ -418,7 +446,6 @@ object Main
         bifrostQueryAlgebra
       )
       _ <- storageApi.initializeStorage().toResource
-      replicaKeysMap <- createReplicaPublicKeyMap[IO](conf).toResource
       responsesService <- replyService[IO](
         currentViewRef,
         replicaKeysMap,
@@ -440,7 +467,7 @@ object Main
       ).toResource
       replicaGrpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(replicaHost, replicaPort))
-        .addService(grpcService)
+        .addServices(List(grpcService, pbftService).asJava)
         .resource[IO]
       responsesGrpcListener <- NettyServerBuilder
         .forAddress(new InetSocketAddress(responseHost, responsePort))
@@ -585,6 +612,7 @@ object Main
       queue <- Queue.unbounded[IO, SessionEvent]
       currentBitcoinNetworkHeight <- Ref[IO].of(0)
       currentView <- Ref[IO].of(0L)
+      currentSequenceRef <- Ref[IO].of(0L)
       _ <- startResources(
         privateKeyFile,
         params,
@@ -592,6 +620,7 @@ object Main
         walletManager,
         pegInWalletManager,
         currentBitcoinNetworkHeight,
+        currentSequenceRef,
         currentToplHeight,
         currentView,
         globalState

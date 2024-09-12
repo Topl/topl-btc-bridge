@@ -1,9 +1,9 @@
 package co.topl.bridge.consensus.monitor
 
 import cats.effect.kernel.Async
-import co.topl.bridge.consensus.managers.BTCWalletAlgebra
+import co.topl.bridge.consensus.PeginWalletManager
 import co.topl.bridge.consensus.utils.BitcoinUtils
-import org.bitcoins.core.currency.SatoshisLong
+import org.bitcoins.core.currency.CurrencyUnit
 import org.bitcoins.core.protocol.script.NonStandardScriptSignature
 import org.bitcoins.core.protocol.script.P2WSHWitnessV0
 import org.bitcoins.core.protocol.script.RawScriptPubKey
@@ -11,9 +11,8 @@ import org.bitcoins.core.protocol.transaction.WitnessTransaction
 import org.bitcoins.core.script.constant.OP_0
 import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.crypto._
-import scodec.bits.ByteVector
 import org.bitcoins.rpc.client.common.BitcoindRpcClient
-import org.bitcoins.core.currency.CurrencyUnit
+import scodec.bits.ByteVector
 
 object WaitingForRedemptionOps {
 
@@ -25,9 +24,9 @@ object WaitingForRedemptionOps {
       vout: Long,
       scriptAsm: String,
       amountInSatoshis: CurrencyUnit
-      )(implicit
+  )(implicit
       bitcoindInstance: BitcoindRpcClient,
-      pegInWalletManager: BTCWalletAlgebra[F],
+      pegInWalletManager: PeginWalletManager[F],
       feePerByte: CurrencyUnit
   ) = {
 
@@ -49,7 +48,7 @@ object WaitingForRedemptionOps {
       )
     val signableBytes = CryptoUtil.doubleSHA256(serializedTxForSignature)
     for {
-      signature <- pegInWalletManager.signForIdx(
+      signature <- pegInWalletManager.underlying.signForIdx(
         currentWalletIdx,
         signableBytes.bytes
       )
