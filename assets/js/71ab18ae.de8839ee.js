@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkmicrosite=self.webpackChunkmicrosite||[]).push([[5923],{1988:s=>{s.exports=JSON.parse('{"label":"docusaurus","permalink":"/topl-btc-bridge/blog/tags/docusaurus","allTagsPath":"/topl-btc-bridge/blog/tags","count":4,"unlisted":false}')}}]);

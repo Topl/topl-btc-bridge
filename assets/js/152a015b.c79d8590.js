@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkmicrosite=self.webpackChunkmicrosite||[]).push([[574],{1548:e=>{e.exports=JSON.parse('{"label":"hello","permalink":"/topl-btc-bridge/blog/tags/hello","allTagsPath":"/topl-btc-bridge/blog/tags","count":2,"unlisted":false}')}}]);
